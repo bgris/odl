@@ -38,6 +38,7 @@ from . import diagnostics
 from . import solvers
 from . import trafos
 from . import tomo
+from . import deform
 from . import util
 from . import phantom
 from . import deform
