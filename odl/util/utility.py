@@ -20,7 +20,7 @@ from pkg_resources import parse_requirements
 
 
 __all__ = ('array1d_repr', 'array1d_str', 'arraynd_repr', 'arraynd_str',
-           'dtype_repr', 'snr' 'dtype_str', 'signature_string', 'indent_rows',
+           'dtype_repr', 'snr', 'dtype_str', 'signature_string', 'indent_rows',
            'is_scalar_dtype', 'is_int_dtype', 'is_floating_dtype',
            'is_real_dtype', 'is_real_floating_dtype',
            'is_complex_floating_dtype', 'real_dtype', 'complex_dtype',
