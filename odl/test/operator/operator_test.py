@@ -15,19 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with ODL.  If not, see <http://www.gnu.org/licenses/>.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-from builtins import super
-
-# External module imports
 import pytest
 import numpy as np
 import sys
 
-# ODL imports
 import odl
 from odl import (Operator, OperatorSum, OperatorComp,
                  OperatorLeftScalarMult, OperatorRightScalarMult,
@@ -47,7 +38,7 @@ class MultiplyAndSquareOp(Operator):
         ran = (odl.rn(matrix.shape[0])
                if range is None else range)
 
-        super().__init__(dom, ran)
+        Operator.__init__(self, dom, ran)
         self.matrix = matrix
 
     def _call(self, rhs, out=None):
