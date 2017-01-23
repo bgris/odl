@@ -132,11 +132,11 @@ def test_pointwise_norm_real(exponent):
 
     func = vfspace.element(testarr)
     func_pwnorm = pwnorm(func)
-    assert all_almost_equal(func_pwnorm, true_norm.reshape(-1))
+    assert all_almost_equal(func_pwnorm, true_norm)
 
     out = fspace.element()
     pwnorm(func, out=out)
-    assert all_almost_equal(out, true_norm.reshape(-1))
+    assert all_almost_equal(out, true_norm)
 
     # 3d
     fspace = odl.uniform_discr([0, 0], [1, 1], (2, 2))
@@ -154,11 +154,11 @@ def test_pointwise_norm_real(exponent):
 
     func = vfspace.element(testarr)
     func_pwnorm = pwnorm(func)
-    assert all_almost_equal(func_pwnorm, true_norm.reshape(-1))
+    assert all_almost_equal(func_pwnorm, true_norm)
 
     out = fspace.element()
     pwnorm(func, out=out)
-    assert all_almost_equal(out, true_norm.reshape(-1))
+    assert all_almost_equal(out, true_norm)
 
 
 def test_pointwise_norm_complex(exponent):
@@ -177,11 +177,11 @@ def test_pointwise_norm_complex(exponent):
 
     func = vfspace.element(testarr)
     func_pwnorm = pwnorm(func)
-    assert all_almost_equal(func_pwnorm, true_norm.reshape(-1))
+    assert all_almost_equal(func_pwnorm, true_norm)
 
     out = fspace.element()
     pwnorm(func, out=out)
-    assert all_almost_equal(out, true_norm.reshape(-1))
+    assert all_almost_equal(out, true_norm)
 
 
 def test_pointwise_norm_weighted(exponent):
@@ -207,11 +207,11 @@ def test_pointwise_norm_weighted(exponent):
 
     func = vfspace.element(testarr)
     func_pwnorm = pwnorm(func)
-    assert all_almost_equal(func_pwnorm, true_norm.reshape(-1))
+    assert all_almost_equal(func_pwnorm, true_norm)
 
     out = fspace.element()
     pwnorm(func, out=out)
-    assert all_almost_equal(out, true_norm.reshape(-1))
+    assert all_almost_equal(out, true_norm)
 
 
 # ---- PointwiseInner ----
@@ -259,11 +259,11 @@ def test_pointwise_inner_real():
 
     func = vfspace.element(testarr)
     func_pwinner = pwinner(func)
-    assert all_almost_equal(func_pwinner, true_inner.reshape(-1))
+    assert all_almost_equal(func_pwinner, true_inner)
 
     out = fspace.element()
     pwinner(func, out=out)
-    assert all_almost_equal(out, true_inner.reshape(-1))
+    assert all_almost_equal(out, true_inner)
 
     # 3d
     fspace = odl.uniform_discr([0, 0], [1, 1], (2, 2))
@@ -287,11 +287,11 @@ def test_pointwise_inner_real():
 
     func = vfspace.element(testarr)
     func_pwinner = pwinner(func)
-    assert all_almost_equal(func_pwinner, true_inner.reshape(-1))
+    assert all_almost_equal(func_pwinner, true_inner)
 
     out = fspace.element()
     pwinner(func, out=out)
-    assert all_almost_equal(out, true_inner.reshape(-1))
+    assert all_almost_equal(out, true_inner)
 
 
 def test_pointwise_inner_complex():
@@ -316,11 +316,11 @@ def test_pointwise_inner_complex():
 
     func = vfspace.element(testarr)
     func_pwinner = pwinner(func)
-    assert all_almost_equal(func_pwinner, true_inner.reshape(-1))
+    assert all_almost_equal(func_pwinner, true_inner)
 
     out = fspace.element()
     pwinner(func, out=out)
-    assert all_almost_equal(out, true_inner.reshape(-1))
+    assert all_almost_equal(out, true_inner)
 
 
 def test_pointwise_inner_weighted():
@@ -347,11 +347,11 @@ def test_pointwise_inner_weighted():
 
     func = vfspace.element(testarr)
     func_pwinner = pwinner(func)
-    assert all_almost_equal(func_pwinner, true_inner.reshape(-1))
+    assert all_almost_equal(func_pwinner, true_inner)
 
     out = fspace.element()
     pwinner(func, out=out)
-    assert all_almost_equal(out, true_inner.reshape(-1))
+    assert all_almost_equal(out, true_inner)
 
 
 def test_pointwise_inner_adjoint():
@@ -369,12 +369,11 @@ def test_pointwise_inner_adjoint():
 
     testfunc = fspace.element(testarr)
     testfunc_pwinner_adj = pwinner.adjoint(testfunc)
-    assert all_almost_equal(testfunc_pwinner_adj,
-                            true_inner_adj.reshape([1, -1]))
+    assert all_almost_equal(testfunc_pwinner_adj, true_inner_adj)
 
     out = vfspace.element()
     pwinner.adjoint(testfunc, out=out)
-    assert all_almost_equal(out, true_inner_adj.reshape([1, -1]))
+    assert all_almost_equal(out, true_inner_adj)
 
     # 3d
     fspace = odl.uniform_discr([0, 0], [1, 1], (2, 2), dtype=complex)
@@ -394,12 +393,11 @@ def test_pointwise_inner_adjoint():
 
     testfunc = fspace.element(testarr)
     testfunc_pwinner_adj = pwinner.adjoint(testfunc)
-    assert all_almost_equal(testfunc_pwinner_adj,
-                            true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(testfunc_pwinner_adj, true_inner_adj)
 
     out = vfspace.element()
     pwinner.adjoint(testfunc, out=out)
-    assert all_almost_equal(out, true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(out, true_inner_adj)
 
 
 def test_pointwise_inner_adjoint_weighted():
@@ -421,12 +419,11 @@ def test_pointwise_inner_adjoint_weighted():
 
     testfunc = fspace.element(testarr)
     testfunc_pwinner_adj = pwinner.adjoint(testfunc)
-    assert all_almost_equal(testfunc_pwinner_adj,
-                            true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(testfunc_pwinner_adj, true_inner_adj)
 
     out = vfspace.element()
     pwinner.adjoint(testfunc, out=out)
-    assert all_almost_equal(out, true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(out, true_inner_adj)
 
     # Using different weighting in the inner product
     pwinner = PointwiseInner(vfspace, vecfield=array, weighting=[4, 8, 12])
@@ -438,12 +435,11 @@ def test_pointwise_inner_adjoint_weighted():
 
     testfunc = fspace.element(testarr)
     testfunc_pwinner_adj = pwinner.adjoint(testfunc)
-    assert all_almost_equal(testfunc_pwinner_adj,
-                            true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(testfunc_pwinner_adj, true_inner_adj)
 
     out = vfspace.element()
     pwinner.adjoint(testfunc, out=out)
-    assert all_almost_equal(out, true_inner_adj.reshape([3, -1]))
+    assert all_almost_equal(out, true_inner_adj)
 
 
 # ---- PointwiseSum ----
