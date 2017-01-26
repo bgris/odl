@@ -25,11 +25,12 @@ standard_library.install_aliases()
 from builtins import super
 
 import numpy as np
+import scipy
 import scipy.linalg as linalg
 from scipy.sparse.base import isspmatrix
 
 from odl.space.base_tensors import Tensor
-from odl.util import array1d_repr, arraynd_repr, signature_string, indent_rows
+from odl.util import arraynd_repr, signature_string, indent_rows
 
 
 __all__ = ('MatrixWeighting', 'ArrayWeighting', 'ConstWeighting',
@@ -290,7 +291,7 @@ class MatrixWeighting(Weighting):
             raise ValueError('matrix has shape {}, expected a square matrix'
                              ''.format(self._matrix.shape))
 
-        if (self.matrix_issparse and
+        if (scipy.sparse.isspmatrix(self.matrix) and
                 self.exponent not in (1.0, 2.0, float('inf'))):
             raise NotImplementedError('sparse matrices only supported for '
                                       'exponent 1.0, 2.0 or `inf`')
@@ -316,11 +317,6 @@ class MatrixWeighting(Weighting):
         """Weighting matrix of this inner product."""
         return self._matrix
 
-    @property
-    def matrix_issparse(self):
-        """Whether the representing matrix is sparse or not."""
-        return isspmatrix(self.matrix)
-
     def is_valid(self):
         """Test if the matrix is positive definite Hermitian.
 
@@ -330,7 +326,7 @@ class MatrixWeighting(Weighting):
         which can be very time-consuming for large matrices. Sparse
         matrices are not supported.
         """
-        if self.matrix_issparse:
+        if scipy.sparse.isspmatrix(self.matrix):
             raise NotImplementedError('validation not supported for sparse '
                                       'matrices')
         elif self._eigval is not None:
@@ -372,7 +368,7 @@ class MatrixWeighting(Weighting):
             if the matrix is sparse (not supported by scipy 0.17)
         """
         # TODO: fix dead link `scipy.linalg.decomp.eigh`
-        if self.matrix_issparse:
+        if scipy.sparse.isspmatrix(self.matrix):
             raise NotImplementedError('sparse matrix not supported')
 
         if cache is None:
@@ -434,7 +430,7 @@ class MatrixWeighting(Weighting):
             if self.matrix.shape != other.matrix.shape:
                 return False
 
-            if self.matrix_issparse:
+            if scipy.sparse.isspmatrix(self.matrix):
                 if other.matrix_issparse:
                     # Optimization for different number of nonzero elements
                     if self.matrix.nnz != other.matrix.nnz:
@@ -452,7 +448,7 @@ class MatrixWeighting(Weighting):
                     return np.array_equal(self.matrix, other.matrix)
 
         elif isinstance(other, ArrayWeighting):
-            if self.matrix_issparse:
+            if scipy.sparse.isspmatrix(self.matrix):
                 return (np.array_equiv(self.matrix.diagonal(),
                                        other.array) and
                         np.array_equal(self.matrix.asformat('dia').offsets,
@@ -462,7 +458,7 @@ class MatrixWeighting(Weighting):
                     self.matrix, other.array * np.eye(self.matrix.shape[0]))
 
         elif isinstance(other, ConstWeighting):
-            if self.matrix_issparse:
+            if scipy.sparse.isspmatrix(self.matrix):
                 return (np.array_equiv(self.matrix.diagonal(), other.const) and
                         np.array_equal(self.matrix.asformat('dia').offsets,
                                        np.array([0])))
@@ -475,7 +471,7 @@ class MatrixWeighting(Weighting):
     @property
     def repr_part(self):
         """Return a string usable in a space's ``__repr__`` method."""
-        if self.matrix_issparse:
+        if scipy.sparse.isspmatrix(self.matrix):
             part = 'weighting={}'.format(self.matrix)
         else:
             part = 'weighting={}'.format(arraynd_repr(self.matrix, nprint=10))
@@ -487,7 +483,7 @@ class MatrixWeighting(Weighting):
 
     def __repr__(self):
         """Return ``repr(self)``."""
-        if self.matrix_issparse:
+        if scipy.sparse.isspmatrix(self.matrix):
             inner_fstr = ('<{shape} sparse matrix, format {fmt!r}, {nnz} '
                           'stored entries>')
             fmt = self.matrix.format
@@ -602,7 +598,7 @@ class ArrayWeighting(Weighting):
     def __hash__(self):
         """Return ``hash(self)``."""
         # TODO: Better hash for array?
-        return super().__hash__() ^ hash(self.array.tostring())
+        return super().__hash__() ^ hash(self.array.tobytes())
 
     def equiv(self, other):
         """Return True if other is an equivalent weighting.
@@ -688,8 +684,7 @@ class ConstWeighting(Weighting):
 
     def __hash__(self):
         """Return ``hash(self)``."""
-        return hash((type(self), self.const, self.impl, self.exponent,
-                     self.dist_using_inner))
+        return hash((super().__hash__(), self.const))
 
     @property
     def const(self):
@@ -710,10 +705,6 @@ class ConstWeighting(Weighting):
 
         return (super().__eq__(other) and
                 self.const == getattr(other, 'const', None))
-
-    def __hash__(self):
-        """Return ``hash(self)``."""
-        return super().__hash__() ^ hash(self.const)
 
     def equiv(self, other):
         """Test if other is an equivalent weighting.

@@ -36,10 +36,10 @@ from odl.space.weighting import (
     Weighting, ArrayWeighting, ConstWeighting, NoWeighting,
     CustomInner, CustomNorm, CustomDist)
 from odl.util import dtype_str, signature_string, is_real_dtype
-from odl.util.ufuncs import NumpyTensorSetUfuncs
+from odl.util.ufuncs import NumpyTensorSpaceUfuncs
 
 
-__all__ = ('NumpyTensorSet', 'NumpyTensorSpace')
+__all__ = ('NumpyTensorSpace',)
 
 
 _BLAS_DTYPES = (np.dtype('float32'), np.dtype('float64'),
@@ -237,7 +237,7 @@ class NumpyTensorSpace(TensorSpace):
         norm = kwargs.pop('norm', None)
         inner = kwargs.pop('inner', None)
         weighting = kwargs.pop('weighting', None)
-        exponent = kwargs.pop('exponent', 2.0)
+        exponent = kwargs.pop('exponent', getattr(weighting, 'exponent', 2.0))
         dist_using_inner = bool(kwargs.pop('dist_using_inner', False))
 
         if (not self.is_numeric and
@@ -1088,8 +1088,6 @@ class NumpyTensor(Tensor):
         Be aware of unsafe casts and over-/underflows, there
         will be warnings at maximum.
 
-<<<<<<< HEAD
-=======
         >>> space = odl.tensor_space((2, 3), 'uint8')
         >>> x = space.element([[0, 0, 0],
         ...                    [1, 1, 1]])
@@ -1106,7 +1104,6 @@ class NumpyTensor(Tensor):
         else:
             self.data[indices] = values
 
->>>>>>> MAINT: scrap *Set classes, closes #860
     @property
     def real(self):
         """Real part of ``self``.
