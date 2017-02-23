@@ -19,3 +19,6 @@ __all__ += linearized.__all__
 
 from .optimal_information_transport import *
 __all__ += optimal_information_transport.__all__
+
+from .read_mrc_data import *
+__all__ += read_mrc_data.__all__
