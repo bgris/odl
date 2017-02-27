@@ -28,7 +28,7 @@ from abc import ABCMeta, abstractmethod
 from numbers import Integral, Real, Complex
 import numpy as np
 
-from odl.util import is_int_dtype, is_real_dtype, is_scalar_dtype
+from odl.util import is_int_dtype, is_real_dtype, is_numeric_dtype
 from odl.util.utility import with_metaclass
 
 
@@ -360,7 +360,7 @@ class ComplexNumbers(Field):
         dtype = getattr(other, 'dtype', None)
         if dtype is None:
             dtype = np.result_type(*other)
-        return is_scalar_dtype(dtype)
+        return is_numeric_dtype(dtype)
 
     def __eq__(self, other):
         """Return ``self == other``."""
