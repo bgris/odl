@@ -134,8 +134,6 @@ class NumpyTensorSpace(TensorSpace):
             mathematical requirements.
 
             By default, ``dist(x, y)`` is calculated as ``norm(x - y)``.
-            This creates an intermediate array ``x - y``, which can be
-            avoided by choosing ``dist_using_inner=True``.
 
             This option cannot be combined with ``weight``,
             ``norm`` or ``inner``. It also cannot be used in case of
@@ -161,19 +159,6 @@ class NumpyTensorSpace(TensorSpace):
             This option cannot be combined with ``weight``,
             ``dist`` or ``norm``. It also cannot be used in case of
             non-numeric ``dtype``.
-
-        dist_using_inner : bool, optional
-            Calculate ``dist`` using the formula
-
-                ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-            This avoids the creation of new arrays and is thus faster
-            for large arrays. On the downside, it will not evaluate to
-            exactly zero for equal (but not identical) ``x`` and ``y``.
-
-            This option can only be used if ``exponent`` is 2.0.
-
-            Default: False.
 
         kwargs :
             Further keyword arguments are passed to the weighting
@@ -246,7 +231,6 @@ class NumpyTensorSpace(TensorSpace):
         inner = kwargs.pop('inner', None)
         weighting = kwargs.pop('weighting', None)
         exponent = kwargs.pop('exponent', getattr(weighting, 'exponent', 2.0))
-        dist_using_inner = bool(kwargs.pop('dist_using_inner', False))
 
         if (not is_numeric_dtype(self.dtype) and
                 any(x is not None for x in (dist, norm, inner, weighting))):
@@ -271,15 +255,9 @@ class NumpyTensorSpace(TensorSpace):
                     raise ValueError('`weighting.exponent` conflicts with '
                                      '`exponent`: {} != {}'
                                      ''.format(weighting.exponent, exponent))
-                if weighting.dist_using_inner != dist_using_inner:
-                    raise ValueError('`weighting.dist_using_inner` conflicts '
-                                     'with `dist_using_inner`: {} != {}'
-                                     ''.format(weighting.dist_using_inner,
-                                               dist_using_inner))
                 self.__weighting = weighting
             else:
-                self.__weighting = _weighting(
-                    weighting, exponent, dist_using_inner=dist_using_inner)
+                self.__weighting = _weighting(weighting, exponent)
 
             # Check (afterwards) that the weighting input was sane
             if isinstance(self.weighting, NumpyTensorSpaceArrayWeighting):
@@ -305,8 +283,7 @@ class NumpyTensorSpace(TensorSpace):
         elif inner is not None:
             self.__weighting = NumpyTensorSpaceCustomInner(inner)
         else:
-            self.__weighting = NumpyTensorSpaceNoWeighting(
-                exponent, dist_using_inner=dist_using_inner)
+            self.__weighting = NumpyTensorSpaceNoWeighting(exponent)
 
     @property
     def impl(self):
@@ -1538,18 +1515,15 @@ def _lincomb(a, x1, b, x2, out, dtype):
     out.data[:] = out_arr.reshape(out.shape, order=ravel_order)
 
 
-def _weighting(weights, exponent, dist_using_inner=False):
+def _weighting(weights, exponent):
     """Return a weighting whose type is inferred from the arguments."""
     if np.isscalar(weights):
-        weighting = NumpyTensorSpaceConstWeighting(
-            weights, exponent, dist_using_inner=dist_using_inner)
+        weighting = NumpyTensorSpaceConstWeighting(weights, exponent)
     elif weights is None:
-        weighting = NumpyTensorSpaceNoWeighting(
-            exponent, dist_using_inner=dist_using_inner)
+        weighting = NumpyTensorSpaceNoWeighting(exponent)
     else:  # last possibility: make an array
         arr = np.asarray(weights)
-        weighting = NumpyTensorSpaceArrayWeighting(
-            arr, exponent, dist_using_inner=dist_using_inner)
+        weighting = NumpyTensorSpaceArrayWeighting(arr, exponent)
     return weighting
 
 
@@ -1603,7 +1577,7 @@ def npy_weighted_norm(weights, exponent=2.0):
     return _weighting(weights, exponent=exponent).norm
 
 
-def npy_weighted_dist(weights, exponent=2.0, use_inner=False):
+def npy_weighted_dist(weights, exponent=2.0):
     """Weighted distance on `TensorSpace`'s as free function.
 
     Parameters
@@ -1613,16 +1587,6 @@ def npy_weighted_dist(weights, exponent=2.0, use_inner=False):
         constant weight, a 1-dim. array as a weighting vector.
     exponent : positive `float`
         Exponent of the norm.
-    use_inner : `bool`, optional
-        Calculate ``dist`` using the formula
-
-            ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-        This avoids the creation of new arrays and is thus faster
-        for large arrays. On the downside, it will not evaluate to
-        exactly zero for equal (but not identical) ``x`` and ``y``.
-
-        Can only be used if ``exponent`` is 2.0.
 
     Returns
     -------
@@ -1636,8 +1600,7 @@ def npy_weighted_dist(weights, exponent=2.0, use_inner=False):
     NumpyTensorSpaceConstWeighting
     NumpyTensorSpaceArrayWeighting
     """
-    return _weighting(weights, exponent=exponent,
-                      dist_using_inner=use_inner).dist
+    return _weighting(weights, exponent=exponent).dist
 
 
 def _norm_default(x):
@@ -1697,7 +1660,7 @@ class NumpyTensorSpaceArrayWeighting(ArrayWeighting):
     See ``Notes`` for mathematical details.
     """
 
-    def __init__(self, array, exponent=2.0, dist_using_inner=False):
+    def __init__(self, array, exponent=2.0):
         """Initialize a new instance.
 
         Parameters
@@ -1709,16 +1672,6 @@ class NumpyTensorSpaceArrayWeighting(ArrayWeighting):
         exponent : positive `float`
             Exponent of the norm. For values other than 2.0, no inner
             product is defined.
-        dist_using_inner : `bool`, optional
-            Calculate ``dist`` using the formula
-
-                ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-            This avoids the creation of new arrays and is thus faster
-            for large arrays. On the downside, it will not evaluate to
-            exactly zero for equal (but not identical) ``x`` and ``y``.
-
-            This option can only be used if ``exponent`` is 2.0.
 
         Notes
         -----
@@ -1764,13 +1717,11 @@ class NumpyTensorSpaceArrayWeighting(ArrayWeighting):
           it does not define an inner product or norm, respectively. This
           is not checked during initialization.
         """
-        super().__init__(array, impl='numpy', exponent=exponent,
-                         dist_using_inner=dist_using_inner)
+        super().__init__(array, impl='numpy', exponent=exponent)
 
     def __hash__(self):
         """Return ``hash(self)``."""
-        return hash((type(self), self.array.tobytes(), self.exponent,
-                     self.dist_using_inner))
+        return hash((type(self), self.array.tobytes(), self.exponent))
 
     def inner(self, x1, x2):
         """Return the weighted inner product of ``x1`` and ``x2``.
@@ -1825,7 +1776,7 @@ class NumpyTensorSpaceConstWeighting(ConstWeighting):
     See ``Notes`` for mathematical details.
     """
 
-    def __init__(self, const, exponent=2.0, dist_using_inner=False):
+    def __init__(self, const, exponent=2.0):
         """Initialize a new instance.
 
         Parameters
@@ -1835,16 +1786,6 @@ class NumpyTensorSpaceConstWeighting(ConstWeighting):
         exponent : positive float
             Exponent of the norm. For values other than 2.0, the inner
             product is not defined.
-        dist_using_inner : `bool`, optional
-            Calculate ``dist`` using the formula
-
-                ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-            This avoids the creation of new arrays and is thus faster
-            for large arrays. On the downside, it will not evaluate to
-            exactly zero for equal (but not identical) ``x`` and ``y``.
-
-            This option can only be used if ``exponent`` is 2.0.
 
         Notes
         -----
@@ -1885,8 +1826,7 @@ class NumpyTensorSpaceConstWeighting(ConstWeighting):
         - The constant must be positive, otherwise it does not define an
           inner product or norm, respectively.
         """
-        super().__init__(const, impl='numpy', exponent=exponent,
-                         dist_using_inner=dist_using_inner)
+        super().__init__(const, impl='numpy', exponent=exponent)
 
     def inner(self, x1, x2):
         """Return the weighted inner product of ``x1`` and ``x2``.
@@ -1943,13 +1883,7 @@ class NumpyTensorSpaceConstWeighting(ConstWeighting):
         dist : float
             The distance between the tensors.
         """
-        if self.dist_using_inner:
-            dist_squared = (_norm_default(x1) ** 2 + _norm_default(x2) ** 2 -
-                            2 * _inner_default(x1, x2).real)
-            if dist_squared < 0.0:  # Compensate for numerical error
-                dist_squared = 0.0
-            return float(np.sqrt(self.const * dist_squared))
-        elif self.exponent == 2.0:
+        if self.exponent == 2.0:
             return float(np.sqrt(self.const) * _norm_default(x1 - x2))
         elif self.exponent == float('inf'):
             return float(self.const * _pnorm_default(x1 - x2, self.exponent))
@@ -1970,24 +1904,18 @@ class NumpyTensorSpaceNoWeighting(NoWeighting,
         """Implement singleton pattern if ``exp==2.0``."""
         if len(args) == 0:
             exponent = kwargs.pop('exponent', 2.0)
-            dist_using_inner = kwargs.pop('dist_using_inner', False)
-        elif len(args) == 1:
-            exponent = args[0]
-            args = args[1:]
-            dist_using_inner = kwargs.pop('dist_using_inner', False)
         else:
             exponent = args[0]
-            dist_using_inner = args[1]
-            args = args[2:]
+            args = args[1:]
 
-        if exponent == 2.0 and not dist_using_inner:
+        if exponent == 2.0:
             if not cls.__instance:
                 cls.__instance = super().__new__(cls, *args, **kwargs)
             return cls.__instance
         else:
             return super().__new__(cls, *args, **kwargs)
 
-    def __init__(self, exponent=2.0, dist_using_inner=False):
+    def __init__(self, exponent=2.0):
         """Initialize a new instance.
 
         Parameters
@@ -1995,26 +1923,15 @@ class NumpyTensorSpaceNoWeighting(NoWeighting,
         exponent : positive `float`, optional
             Exponent of the norm. For values other than 2.0, the inner
             product is not defined.
-        dist_using_inner : `bool`, optional
-            Calculate ``dist`` using the formula
-
-                ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-            This avoids the creation of new arrays and is thus faster
-            for large arrays. On the downside, it will not evaluate to
-            exactly zero for equal (but not identical) ``x`` and ``y``.
-
-            This option can only be used if ``exponent`` is 2.0.
         """
-        super().__init__(impl='numpy', exponent=exponent,
-                         dist_using_inner=dist_using_inner)
+        super().__init__(impl='numpy', exponent=exponent)
 
 
 class NumpyTensorSpaceCustomInner(CustomInner):
 
     """Class for handling a user-specified inner product."""
 
-    def __init__(self, inner, dist_using_inner=True):
+    def __init__(self, inner):
         """Initialize a new instance.
 
         Parameters
@@ -2028,18 +1945,8 @@ class NumpyTensorSpaceCustomInner(CustomInner):
             - ``<x, y> = conj(<y, x>)``
             - ``<s*x + y, z> = s * <x, z> + <y, z>``
             - ``<x, x> = 0``  if and only if  ``x = 0``
-
-        dist_using_inner : `bool`, optional
-            Calculate ``dist`` using the formula
-
-                ``||x - y||^2 = ||x||^2 + ||y||^2 - 2 * Re <x, y>``
-
-            This avoids the creation of new arrays and is thus faster
-            for large arrays. On the downside, it will not evaluate to
-            exactly zero for equal (but not identical) ``x`` and ``y``.
         """
-        super().__init__(inner, impl='numpy',
-                         dist_using_inner=dist_using_inner)
+        super().__init__(inner, impl='numpy')
 
 
 class NumpyTensorSpaceCustomNorm(CustomNorm):
