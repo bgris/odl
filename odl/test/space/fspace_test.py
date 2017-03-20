@@ -25,42 +25,253 @@ from odl.util.testutils import (all_almost_equal, all_equal, almost_equal,
                                 simple_fixture)
 
 
+# --- Helper functions --- #
+
+
+def _points(domain, num):
+    """Helper to generate ``num`` points in ``domain``."""
+    min_pt = domain.min_pt
+    max_pt = domain.max_pt
+    ndim = domain.ndim
+    points = np.random.uniform(low=0, high=1, size=(ndim, num))
+    for i in range(ndim):
+        points[i, :] = min_pt[i] + (max_pt[i] - min_pt[i]) * points[i]
+    return points
+
+
+def _meshgrid(domain, shape):
+    """Helper to generate a ``shape`` meshgrid of points in ``domain``."""
+    min_pt = domain.min_pt
+    max_pt = domain.max_pt
+    ndim = domain.ndim
+    coord_vecs = []
+    for i in range(ndim):
+        vec = np.random.uniform(low=min_pt[i], high=max_pt[i], size=shape[i])
+        vec.sort()
+        coord_vecs.append(vec)
+    return sparse_meshgrid(*coord_vecs)
+
+
+def _standard_setup_2d():
+    rect = odl.IntervalProd([0, 0], [1, 2])
+    points = _points(rect, num=5)
+    mg = _meshgrid(rect, shape=(2, 3))
+    return rect, points, mg
+
+
+class FuncList(list):  # So we can set __name__
+    pass
+
+
+# --- pytest fixtures --- #
+
+
+out_dtype_params = [float, complex, int, bool, 'U1', 'float32', 'int16']
+out_dtype = simple_fixture('out_dtype', out_dtype_params,
+                           fmt=' {name} = {value!r} ')
+
+out_shape = simple_fixture('out_shape', [(1,), (2,), (2, 3)])
+domain_ndim = simple_fixture('domain_ndim', [1, 2])
+vectorized = simple_fixture('vectorized', [True, False])
+
+
+@pytest.fixture(scope='module')
+def fspace_scal(domain_ndim, out_dtype):
+    """Fixture returning a function space with given properties."""
+    domain = odl.IntervalProd([0] * domain_ndim, [1] * domain_ndim)
+    return FunctionSpace(domain, out_dtype=out_dtype)
+
+
+# --- fixtures with test functions --- #
+
+
+def func_nd_oop(x):
+    return sum(x)
+
+
+def func_nd_ip(x, out):
+    out[:] = sum(x)
+
+
+def func_nd_dual(x, out=None):
+    if out is None:
+        return sum(x)
+    else:
+        out[:] = sum(x)
+
+
+def func_nd_bcast_oop(x):
+    return x[0]
+
+
+def func_nd_bcast_ip(x, out):
+    out[:] = x[0]
+
+
+func_nd_params = [func_nd_oop, func_nd_ip, func_nd_dual, func_nd_bcast_oop,
+                  func_nd_bcast_ip]
+func_nd = simple_fixture('func_nd', func_nd_params,
+                         fmt=' {name} = {value.__name__} ')
+
+
+def func_param_nd_oop(x, c):
+    return sum(x) + c
+
+
+def func_param_nd_ip(x, out, c):
+    out[:] = sum(x) + c
+
+
+def func_param_switched_nd_ip(x, c, out):
+    out[:] = sum(x) + c
+
+
+def func_param_bcast_nd_oop(x, c):
+    return x[0] + c
+
+
+def func_param_bcast_nd_ip(x, out, c):
+    out[:] = x[0]
+
+
+func_nd_with_param_params = [func_param_nd_oop, func_param_nd_ip,
+                             func_param_switched_nd_ip,
+                             func_param_bcast_nd_oop, func_param_bcast_nd_ip]
+func_nd_with_param = simple_fixture('func_with_param',
+                                    func_nd_with_param_params,
+                                    fmt=' {name} = {value.__name__} ')
+
+
+def func_vec_nd_oop(x):
+    return (sum(x) + 1, sum(x) - 1)
+
+
+func_nd_oop_seq = FuncList([lambda x: sum(x) + 1, lambda x: sum(x) - 1])
+func_nd_oop_seq.__name__ = 'func_nd_oop_seq'
+
+
+def func_vec_nd_ip(x, out):
+    out[0] = sum(x) + 1
+    out[1] = sum(x) - 1
+
+
+def comp0_nd(x, out):
+    out[:] = sum(x) + 1
+
+
+def comp1_nd(x, out):
+    out[:] = sum(x) - 1
+
+
+func_nd_ip_seq = FuncList([comp0_nd, comp1_nd])
+func_nd_ip_seq.__name__ = 'func_nd_ip_seq'
+
+func_nd_vec_params = [func_vec_nd_oop, func_nd_oop_seq, func_vec_nd_ip,
+                      func_nd_ip_seq]
+func_nd_vec = simple_fixture('func_nd_vec', func_nd_vec_params,
+                             fmt=' {name} = {value.__name__} ')
+
+
+def func_1d_oop(x):
+    return x * 2
+
+
+def func_1d_ip(x, out):
+    out[:] = x * 2
+
+
+func_1d_params = [func_1d_oop, func_1d_ip]
+func_1d = simple_fixture('func_1d', func_1d_params,
+                         fmt=' {name} = {value.__name__} ')
+
+
+def func_vec_1d_oop(x):
+    return (x * 2, x + 1)
+
+
+func_1d_oop_seq = FuncList([lambda x: x * 2, lambda x: x + 1])
+func_1d_oop_seq.__name__ = 'func_1d_oop_seq'
+
+
+def func_vec_1d_ip(x, out):
+    out[0] = x * 2
+    out[1] = x + 1
+
+
+def comp0_1d(x, out):
+    out[:] = x * 2
+
+
+def comp1_1d(x, out):
+    out[:] = x + 1
+
+
+func_1d_ip_seq = FuncList([comp0_1d, comp1_1d])
+func_1d_ip_seq.__name__ = 'func_1d_ip_seq'
+
+
+func_1d_vec_params = [func_vec_1d_oop, func_1d_oop_seq, func_vec_1d_ip,
+                      func_1d_ip_seq]
+func_1d_vec = simple_fixture('func_1d_vec', func_1d_vec_params,
+                             fmt=' {name} = {value.__name__} ')
+
+
+# --- FunctionSpace tests --- #
+
+
 def test_fspace_init():
+    """Check if all initialization patterns work."""
     intv = odl.IntervalProd(0, 1)
     FunctionSpace(intv)
-    FunctionSpace(intv, range=odl.RealNumbers())
-    FunctionSpace(intv, range=odl.ComplexNumbers())
-
-    rect = odl.IntervalProd([0, 0], [1, 2])
-    FunctionSpace(rect)
-    FunctionSpace(rect, range=odl.RealNumbers())
-    FunctionSpace(rect, range=odl.ComplexNumbers())
-
-    cube = odl.IntervalProd([0, 0, 0], [1, 2, 3])
-    FunctionSpace(cube)
-    FunctionSpace(cube, range=odl.RealNumbers())
-    FunctionSpace(cube, range=odl.ComplexNumbers())
-
-    ndbox = odl.IntervalProd([0] * 10, np.arange(1, 11))
-    FunctionSpace(ndbox)
-    FunctionSpace(ndbox, range=odl.RealNumbers())
-    FunctionSpace(ndbox, range=odl.ComplexNumbers())
+    FunctionSpace(intv, out_dtype=float)
+    FunctionSpace(intv, out_dtype=complex)
+    FunctionSpace(intv, out_dtype=(float, (2, 3)))
 
     str3 = odl.Strings(3)
-    ints = odl.Integers()
-    FunctionSpace(str3, range=ints)
+    FunctionSpace(str3, out_dtype=int)
+
+    # Make sure this doesn't raise an exception due to a bug
+    repr(FunctionSpace(intv, out_dtype=(float, (2, 3))))
 
 
-def test_fspace_simple_attributes():
+def test_fspace_attributes():
+    """Check attribute access and correct values."""
     intv = odl.IntervalProd(0, 1)
+
+    # Scalar-valued function spaces
     fspace = FunctionSpace(intv)
-    fspace_r = FunctionSpace(intv, range=odl.RealNumbers())
-    fspace_c = FunctionSpace(intv, range=odl.ComplexNumbers())
+    fspace_r = FunctionSpace(intv, out_dtype=float)
+    fspace_c = FunctionSpace(intv, out_dtype=complex)
+    fspace_s = FunctionSpace(intv, out_dtype='U1')
+    scalar_spaces = (fspace, fspace_r, fspace_c, fspace_s)
 
     assert fspace.domain == intv
-    assert fspace.range == odl.RealNumbers()
-    assert fspace_r.range == odl.RealNumbers()
-    assert fspace_c.range == odl.ComplexNumbers()
+    assert fspace.field == odl.RealNumbers()
+    assert fspace_r.field == odl.RealNumbers()
+    assert fspace_c.field == odl.ComplexNumbers()
+    assert fspace_s.field is None
+
+    assert fspace.out_dtype == float
+    assert fspace_r.out_dtype == float
+    assert fspace_r.real_out_dtype == float
+    assert fspace_r.complex_out_dtype == complex
+    assert fspace_c.out_dtype == complex
+    assert fspace_c.real_out_dtype == float
+    assert fspace_c.complex_out_dtype == complex
+    assert fspace_s.out_dtype == np.dtype('U1')
+    assert fspace_s.real_out_dtype is None
+
+    assert all(spc.scalar_out_dtype == spc.out_dtype for spc in scalar_spaces)
+    assert all(spc.out_shape == () for spc in scalar_spaces)
+    assert all(not spc.tensor_valued for spc in scalar_spaces)
+
+    # Vector-valued function space
+    fspace_vec = FunctionSpace(intv, out_dtype=(float, (2,)))
+    assert fspace_vec.field == odl.RealNumbers()
+    assert fspace_vec.out_dtype == np.dtype((float, (2,)))
+    assert fspace_vec.scalar_out_dtype == float
+    assert fspace_vec.out_shape == (2,)
+    assert fspace_vec.tensor_valued
 
 
 def _test_eq(x, y):
@@ -82,9 +293,10 @@ def test_equals():
     intv = odl.IntervalProd(0, 1)
     intv2 = odl.IntervalProd(-1, 1)
     fspace = FunctionSpace(intv)
-    fspace_r = FunctionSpace(intv, range=odl.RealNumbers())
-    fspace_c = FunctionSpace(intv, range=odl.ComplexNumbers())
+    fspace_r = FunctionSpace(intv, out_dtype=float)
+    fspace_c = FunctionSpace(intv, out_dtype=complex)
     fspace_intv2 = FunctionSpace(intv2)
+    fspace_vec = FunctionSpace(intv, out_dtype=(float, (2,)))
 
     _test_eq(fspace, fspace)
     _test_eq(fspace, fspace_r)
@@ -92,59 +304,30 @@ def test_equals():
 
     _test_neq(fspace, fspace_c)
     _test_neq(fspace, fspace_intv2)
+    _test_neq(fspace_r, fspace_vec)
 
 
-def _points(domain, num):
-    min_pt = domain.min_pt
-    max_pt = domain.max_pt
-    ndim = domain.ndim
-    points = np.random.uniform(low=0, high=1, size=(ndim, num))
-    for i in range(ndim):
-        points[i, :] = min_pt[i] + (max_pt[i] - min_pt[i]) * points[i]
-    return points
+# --- FunctionSpaceElement tests --- #
 
 
-def _meshgrid(domain, shape):
-    min_pt = domain.min_pt
-    max_pt = domain.max_pt
-    ndim = domain.ndim
-    coord_vecs = []
-    for i in range(ndim):
-        vec = np.random.uniform(low=min_pt[i], high=max_pt[i], size=shape[i])
-        vec.sort()
-        coord_vecs.append(vec)
-    return sparse_meshgrid(*coord_vecs)
-
-
-def test_fspace_vector_init():
-    # 1d, real
+def test_fspace_elem_vectorized_init(vectorized):
+    """Check init of fspace elements with(out) vectorization."""
     intv = odl.IntervalProd(0, 1)
-    fspace = FunctionSpace(intv)
-    fspace.element(func_1d_oop)
-    fspace.element(func_1d_oop, vectorized=False)
-    fspace.element(func_1d_oop, vectorized=True)
-    fspace.element(func_1d_ip, vectorized=True)
-    fspace.element(func_1d_dual, vectorized=True)
 
-    # 2d, real
-    rect = odl.IntervalProd([0, 0], [1, 2])
-    fspace = FunctionSpace(rect)
-    fspace.element(func_2d_novec, vectorized=False)
-    fspace.element(func_2d_vec_oop)
-    fspace.element(func_2d_vec_oop, vectorized=True)
-    fspace.element(func_2d_vec_ip, vectorized=True)
-    fspace.element(func_2d_vec_dual, vectorized=True)
+    fspace_scal = FunctionSpace(intv)
+    fspace_scal.element(func_nd_oop, vectorized=vectorized)
 
-    # 2d, complex
-    fspace = FunctionSpace(rect, range=odl.ComplexNumbers())
-    fspace.element(cfunc_2d_novec, vectorized=False)
-    fspace.element(cfunc_2d_vec_oop)
-    fspace.element(cfunc_2d_vec_oop, vectorized=True)
-    fspace.element(cfunc_2d_vec_ip, vectorized=True)
-    fspace.element(cfunc_2d_vec_dual, vectorized=True)
+    fspace_vec = FunctionSpace(intv, out_dtype=(float, (2,)))
+    fspace_vec.element(func_vec_nd_oop, vectorized=vectorized)
+    fspace_vec.element(func_nd_oop_seq, vectorized=vectorized)
 
 
-def test_fspace_vector_eval():
+def test_fspace_scal_elem_eval():
+    """Check evaluation of scalar-valued function elements."""
+
+
+
+def test_fspace_eval_unusual_dtype():
     str3 = odl.Strings(3)
     ints = odl.Integers()
     fspace = FunctionSpace(str3, ints)
@@ -160,13 +343,6 @@ def test_fspace_vector_eval():
     assert all_equal(f_vec(strings), true_vec)
     f_vec(strings, out=out_vec)
     assert all_equal(out_vec, true_vec)
-
-
-def _standard_setup_2d():
-    rect = odl.IntervalProd([0, 0], [1, 2])
-    points = _points(rect, num=5)
-    mg = _meshgrid(rect, shape=(2, 3))
-    return rect, points, mg
 
 
 def test_fspace_out_dtype():
@@ -752,57 +928,9 @@ def test_fspace_vector_arithmetic(variant, op):
 
 # 'ip' = in-place, 'oop' = out-of-place, 'dual' = dual-use
 
-def func_1d_oop(x):
-    return x ** 2
 
-
-def func_1d_ip(x, out):
-    out[:] = x ** 2
-
-
-def func_1d_dual(x, out=None):
-    if out is None:
-        return x ** 2
-    else:
-        out[:] = x ** 2
-
-
-def func_2d_novec(x):
-    return x[0] ** 2 + x[1]
-
-
-def func_2d_vec_oop(x):
-    return x[0] ** 2 + x[1]
-
-
-def func_2d_vec_ip(x, out):
-    out[:] = x[0] ** 2 + x[1]
-
-
-def func_2d_vec_dual(x, out=None):
-    if out is None:
-        return x[0] ** 2 + x[1]
-    else:
-        out[:] = x[0] ** 2 + x[1]
-
-
-def cfunc_2d_novec(x):
-    return x[0] ** 2 + 1j * x[1]
-
-
-def cfunc_2d_vec_oop(x):
-    return x[0] ** 2 + 1j * x[1]
-
-
-def cfunc_2d_vec_ip(x, out):
-    out[:] = x[0] ** 2 + 1j * x[1]
-
-
-def cfunc_2d_vec_dual(x, out=None):
-    if out is None:
-        return x[0] ** 2 + 1j * x[1]
-    else:
-        out[:] = x[0] ** 2 + 1j * x[1]
+def cfunc_nd_oop(x):
+    return sum(x) + 1j
 
 
 def other_func_2d_novec(x):
