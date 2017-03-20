@@ -610,10 +610,6 @@ class ConstWeighting(Weighting):
         if not np.isfinite(self.const):
             raise ValueError('`const` {} is invalid'.format(const))
 
-    def __hash__(self):
-        """Return ``hash(self)``."""
-        return hash((super().__hash__(), self.const))
-
     @property
     def const(self):
         """Weighting constant of this inner product."""
@@ -633,6 +629,10 @@ class ConstWeighting(Weighting):
 
         return (super().__eq__(other) and
                 self.const == getattr(other, 'const', None))
+
+    def __hash__(self):
+        """Return ``hash(self)``."""
+        return hash((super().__hash__(), self.const))
 
     def equiv(self, other):
         """Test if other is an equivalent weighting.
