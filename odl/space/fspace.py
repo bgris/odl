@@ -305,6 +305,8 @@ class FunctionSpace(LinearSpace):
             evaluation. For ``False``, , the function is decorated with a
             vectorizer, which implies that two elements created this way
             from the same function are regarded as *not equal*.
+            The ``False`` option cannot be used if ``fcall`` has an
+            ``out`` parameter.
 
         Returns
         -------
@@ -391,6 +393,10 @@ class FunctionSpace(LinearSpace):
             return fcall
         elif callable(fcall):
             if not vectorized:
+                has_out, _ = _check_out_arg(fcall)
+                if has_out:
+                    raise TypeError('non-vectorized `fcall` with `out` '
+                                    'parameter not allowed')
                 if self.field == RealNumbers():
                     otypes = ['float64']
                 elif self.field == ComplexNumbers():
@@ -1065,9 +1071,6 @@ class FunctionSpaceElement(LinearSpaceElement):
             scalar_in = False
             scalar_out_shape = out_shape_from_array(x)
             scalar_out = False
-            # For 1d, squeeze the array
-            if ndim == 1 and x.ndim == 2:
-                x = x.squeeze()
         elif x in self.domain:
             x = np.atleast_2d(x).T  # make a (d, 1) array
             scalar_in = True
@@ -1122,7 +1125,7 @@ class FunctionSpaceElement(LinearSpaceElement):
                 # Cast to proper dtype if needed, also convert to array if out
                 # is a scalar.
                 out = np.asarray(out, dtype=self.space.scalar_out_dtype)
-                if out_shape != (1,) and out.shape != out_shape:
+                if out_shape not in ((), (1,)) and out.shape != out_shape:
                     # Try to broadcast the returned element.
                     out = broadcast_to(out, out_shape)
 

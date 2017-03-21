@@ -15,8 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with ODL.  If not, see <http://www.gnu.org/licenses/>.
 
-import pytest
+import inspect
 import numpy as np
+import pytest
+import sys
 
 import odl
 from odl import FunctionSpace
@@ -26,6 +28,10 @@ from odl.util.testutils import (all_almost_equal, all_equal, almost_equal,
 
 
 # --- Helper functions --- #
+
+
+PY2 = sys.version_info.major < 3
+getargspec = inspect.getargspec if PY2 else inspect.getfullargspec
 
 
 def _points(domain, num):
@@ -66,7 +72,7 @@ class FuncList(list):  # So we can set __name__
 # --- pytest fixtures --- #
 
 
-out_dtype_params = [float, complex, int, bool, 'U1', 'float32', 'int16']
+out_dtype_params = ['float32', 'float64', 'complex64']
 out_dtype = simple_fixture('out_dtype', out_dtype_params,
                            fmt=' {name} = {value!r} ')
 
@@ -307,6 +313,26 @@ def test_equals():
     _test_neq(fspace_r, fspace_vec)
 
 
+def test_fspace_astype():
+    """Check that converting function spaces to new out_dtype works."""
+    rspace = FunctionSpace(odl.IntervalProd(0, 1))
+    cspace = FunctionSpace(odl.IntervalProd(0, 1), out_dtype=complex)
+    rspace_s = FunctionSpace(odl.IntervalProd(0, 1), out_dtype='float32')
+    cspace_s = FunctionSpace(odl.IntervalProd(0, 1), out_dtype='complex64')
+
+    assert rspace.astype('complex64') == cspace_s
+    assert rspace.astype('complex128') == cspace
+    assert rspace.astype('complex128') is rspace.complex_space
+    assert rspace.astype('float32') == rspace_s
+    assert rspace.astype('float64') is rspace.real_space
+
+    assert cspace.astype('float32') == rspace_s
+    assert cspace.astype('float64') == rspace
+    assert cspace.astype('float64') is cspace.real_space
+    assert cspace.astype('complex64') == cspace_s
+    assert cspace.astype('complex128') is cspace.complex_space
+
+
 # --- FunctionSpaceElement tests --- #
 
 
@@ -322,66 +348,171 @@ def test_fspace_elem_vectorized_init(vectorized):
     fspace_vec.element(func_nd_oop_seq, vectorized=vectorized)
 
 
-def test_fspace_scal_elem_eval():
+def test_fspace_scal_elem_eval(fspace_scal, func_nd):
     """Check evaluation of scalar-valued function elements."""
+    points = _points(fspace_scal.domain, 3)
+    mesh_shape = tuple(range(2, 2 + fspace_scal.domain.ndim))
+    mesh = _meshgrid(fspace_scal.domain, mesh_shape)
+
+    func_argspec = getargspec(func_nd)
+    if 'out' in func_argspec.args:
+        true_values_points = np.empty(3, dtype=fspace_scal.scalar_out_dtype)
+        true_values_mesh = np.empty(mesh_shape,
+                                    dtype=fspace_scal.scalar_out_dtype)
+        func_nd(points, out=true_values_points)
+        func_nd(mesh, out=true_values_mesh)
+    else:
+        true_values_points = func_nd(points)
+        true_values_mesh = func_nd(mesh)
+
+    func_elem = fspace_scal.element(func_nd)
+
+    # Out of place
+    result_points = func_elem(points)
+    result_mesh = func_elem(mesh)
+    assert all_almost_equal(result_points, true_values_points)
+    assert all_almost_equal(result_mesh, true_values_mesh)
+    assert result_points.dtype == fspace_scal.scalar_out_dtype
+    assert result_mesh.dtype == fspace_scal.scalar_out_dtype
+
+    # In place
+    out_points = np.empty(3, dtype=fspace_scal.scalar_out_dtype)
+    out_mesh = np.empty(mesh_shape, dtype=fspace_scal.scalar_out_dtype)
+    func_elem(points, out=out_points)
+    func_elem(mesh, out=out_mesh)
+    assert all_almost_equal(out_points, true_values_points)
+    assert all_almost_equal(out_mesh, true_values_mesh)
 
 
+def test_fspace_scal_elem_with_param_eval(func_nd_with_param):
+    """Check evaluation of scalar-valued function elements with parameters."""
+    intv = odl.IntervalProd([0, 0], [1, 1])
+    fspace_scal = FunctionSpace(intv)
+    points = _points(fspace_scal.domain, 3)
+    mesh_shape = (2, 3)
+    mesh = _meshgrid(fspace_scal.domain, mesh_shape)
 
-def test_fspace_eval_unusual_dtype():
+    func_argspec = getargspec(func_nd_with_param)
+    if 'out' in func_argspec.args:
+        true_values_points = np.empty(3, dtype=fspace_scal.scalar_out_dtype)
+        true_values_mesh = np.empty(mesh_shape,
+                                    dtype=fspace_scal.scalar_out_dtype)
+        func_nd_with_param(points, out=true_values_points, c=2.5)
+        func_nd_with_param(mesh, out=true_values_mesh, c=2.5)
+    else:
+        true_values_points = func_nd_with_param(points, c=2.5)
+        true_values_mesh = func_nd_with_param(mesh, c=2.5)
+
+    func_elem = fspace_scal.element(func_nd_with_param)
+
+    # Out of place
+    result_points = func_elem(points, c=2.5)
+    result_mesh = func_elem(mesh, c=2.5)
+    assert all_almost_equal(result_points, true_values_points)
+    assert all_almost_equal(result_mesh, true_values_mesh)
+
+    # In place
+    out_points = np.empty(3, dtype=fspace_scal.scalar_out_dtype)
+    out_mesh = np.empty(mesh_shape, dtype=fspace_scal.scalar_out_dtype)
+    func_elem(points, out=out_points, c=2.5)
+    func_elem(mesh, out=out_mesh, c=2.5)
+    assert all_almost_equal(out_points, true_values_points)
+    assert all_almost_equal(out_mesh, true_values_mesh)
+
+    # Complex output
+    fspace_complex = FunctionSpace(intv, out_dtype=complex)
+    if 'out' in func_argspec.args:
+        true_values_points = np.empty(3, dtype=fspace_complex.scalar_out_dtype)
+        true_values_mesh = np.empty(mesh_shape,
+                                    dtype=fspace_complex.scalar_out_dtype)
+        func_nd_with_param(points, out=true_values_points, c=2j)
+        func_nd_with_param(mesh, out=true_values_mesh, c=2j)
+    else:
+        true_values_points = func_nd_with_param(points, c=2j)
+        true_values_mesh = func_nd_with_param(mesh, c=2j)
+
+    func_elem = fspace_complex.element(func_nd_with_param)
+
+    result_points = func_elem(points, c=2j)
+    result_mesh = func_elem(mesh, c=2j)
+    assert all_almost_equal(result_points, true_values_points)
+    assert all_almost_equal(result_mesh, true_values_mesh)
+
+
+def test_fspace_vec_elem_eval(func_nd_vec, out_dtype):
+    """Check evaluation of scalar-valued function elements."""
+    intv = odl.IntervalProd([0, 0], [1, 1])
+    fspace_vec = FunctionSpace(intv, out_dtype=(float, (2,)))
+    points = _points(fspace_vec.domain, 3)
+    mesh_shape = (2, 3)
+    mesh = _meshgrid(fspace_vec.domain, mesh_shape)
+    values_points_shape = (2, 3)
+    values_mesh_shape = (2, 2, 3)
+
+    print(points)
+    # Get true results, a bit more complicated for lists of functions
+    if isinstance(func_nd_vec, list):
+        true_values_points = np.empty(values_points_shape,
+                                      dtype=fspace_vec.scalar_out_dtype)
+        true_values_mesh = np.empty(values_mesh_shape,
+                                    dtype=fspace_vec.scalar_out_dtype)
+        for i, f in enumerate(func_nd_vec):
+            if 'out' in getargspec(f).args:
+                f(points[i][None, :], out=true_values_points[i])
+                f(mesh[i], out=true_values_mesh[i])
+            else:
+                true_values_points[i] = f(points[i][None, :])
+                true_values_mesh[i] = f(mesh[i])
+    else:
+        func_argspec = getargspec(func_nd)
+        if 'out' in func_argspec.args:
+            true_values_points = np.empty(values_points_shape,
+                                          dtype=fspace_vec.scalar_out_dtype)
+            true_values_mesh = np.empty(values_mesh_shape,
+                                        dtype=fspace_vec.scalar_out_dtype)
+            func_nd_vec(points, out=true_values_points)
+            func_nd_vec(mesh, out=true_values_mesh)
+        else:
+            true_values_points = func_nd_vec(points)
+            true_values_mesh = func_nd_vec(mesh)
+
+    func_elem = fspace_vec.element(func_nd_vec)
+
+    # Out of place
+    result_points = func_elem(points)
+    result_mesh = func_elem(mesh)
+    assert all_almost_equal(result_points, true_values_points)
+    assert all_almost_equal(result_mesh, true_values_mesh)
+    assert result_points.dtype == fspace_vec.scalar_out_dtype
+    assert result_mesh.dtype == fspace_vec.scalar_out_dtype
+
+    # In place
+    out_points = np.empty(values_points_shape,
+                          dtype=fspace_vec.scalar_out_dtype)
+    out_mesh = np.empty(values_mesh_shape,
+                        dtype=fspace_vec.scalar_out_dtype)
+    func_elem(points, out=out_points)
+    func_elem(mesh, out=out_mesh)
+    assert all_almost_equal(out_points, true_values_points)
+    assert all_almost_equal(out_mesh, true_values_mesh)
+
+
+def test_fspace_eval_unusual_dtypes():
+    """Check evaluation with unusual data types."""
     str3 = odl.Strings(3)
-    ints = odl.Integers()
-    fspace = FunctionSpace(str3, ints)
+    fspace = FunctionSpace(str3, out_dtype=int)
     strings = np.array(['aa', 'b', 'cab', 'aba'])
     out_vec = np.empty((4,), dtype=int)
 
     # Vectorized for arrays only
-    f_vec = fspace.element(lambda s: np.array([str(si).count('a')
-                                               for si in s]))
-    true_vec = [2, 0, 1, 2]
+    func_elem = fspace.element(
+        lambda s: np.array([str(si).count('a') for si in s]))
+    true_values = [2, 0, 1, 2]
 
-    assert f_vec('abc') == 1
-    assert all_equal(f_vec(strings), true_vec)
-    f_vec(strings, out=out_vec)
-    assert all_equal(out_vec, true_vec)
-
-
-def test_fspace_out_dtype():
-    rect = odl.IntervalProd([0, 0], [3, 5])
-    points = np.array([[0, 1], [0, 3], [3, 4], [2, 5]], dtype='int').T
-    vec1 = np.array([0, 1, 3])[:, None]
-    vec2 = np.array([1, 2, 4, 5])[None, :]
-    mg = (vec1, vec2)
-
-    true_arr = func_2d_vec_oop(points)
-    true_mg = func_2d_vec_oop(mg)
-
-    fspace = FunctionSpace(rect, out_dtype='int')
-    f_vec = fspace.element(func_2d_vec_oop)
-
-    assert all_equal(f_vec(points), true_arr)
-    assert all_equal(f_vec(mg), true_mg)
-    assert f_vec(points).dtype == np.dtype('int')
-    assert f_vec(mg).dtype == np.dtype('int')
-
-
-def test_fspace_astype():
-
-    rspace = FunctionSpace(odl.IntervalProd(0, 1))
-    cspace = FunctionSpace(odl.IntervalProd(0, 1), range=odl.ComplexNumbers())
-    rspace_s = FunctionSpace(odl.IntervalProd(0, 1), out_dtype='float32')
-    cspace_s = FunctionSpace(odl.IntervalProd(0, 1), out_dtype='complex64')
-
-    assert rspace.astype('complex64') == cspace_s
-    assert rspace.astype('complex128') == cspace
-    assert rspace.astype('complex128') is rspace.complex_space
-    assert rspace.astype('float32') == rspace_s
-    assert rspace.astype('float64') is rspace.real_space
-
-    assert cspace.astype('float32') == rspace_s
-    assert cspace.astype('float64') == rspace
-    assert cspace.astype('float64') is cspace.real_space
-    assert cspace.astype('complex64') == cspace_s
-    assert cspace.astype('complex128') is cspace.complex_space
+    assert func_elem('abc') == 1
+    assert all_equal(func_elem(strings), true_values)
+    func_elem(strings, out=out_vec)
+    assert all_equal(out_vec, true_values)
 
 
 def test_fspace_vector_eval_real():
