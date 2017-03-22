@@ -94,7 +94,27 @@ def _check_out_arg(func):
 
 def _default_in_place(func, x, out, **kwargs):
     """Default in-place evaluation method."""
-    out[:] = func._call_out_of_place(x, **kwargs)
+    result = np.array(func._call_out_of_place(x, **kwargs), copy=False)
+    if result.dtype == object:
+        # Different shapes encountered, need to broadcast
+        flat_results = result.ravel()
+        if is_valid_input_array(x, func.domain.ndim):
+            scalar_out_shape = out_shape_from_array(x)
+        elif is_valid_input_meshgrid(x, func.domain.ndim):
+            scalar_out_shape = out_shape_from_meshgrid(x)
+        else:
+            raise RuntimeError('bad input')
+
+        bcast_results = [broadcast_to(res, scalar_out_shape)
+                         for res in flat_results]
+        result = np.array(bcast_results, dtype=func.scalar_out_dtype)
+        result = result.reshape(func.out_shape + scalar_out_shape)
+
+    if result.shape == out.shape + (1,):
+        # Input was scalar, remove extra dimension
+        out[:] = result.reshape(out.shape)
+    else:
+        out[:] = result
     return out
 
 
@@ -344,46 +364,46 @@ class FunctionSpace(LinearSpace):
         >>> fspace = odl.FunctionSpace(odl.IntervalProd(0, 1),
         ...                            out_dtype=(float, (2,)))
         >>> # Possibility 1: provide component functions
-        >>> func1 = fspace.element([lambda x: x - 1, lambda x: x + 1])
+        >>> func1 = fspace.element([lambda x: x + 1, np.negative])
         >>> func1(0.5)
-        array([-0.5,  1.5])
+        array([ 1.5, -0.5])
         >>> func1([0.1, 0.6])
-        array([[-0.9, -0.4],
-               [ 1.1,  1.6]])
+        array([[ 1.1,  1.6],
+               [-0.1, -0.6]])
         >>> # Possibility 2: single function returning a sequence
-        >>> func2 = fspace.element(lambda x: (x - 1, x + 1))
+        >>> func2 = fspace.element(lambda x: (x + 1, -x))
         >>> func2(0.5)
-        array([-0.5,  1.5])
+        array([ 1.5, -0.5])
         >>> func2([0.1, 0.6])
-        array([[-0.9, -0.4],
-               [ 1.1,  1.6]])
+        array([[ 1.1,  1.6],
+               [-0.1, -0.6]])
 
-        If the function(s) include an ``out`` parameter, it can be provided
-        to hold the final result:
+        If the function(s) include(s) an ``out`` parameter, it can be
+        provided to hold the final result:
 
         >>> # Sequence of functions with `out` parameter
         >>> def f1(x, out):
         ...     out[:] = x + 1
         >>> def f2(x, out):
-        ...     out[:] = x - 1
+        ...     out[:] = -x
         >>> func = fspace.element([f1, f2])
         >>> out = np.empty((2, 2))  # needs to match expected output shape
         >>> result = func([0.1, 0.6], out=out)
         >>> out
         array([[ 1.1,  1.6],
-               [-0.9, -0.4]])
+               [-0.1, -0.6]])
         >>> result is out
         True
         >>> # Single function assigning to components of `out`
         >>> def f(x, out):
         ...     out[0] = x + 1
-        ...     out[1] = x - 1
+        ...     out[1] = -x
         >>> func = fspace.element(f)
         >>> out = np.empty((2, 2))  # needs to match expected output shape
         >>> result = func([0.1, 0.6], out=out)
         >>> out
         array([[ 1.1,  1.6],
-               [-0.9, -0.4]])
+               [-0.1, -0.6]])
         >>> result is out
         True
         """
@@ -393,6 +413,9 @@ class FunctionSpace(LinearSpace):
             return fcall
         elif callable(fcall):
             if not vectorized:
+                if hasattr(fcall, 'nin') and hasattr(fcall, 'nout'):
+                    raise TypeError('`fcall` {!r} is a ufunc-like object, '
+                                    'use vectorized=True')
                 has_out, _ = _check_out_arg(fcall)
                 if has_out:
                     raise TypeError('non-vectorized `fcall` with `out` '
@@ -428,6 +451,11 @@ class FunctionSpace(LinearSpace):
                 fcalls = [f if np.isscalar(f) else vectorize(otypes=otypes)(f)
                           for f in fcalls]
 
+            if sys.version_info.major < 3:
+                getargspec = inspect.getargspec
+            else:
+                getargspec = inspect.getfullargspec
+
             def wrapper(x, out=None, **kwargs):
                 """Function wrapping an array of callables."""
                 if is_valid_input_meshgrid(x, self.domain.ndim):
@@ -438,21 +466,54 @@ class FunctionSpace(LinearSpace):
                     raise RuntimeError('bad input')
 
                 if out is None:
+                    # Out-of-place evaluation
+
+                    # Collect results of member functions into a list
                     results = []
                     for f in fcalls:
                         if np.isscalar(f):
                             # Constant function
                             results.append(f)
-                        else:
+                        elif not callable(f):
+                            raise TypeError('element {!r} of sequence not '
+                                            'callable'.format(f))
+                        elif hasattr(f, 'nin') and hasattr(f, 'nout'):
+                            # ufunc-like object
                             results.append(f(x, **kwargs))
-                    bcast_results = [
-                        broadcast_to(np.squeeze(res), scalar_out_shape)
-                        for res in results]
+                        else:
+                            try:
+                                has_out = 'out' in getargspec(f).args
+                            except TypeError:
+                                raise TypeError('unsupported callable {!r}'
+                                                ''.format(f))
+                            else:
+                                if has_out:
+                                    out = np.empty(scalar_out_shape,
+                                                   dtype=self.scalar_out_dtype)
+                                    f(x, out=out, **kwargs)
+                                    results.append(out)
+                                else:
+                                    results.append(f(x, **kwargs))
+
+                    # Broadcast to required shape and convert to array.
+                    # This will raise an error if the shape of some member
+                    # array is wrong, since in that case the resulting
+                    # dtype would be `object`.
+                    bcast_results = []
+                    for res in results:
+                        if np.shape(res) == scalar_out_shape + (1,):
+                            bcast_results.append(res.reshape(scalar_out_shape))
+                        else:
+                            bcast_results.append(
+                                broadcast_to(res, scalar_out_shape))
                     out_arr = np.array(bcast_results,
                                        dtype=self.scalar_out_dtype)
+
                     return out_arr.reshape(self.out_shape + scalar_out_shape)
 
                 else:
+                    # In-place evaluation
+
                     # This is a precaution in case out is not contiguous
                     with writable_array(out) as out_arr:
                         # Flatten tensor axes to work on one tensor
@@ -1125,6 +1186,8 @@ class FunctionSpaceElement(LinearSpaceElement):
                 # Cast to proper dtype if needed, also convert to array if out
                 # is a scalar.
                 out = np.asarray(out, dtype=self.space.scalar_out_dtype)
+                if scalar_in:
+                    out = np.squeeze(out)
                 if out_shape not in ((), (1,)) and out.shape != out_shape:
                     # Try to broadcast the returned element.
                     out = broadcast_to(out, out_shape)
