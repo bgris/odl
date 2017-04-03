@@ -31,3 +31,12 @@ __all__ += optimal_information_transport.__all__
 
 from .mrc_data_io import *
 __all__ += mrc_data_io.__all__
+
+from .LDDMM_gradiant_descent_scheme import *
+__all__ += LDDMM_gradiant_descent_scheme.__all__
+
+from .LDDMM_4Dregistration import *
+__all__ += LDDMM_4Dregistration.__all__
+
+from .LDDMM_4Dregistration_periodic import *
+__all__ += LDDMM_4Dregistration_periodic.__all__
