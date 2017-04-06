@@ -152,10 +152,9 @@ data=data_space.element([forward_op(image_N0[0]),forward_op(image_N0[10]),
 
 forward_operators=[forward_op,forward_op,forward_op,forward_op,
                    forward_op, forward_op, forward_op]
-#data_image=[(image_N0[0]),(image_N0[1]),
-#              (image_N0[2]),(image_N0[4]),
-#              (image_N0[6]),(image_N0[8]),
-#              (image_N0[10])]
+data_image=[(image_N0[0]),(image_N0[10]),
+              (image_N0[0]),(image_N0[10]),
+              (image_N0[0]),(image_N0[10])]
 
 
 Norm=odl.solvers.L2NormSquared(forward_op.range)
@@ -221,7 +220,8 @@ for i in range(nb_time_point_int+1):
 
 #%%
 
-data_time_points_index=np.array([0,3,5,7,8,9,10])
+data_time_points_index=np.array([0,2,4,6,8,10])
+data_time_points_index=np.array([0,4,8,12,16,20])
 for k in range(data_time_points.size):
     ((I[data_time_points_index[k]]-data_image[k])**2).show()
 

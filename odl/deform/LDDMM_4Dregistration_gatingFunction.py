@@ -50,12 +50,17 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
     """
 
 
-    def __init__(self, a,nb_time_point_int, template, data, data_time_points, forward_operators,Norm, kernel, domain=None):
+    def __init__(self, T, a,nb_time_point_int_gate,nb_time_point_int, template, data, data_time_points, forward_operators,Norm, kernel, domain=None):
         """
         Parameters
         ----------
+        T : float between 0 and 1
+            the maximal time for the physiological time
         a : real function : [0,1] -> [0,T]
-            Gating functionfor the motion
+            Gating function for the motion
+        nb_time_point_int_gate : int
+           number of time points for the numerical integration
+           between 0 and T
         nb_time_point_int : int
            number of time points for the numerical integration
            between 0 and 1
@@ -79,18 +84,14 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
 
         self.N_tot=nb_time_point_int # number of time points between 0 and 1
 
-        # we need to define the corresponding number of time points for
-        # the numerical integration between 0 and T : it is the number of
-        # time interval 1/N that can be put in [0,T]
-        k=int(self.N_tot * self.T)
-        self.N=k # number of time points between 0 and T
+        self.N=nb_time_point_int_gate # number of time points between 0 and T
 
-        # temporal time index function to project indexes in [0,N_tot+1] to
-        # indexes in [0,N]
+        # temporal time index function : [0,N_tot] -> [0,N] such that
+        # a_index(i) *T/N <= a(i/N_tot) < ( a_index(i) +1 ) *T/N
+        # Takes values between 0 and N-1
         def a_index(i):
-            k= int(i/self.N)
-            u=int(i-k*self.N) -1
-            return int(u)
+            u=int(self.a(i/self.N_tot) *self.N / self.T)
+            return u
 
         self.a_index=a_index
 
@@ -120,7 +121,19 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
         vector_field_list_tot = self.TemporalAttachmentLDDMM.domain.element()
 
         for i in range(self.N_tot +1):
-            vector_field_list_tot[i]=vector_field_list[self.a_index(i)].copy()
+            k_i=self.a_index(i)
+            # Compute weighted mean between values at k_i and k_i +1 of
+            # vector_field_list
+
+            # ratio of the difference between projected time and
+            # the previous integration time point
+            delta0 = self.N*(self.a(i/self.N_tot) - k_i*self.T/self.N)
+
+            if (k_i==self.N-1): # in this case : mean between k_i and 0
+                vector_field_list_tot[i] =(1-delta0)*vector_field_list[k_i].copy()+ delta0*vector_field_list[0].copy()
+            else:
+                vector_field_list_tot[i] =(1-delta0)*vector_field_list[k_i].copy() +delta0*vector_field_list[k_i +1].copy()
+
 
         return self.TemporalAttachmentLDDMM(vector_field_list_tot)
 
@@ -140,7 +153,18 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
                 vector_field_list_tot = functional.TemporalAttachmentLDDMM.domain.element()
 
                 for i in range(functional.N_tot +1):
-                    vector_field_list_tot[i]=vector_field_list[functional.a_index(i)].copy()
+                    k_i=functional.a_index(i)
+                    # Compute weighted mean between values at k_i and k_i +1 of
+                    # vector_field_list
+
+                    # ratio of the difference between projected time and
+                    # the previous integration time point
+                    delta0 = functional.N*(functional.a(i/functional.N_tot) - k_i*functional.T/functional.N)
+
+                    if (k_i==functional.N-1): # in this case : mean between k_i and 0
+                        vector_field_list_tot[i] =(1-delta0)*vector_field_list[k_i].copy()+ delta0*vector_field_list[0].copy()
+                    else:
+                        vector_field_list_tot[i] = (1-delta0)*vector_field_list[k_i].copy() + delta0*vector_field_list[k_i +1].copy()
 
                 return vector_field_list_tot
 
@@ -152,9 +176,9 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
 
         functional = self
 
-        class TemporalAttachmentLDDMMGeomPeriodicGradient(Operator):
+        class TemporalAttachmentLDDMMGeomGatingFunctionGradient(Operator):
 
-            """The gradient operator of the TemporalAttachmentLDDMMGeom
+            """The gradient operator of the TemporalAttachmentLDDMMGeomGatingFunction
             functional."""
 
             def __init__(self):
@@ -169,34 +193,51 @@ class TemporalAttachmentLDDMMGeomGatingFunction(Functional):
                 # we define the corresponding list corresponding to the periodic
                 # vector field defined on [0,1]
 
-                vector_field_list_tot = functional.TemporalAttachmentLDDMM.domain.element()
-
-                for i in range(functional.N_tot +1):
-                    vector_field_list_tot[i]=vector_field_list[functional.a_index(i)].copy()
+                vector_field_list_tot = functional.ComputeTotalVectorFields(
+                        vector_field_list)
 
                 grad = functional.TemporalAttachmentLDDMM.gradient(vector_field_list_tot)
 
-                grad_per=functional.domain.zero()
+                grad_gate=functional.domain.zero()
 
                 for i in range(functional.N_tot +1):
-                    grad_per[functional.a_index(i)]+=grad[i].copy()
+                    k_i=functional.a_index(i)
+                    # Compute weighted mean between values at k_i and k_i +1 of
+                    # vector_field_list
 
-                return grad_per
+                    # ratio of the difference between projected time and
+                    # the previous integration time point
+                    delta0 = functional.N*(functional.a(i/functional.N_tot) - k_i*functional.T/functional.N)
 
-        return TemporalAttachmentLDDMMGeomPeriodicGradient()
+                    if (k_i==functional.N-1): # in this case : mean between k_i and 0
+                        grad_gate[k_i]+=(1-delta0)*grad[i].copy()
+                        grad_gate[0]+=(delta0)*grad[i].copy()
+                    else:
+                        grad_gate[k_i]+=(1-delta0)*grad[i].copy()
+                        grad_gate[k_i+1]+=(delta0)*grad[i].copy()
+
+
+                return grad_gate
+
+        return TemporalAttachmentLDDMMGeomGatingFunctionGradient()
 
 
 
-class RegularityLDDMMPeriodic(Functional):
+class RegularityLDDMMGatingFunction(Functional):
 
 
 
-    def __init__(self, T, nb_time_point_int, kernel, domain):
+    def __init__(self,T, a,nb_time_point_int_gate, nb_time_point_int, kernel, domain):
         """
         Parameters
         ----------
         T : float between 0 and 1
-            the period of the motion
+            the maximal time for the physiological time
+        a : real function : [0,1] -> [0,T]
+            Gating function for the motion
+        nb_time_point_int_gate : int
+           number of time points for the numerical integration
+           between 0 and T
         nb_time_point_int : int
            number of time points for the numerical integration
            between 0 and 1
@@ -209,26 +250,18 @@ class RegularityLDDMMPeriodic(Functional):
 
         self.T=T
         # temporal time function to project [0,1] to [0,T]
-        def a(t):
-            k= int(t/self.T)
-            return t-k*T
 
         self.a=a
 
         self.N_tot=nb_time_point_int # number of time points between 0 and 1
+        self.N=nb_time_point_int_gate
 
-        # we need to define the corresponding number of time points for
-        # the numerical integration between 0 and T : it is the number of
-        # time interval 1/N that can be put in [0,T]
-        k=int(self.N_tot * self.T) # number of period between 0 and 1
-        self.N=k # number of time points between 0 and T
-
-        # temporal time index function to project indexes in [0,N_tot+1] to
-        # indexes in [0,N]
+        # temporal time index function : [0,N_tot] -> [0,N] such that
+        # a_index(i) *T/N <= a(i/N_tot) < ( a_index(i) +1 ) *T/N
+        # Takes values between 0 and N-1
         def a_index(i):
-            k= int(i/self.N)
-            u=int(i-k*self.N) -1
-            return int(u)
+            u=int(self.a(i/self.N_tot) *self.N / self.T)
+            return u
 
         self.a_index=a_index
 
@@ -242,7 +275,7 @@ class RegularityLDDMMPeriodic(Functional):
         """Gradient operator of the Rosenbrock functional."""
         functional = self
 
-        class RegularityLDDMMGradient(Operator):
+        class RegularityLDDMMGatingFunctionGradient(Operator):
 
             """The gradient operator of the RegularityLDDMM
             functional."""
@@ -256,11 +289,25 @@ class RegularityLDDMMPeriodic(Functional):
                 grad = functional.domain.zero()
 
                 for i in range(functional.N_tot +1):
-                    grad[functional.a_index(i)]+=vector_field_list[functional.a_index(i)].copy()
+                    k_i=self.a_index(i)
+                    # Compute weighted mean between values at k_i and k_i +1 of
+                    # vector_field_list
+
+                    # ratio of the difference between projected time and
+                    # the previous integration time point
+                    delta0 = self.N*(self.a(i/self.N_tot) - k_i*self.T/self.N)
+
+                    if (k_i==self.N-1): # in this case : mean between k_i and 0
+                        grad[k_i]+=(1-delta0)*vector_field_list[i].copy()
+                        grad[0]+=(delta0)*vector_field_list[i].copy()
+                    else:
+                        grad[k_i]+=(1-delta0)*vector_field_list[i].copy()
+                        grad[k_i+1]+=(delta0)*vector_field_list[i].copy()
+
 
                 return grad.copy()
 
-        return RegularityLDDMMGradient()
+        return RegularityLDDMMGatingFunctionGradient()
 
 
 
