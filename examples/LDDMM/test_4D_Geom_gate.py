@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Mon Apr  3 15:41:14 2017
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Fri Mar 31 11:06:07 2017
 
 @author: bgris
@@ -152,13 +160,21 @@ Norm=odl.solvers.L2NormSquared(forward_op.range)
 
 period=0.4
 
-energy_op=odl.deform.TemporalAttachmentLDDMMGeomPeriodic(period,
+energy_op_per=odl.deform.TemporalAttachmentLDDMMGeomPeriodic(period,
+                                                        nb_time_point_int, template ,data,
+                            data_time_points, forward_operators,Norm, kernel,
+                            domain=None)
+
+a=energy_op_per.a
+nb_time_point_int_gate=10
+#%%
+energy_op=odl.deform.TemporalAttachmentLDDMMGeomGatingFunction(period,a,nb_time_point_int_gate,
                                                         nb_time_point_int, template ,data,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
 #energy=energy_op(vector_fields)
 
-Reg=odl.deform.RegularityLDDMMPeriodic(period,nb_time_point_int,
+Reg=odl.deform.RegularityLDDMMGatingFunction(period, a,nb_time_point_int_gate,nb_time_point_int,
                       kernel,energy_op.domain)
 
 #Reg=odl.deform.RegularityGrowth(kernel,energy_op.domain)
@@ -186,8 +202,9 @@ vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
 #vector_fields_list=vector_fields.copy()
 
-niter=50
-eps = 0.01
+vector_fields_list_save=vector_fields_list.copy()
+niter=10
+eps = 0.03
 
 attachment_term=energy_op(vector_fields_list)
 print(" Initial ,  attachment term : {}".format(attachment_term))
