@@ -95,11 +95,15 @@ lamb = 1e-7
 time_itvs = 10
 
 # Give kernel function
+
 def kernel(x):
     sigma = 2.0
     scaled = [xi ** 2 / (2 * sigma ** 2) for xi in x]
     return np.exp(-sum(scaled))
 #
+
+
+
 
 #%% Compute by LDDMM solver
 image_N0, E, vector_fields = odl.deform.LDDMM_gradient_descent_solver(forward_op, proj_data, I0,
