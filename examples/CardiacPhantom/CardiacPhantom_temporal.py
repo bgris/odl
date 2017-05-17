@@ -32,9 +32,9 @@ space = odl.uniform_discr(
 
 
 data_list=[]
-index_list=[0,2,4]
+index_list=[0,4]
 for i in range(len(index_list)):
-    filename='SPECT_Torso_act_'+ str(index_list[i]+1) + '.bin'
+    filename='/home/bgris/odl/examples/CardiacPhantom/SPECT_Torso_act_'+ str(index_list[i]+1) + '.bin'
     A = np.fromfile(filename, dtype='float32')
     A = A.reshape([a,b,c])
     data_list.append(space.element(A))
@@ -47,9 +47,9 @@ data_list[1].show(indices=np.s_[ space.shape[0] // 2,:, :])
 forward_op=odl.IdentityOperator(space)
 nb_time_point_int=10
 template=data_list[0]
-data_time_points=np.array([0,0.5,1])
+data_time_points=np.array([1])
 data_space=odl.ProductSpace(forward_op.range,data_time_points.size)
-data=data_space.element([forward_op(data_list[0]),forward_op(data_list[1]),forward_op(data_list[2])])
+data=data_space.element([forward_op(data_list[1])])
 forward_operators=[forward_op,forward_op,forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
 def kernel(x):
@@ -77,7 +77,7 @@ vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
 
 niter=60
-eps = 0.0001
+eps = 1e-5
 
 
 
