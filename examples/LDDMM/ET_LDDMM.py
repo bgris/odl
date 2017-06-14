@@ -32,6 +32,9 @@ import odl
 from odl.discr import uniform_discr, Gradient
 from odl.phantom import sphere, sphere2, cube
 
+
+import odl.deform.mrc_data_io
+
 from odl.deform.mrc_data_io import (read_mrc_data, geometry_mrc_data,
                                     result_2_mrc_format, result_2_nii_format)
 from odl.tomo import RayTransform, fbp_op
@@ -61,9 +64,217 @@ data_downsam = data[:, :, ::downsam]
 det_pix_size = 0.521
 
 # Create 3-D parallel projection geometry
-single_axis_geometry = geometry_mrc_data(data_extent=data_extent,
-                                         data_shape=data.shape,
-                                         det_pix_size=det_pix_size,
+single_axis_geometry = odl.deform.mrc_data_io.geometry_mrc_data(data_extent=data_extent,
+                                         data_shape=data.shape, det_pix_size=det_pix_size,
                                          units='physical',
                                          extended_header=extended_header,
                                          downsam=downsam)
+
+
+# --- Creating reconstruction space --- #
+
+# Voxels in 3D region of interest
+rec_shape = (data.shape[0], data.shape[0], data.shape[0])
+
+## Create reconstruction extent
+## for rod
+#min_pt = np.asarray((-150, -150, -150), float)
+#max_pt = np.asarray((150, 150, 150), float)
+
+# Create reconstruction extent
+# for triangle, sphere
+rec_extent = np.asarray(rec_shape, float)
+#min_pt = np.asarray((-100, -100, -100), float)
+#max_pt = np.asarray((100, 100, 100), float)
+
+# Reconstruction space with physical setting
+rec_space = uniform_discr(-rec_extent / 2 * det_pix_size,
+                          rec_extent / 2  * det_pix_size, rec_shape,
+dtype='float32', interp='linear')
+
+# --- Creating forward operator --- #
+
+# Create forward operator
+forward_op = RayTransform(rec_space, single_axis_geometry, impl='astra_cuda')
+
+# --- Chaging the axises of the 3D data --- #
+
+# Change the axises of the 3D data
+#data = np.where(data >= 30, data, 0.0)
+data_temp1 = np.swapaxes(data_downsam, 0, 2)
+data_temp2 = np.swapaxes(data_temp1, 1, 2)
+data_elem = forward_op.range.element(data_temp2)
+
+# Show one sinograph
+#data_elem.show(title='Data in one projection',
+#               indices=np.s_[data_elem.shape[0] // 2, :, :])
+
+
+
+data_space = uniform_discr(-rec_extent / 2 * det_pix_size,
+                          rec_extent / 2  * det_pix_size, (200,200,151),
+dtype='float32', interp='linear')
+
+
+## sphere for rod, triangle, sphere2 for sphere
+template = sphere(rec_space, smooth=True, taper=10.0, radius=0.5)
+#%%
+#mean = np.sum(data_temp2[data_temp2.shape[0] // 2]) / data_temp2[data_temp2.shape[0] // 2].size
+#temp = data_temp2[data_temp2.shape[0] // 2] - mean
+#temp = np.where(temp >= 0.01, data_temp2[data_temp2.shape[0] // 2], 0.0)
+#mass_from_data = np.sum(temp)
+#
+## Evaluate the mass of template
+#mass_template = np.sum(np.asarray(template))
+#
+## Get the same mass for template
+#template = mass_from_data / mass_template * template
+
+template_min=np.asarray(template).min()
+data_min=data_temp2.min()
+
+template=rec_space.element(np.asarray(template)-template_min)
+data_elem= forward_op.range.element(data_temp2-data_min)
+
+#%%
+
+# Maximum iteration number
+niter = 150
+
+# Give step size for solver
+eps = 0.01
+
+# Give regularization parameter
+lamb = 0.00000002
+
+# Give the number of time points
+time_itvs = 20
+nb_time_point_int=time_itvs
+# Choose parameter for kernel function
+sigma = 0.5
+
+# Give kernel function
+def kernel(x):
+    scaled = [xi ** 2 / (2 * sigma ** 2) for xi in x]
+    return np.exp(-sum(scaled))
+
+
+
+# Initialize the reconstruction result
+rec_result = template
+data_list=[data_elem]
+data_time_points=[1]
+forward_operators=[forward_op]
+Norm=odl.solvers.L2NormSquared(forward_op.range)
+
+#
+#forward_op(template).show(indices=np.s_[data_elem.shape[0] // 2, :, :])
+#data_elem.show(title='Data in one projection',
+#               indices=np.s_[data_elem.shape[0] // 2, :, :])
+#
+#
+#
+#forward_op(template).show(indices=np.s_[:,data_elem.shape[1] // 2,  :])
+#data_elem.show(title='Data in one projection',
+#               indices=np.s_[:,data_elem.shape[1] // 2,  :])
+#
+#
+#
+#forward_op(template).show(indices=np.s_[:,:,data_elem.shape[2] // 2])
+#data_elem.show(title='Data in one projection',
+#               indices=np.s_[:,:,data_elem.shape[2] // 2])
+
+
+#%% Define energy operator
+energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data_list,
+                            data_time_points, forward_operators,Norm, kernel,
+                            domain=None)
+
+
+Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
+
+functional = energy_op + lamb*Reg
+
+#%% Gradient descent
+
+vector_fields_list_init=energy_op.domain.zero()
+vector_fields_list=vector_fields_list_init.copy()
+#%%
+attachment_term=energy_op(vector_fields_list)
+print(" Initial ,  attachment term : {}".format(attachment_term))
+
+for k in range(niter):
+    #for t in range(nb_time_point_int):
+    #   np.savetxt('vector_fields_list' + str(t),np.asarray(vector_fields_list[t]))
+    grad=functional.gradient(vector_fields_list)
+    vector_fields_list= (vector_fields_list- eps *grad).copy()
+    attachment_term=energy_op(vector_fields_list)
+    print(" iter : {}  ,  attachment term : {}".format(k,attachment_term))
+#
+
+#%%
+
+
+image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
+
+
+import nibabel as nib
+import os
+for t in range(nb_time_point_int+1):
+    # Save reconstruction
+    data = image_N0[t].asarray().copy()
+    img = nib.Nifti1Image(data, np.eye(4))
+    img.get_data_dtype() == np.dtype(np.float32)
+    img.header.get_xyzt_units()
+    name = 'ET' + str(t) + '.nii'
+    img.to_filename(os.path.join('/home/bgris/odl/examples/TEM/',name))
+
+
+
+
+
+image_N0[0].show(indices=np.s_[rec_shape[0] // 2, :, :])
+image_N0[20].show(indices=np.s_[rec_shape[0] // 2, :, :])
+
+
+forward_op(image_N0[20]).show(indices=np.s_[:,:,data_elem.shape[2] // 2])
+data_elem.show(indices=np.s_[:,:,data_elem.shape[2] // 2])
+
+
+
+odl.deform.mrc_data_io.result_2_mrc_format(result=image_N0[nb_time_point_int],
+                    file_name='Reconstruction3D_ET.mrc')
+
+odl.deform.mrc_data_io.result_2_mrc_format(result=template,
+                    file_name='template_ET.mrc')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

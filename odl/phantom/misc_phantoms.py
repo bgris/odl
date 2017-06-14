@@ -455,11 +455,11 @@ def _donut_2d_nonsmooth(discr):
         return np.where(sq_ndist <= 1, 1, 0)
 
     out = discr.element(circle_1) - discr.element(circle_2)
-    
+
     return out.ufuncs.minimum(1, out=out)
 
 
-def sphere(discr, smooth=True, taper=20.0):
+def sphere(discr, smooth=True, taper=20.0, radius=0.05):
     """Return a 'sphere' phantom.
 
     Parameters
@@ -479,7 +479,7 @@ def sphere(discr, smooth=True, taper=20.0):
     """
     if discr.ndim == 3:
         if smooth:
-            return _sphere_3d_smooth(discr, taper)
+            return _sphere_3d_smooth(discr, taper, radius)
         else:
             return _sphere_3d_nonsmooth(discr)
     else:
@@ -487,7 +487,7 @@ def sphere(discr, smooth=True, taper=20.0):
                          ''.format(discr.dim))
 
 
-def _sphere_3d_smooth(discr, taper):
+def _sphere_3d_smooth(discr, taper, radius=0.05):
     """Return a 3d smooth 'sphere' phantom."""
 
     def logistic(x, c):
@@ -501,7 +501,7 @@ def _sphere_3d_smooth(discr, taper):
         ``(0.1, 0.1, 0.1)``. For other domains, the values are scaled
         accordingly.
         """
-        halfaxes = np.array([0.05, 0.05, 0.05]) * discr.domain.extent() / 2
+        halfaxes = np.array([radius, radius, radius]) * discr.domain.extent() / 2
         center = np.array([0.0, 0.0, -0.15]) * discr.domain.extent() / 2
 
         # Efficiently calculate |z|^2, z = (x - center) / radii
@@ -726,23 +726,23 @@ if __name__ == '__main__':
     donut(space, smooth=False).show('donut smooth=False')
     donut(space, smooth=True).show('donut smooth=True')
     donut(space, smooth=True, taper=50).show('donut taper=50')
-    
+
     space_3d = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
-    
+
     sphere(space_3d, smooth=False).show('sphere smooth=False',
           indices=np.s_[:, :, space_3d.shape[-1] // 2])
     sphere(space_3d, smooth=True).show('sphere smooth=True',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere(space_3d, smooth=True, taper=50).show('sphere taper=50',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
-    
+
     sphere2(space_3d, smooth=False).show('sphere smooth=False',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere2(space_3d, smooth=True).show('sphere smooth=True',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere2(space_3d, smooth=True, taper=50).show('sphere taper=50',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
-    
+
     cube(space_3d, smooth=False).show('cube smooth=False',
         indices=np.s_[space_3d.shape[-1] // 2, :, :])
     cube(space_3d, smooth=True).show('cube smooth=True',

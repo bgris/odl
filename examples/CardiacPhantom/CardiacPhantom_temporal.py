@@ -20,7 +20,9 @@ import odl
 import numpy as np
 from matplotlib import pylab as plt
 
-
+import nibabel as nib
+import os
+import scipy
 #%% Load data as a list of images
 a=120
 b=256
@@ -28,32 +30,49 @@ c=256
 
 space = odl.uniform_discr(
     min_pt=[-127, -127, -59], max_pt=[127, 127, 59], shape=[a,b,c],
-    dtype='float32', interp='nearest')
+    dtype='float32', interp='linear')
 
 
 data_list=[]
-index_list=[0,4]
+index_list=[0,2,4]
 for i in range(len(index_list)):
     filename='/home/bgris/odl/examples/CardiacPhantom/SPECT_Torso_act_'+ str(index_list[i]+1) + '.bin'
     A = np.fromfile(filename, dtype='float32')
-    A = A.reshape([a,b,c])
+    A = A.reshape([a,b,c]).copy()
     data_list.append(space.element(A))
 Ndata=len(index_list)
 data_list[0].show(indices=np.s_[ space.shape[0] // 2,:, :])
 
 data_list[1].show(indices=np.s_[ space.shape[0] // 2,:, :])
 
+# Save data to visualize them
+if False:
+    indi=4
+    filename='/home/bgris/odl/examples/CardiacPhantom/SPECT_Torso_act_'+ str(indi+1) + '.bin'
+    A = np.fromfile(filename, dtype='float32')
+    A = A.reshape([a,b,c]).copy()
+    A=data[0]
+    data = np.asarray(A)
+    img = nib.Nifti1Image(data, np.eye(4))
+    img.get_data_dtype() == np.dtype(np.float32)
+    img.header.get_xyzt_units()
+    img.to_filename(os.path.join('/home/bgris/odl/examples/CardiacPhantom','Data_noise'+ str(indi+1) + '.nii'))
+#
+
+
 #%% Parameter for matching
 forward_op=odl.IdentityOperator(space)
 nb_time_point_int=10
 template=data_list[0]
-data_time_points=np.array([1])
+template=template.space.element(scipy.ndimage.filters.gaussian_filter(data_list[0].asarray(),1.5))
+data_time_points=np.array([0.5,1])
 data_space=odl.ProductSpace(forward_op.range,data_time_points.size)
-data=data_space.element([forward_op(data_list[1])])
+#data=data_space.element([forward_op(data_list[1])])
+data=data_space.element([forward_op(space.element(scipy.ndimage.filters.gaussian_filter(data_list[i].asarray(),1.5))) for i in range(1,len(index_list))])
 forward_operators=[forward_op,forward_op,forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
 def kernel(x):
-    sigma = 5.0
+    sigma = 10.0
     scaled = [xi ** 2 / (2 * sigma ** 2) for xi in x]
     return np.exp(-sum(scaled))
 
@@ -77,7 +96,7 @@ vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
 
 niter=60
-eps = 1e-5
+eps = 1e-6
 
 
 
@@ -108,6 +127,7 @@ for k in range(niter):
 #
 
 
+
 #%% See result
 
 Registration=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
@@ -122,3 +142,4 @@ for i in range(len(index_list)):
 for i in range(nb_time_point_int):
     Registration[i].show('Result time{}'.format(i),indices=np.s_[ space.shape[0] // 2,:, :])
 
+#%% save registration to see

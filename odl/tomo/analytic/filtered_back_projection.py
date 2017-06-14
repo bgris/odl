@@ -344,6 +344,7 @@ def fbp_filter_op(ray_trafo, padding=True, filter_type='Ram-Lak',
     tam_danielson_window : Windowing for helical data
     """
     impl = 'pyfftw' if PYFFTW_AVAILABLE else 'numpy'
+    impl = 'numpy'
     alen = ray_trafo.geometry.motion_params.length
 
     if ray_trafo.domain.ndim == 2:
