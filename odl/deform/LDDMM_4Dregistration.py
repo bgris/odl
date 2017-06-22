@@ -66,7 +66,7 @@ def ShootTemplateFromVectorFields(vector_field_list, template):
     for i in range(N):
         I[i+1]=template.space.element(
                 _linear_deform(I[i],
-                               -inv_N * vector_field_list[i+1])).copy()
+                               -inv_N * vector_field_list[i])).copy()
     return I
 
 class TemporalAttachmentLDDMMGeom(Functional):
