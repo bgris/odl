@@ -121,10 +121,17 @@ def plot_grid(grid, skip):
 #
 #%%
 
-I0name = '/home/bgris/Downloads/pictures/v.png'
-I1name = '/home/bgris/Downloads/pictures/j.png'
+I1name = '/home/bgris/Downloads/pictures/v.png'
+I0name = '/home/bgris/Downloads/pictures/j.png'
 I0 = np.rot90(plt.imread(I0name).astype('float'), -1)
 I1 = np.rot90(plt.imread(I1name).astype('float'), -1)
+
+
+I0name = '/home/bgris/Figures/ss_save.png' # 438 * 438, I0[:,:,1]
+I1name = '/home/bgris/Figures/ss_save_1.png' # 438 * 438, I0[:,:,1]
+I0 = np.rot90(plt.imread(I0name).astype('float'), -1)[:,:, 1]
+I1 = np.rot90(plt.imread(I1name).astype('float'), -1)[:,:, 1]
+
 
 # Discrete reconstruction space: discretized functions on the rectangle
 rec_space = odl.uniform_discr(
@@ -136,7 +143,7 @@ ground_truth = rec_space.element(I1)
 
 
 # Create the template as the given image
-template = rec_space.element(I0)
+template = 0.5*rec_space.element(I0)
 
 
 # Implementation method for mass preserving or not,
@@ -156,7 +163,7 @@ impl2 = 'least_square'
 #template.show('template')
 
 # The parameter for kernel function
-sigma = 6.0
+sigma = 2.0
 
 # Give kernel function
 def kernel(x):
@@ -170,9 +177,8 @@ niter = 200
 eps = 0.02
 
 # Give regularization parameter
-lamb = 1e-7
-tau = 1e-7
-
+lamb = 0.5*1e-11
+tau = 0.5* 1e-2
 
 # Give the number of directions
 num_angles = 10
@@ -190,13 +196,13 @@ geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
 forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
-forward_op = odl.IdentityOperator(rec_space)
+#forward_op = odl.IdentityOperator(rec_space)
 
 # Create projection data by calling the op on the phantom
 proj_data = forward_op(ground_truth)
 
 # Add white Gaussion noise onto the noiseless data
-noise =1.5 * odl.phantom.noise.white_noise(forward_op.range)
+noise =1.0 * odl.phantom.noise.white_noise(forward_op.range)
 
 # Create the noisy projection data
 noise_proj_data = proj_data + noise
@@ -208,7 +214,7 @@ snr = snr_fun(proj_data, noise_proj_data - proj_data, impl='dB')
 print('snr = {!r}'.format(snr))
 
 # Give the number of time points
-time_itvs = 20
+time_itvs = 5
 nb_time_point_int=time_itvs
 
 data=[noise_proj_data]
@@ -216,6 +222,13 @@ data=[proj_data]
 data_time_points=np.array([1])
 forward_operators=[forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
+
+
+lam_fbp=0.5
+fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
+reco_fbp=fbp(data[0])
+#reco_fbp.show()
+reco_fbp.show(clim=[-0.2,1.2])
 #%% Define energy operator
 
 functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
@@ -223,24 +236,10 @@ functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
 
-#%%
-X=functional.domain.zero()
-Y=functional.gradient(X)
-
-#%%
-from odl.discr import DiscreteLp, Gradient, Divergence
-grad_op = Gradient(domain=functional.image_domain, method='forward',pad_mode='symmetric')
-N=20
-S=Norm*(forward_op - template)
-grad_S_init=S.gradient(template)
-H=grad_op(template)
-H_list=odl.ProductSpace(H.space,N+1).element()
-for i in range(N+1):
-    H_list[i]=H.copy()
-Y=functional.ConvolveIntegrate(grad_S_init,H_list,0, X[0],X[1] )
 
 #%% Gradient descent
-eps=0.05
+epsV=0.02
+epsZ=0.002
 X_init=functional.domain.zero()
 X=X_init.copy()
 energy=functional(X)
@@ -248,20 +247,50 @@ print(" Initial ,  energy : {}".format(energy))
 
 for k in range(niter):
     grad=functional.gradient(X)
-    X= (X- eps *grad).copy()
+    X[0]= (X[0]- epsV *grad[0]).copy()
+    X[1]= (X[1]- epsZ *grad[1]).copy()
     energy=functional(X)
     print(" iter : {}  , energy : {}".format(k,energy))
 #
 #%% Compute estimated trajectory
-image_list=functional.ComputeMetamorphosis(X[0],X[1])
-template_evo=odl.deform.IntegrateTemplateEvol(functional.template,X[1],0,functional.N)
+image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
+
+image_list_data[0].show()
+image_list_data[0].show(clim=[0,1])
+
+
+image_list=functional.ComputeMetamorphosisListInt(X[0],X[1])
+
+for i in range(nb_time_point_int+1):
+    #image_list[i].show('Metamorphosis time {}'.format(i))
+    #image_list[i].show('Metamorphosis time {}'.format(i),clim=[0,1])
+    image_list[i].show('Metamorphosis time {}'.format(i),clim=[-0.2,1.2])
+
+
+template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
+
+for i in range(nb_time_point_int+1):
+    template_evo[i].show('Template evolution time {} '.format(i))
+
+
+zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
+image_evol=odl.deform.IntegrateTemplateEvol(template,zeta_transp,0,nb_time_point_int)
+for i in range(nb_time_point_int+1):
+    image_evol[i].show('Image evolution time {} '.format(i),clim=[-0.2,1.2])
+
+
 #
-grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
+grid_points=compute_grid_deformation_list(X[0], 1/nb_time_point_int, template.space.points().T)
 
 #
 #for t in range(nb_time_point_int):
 #    grid=grid_points[t].reshape(2, 128, 128).copy()
 #plot_grid(grid, 2)
+#%%
+image_list=odl.ProductSpace(functional.template.space,functional.N).element()
+zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0], X[1]).copy()
+template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
+odl.deform.ShootTemplateFromVectorFieldsFinal(X[0],template_evolution[k],0,k).copy()
 
 #%%
 rec_result_1 = rec_space.element(image_N0[time_itvs // 4])

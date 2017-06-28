@@ -28,7 +28,8 @@ import odl
 
 from odl.solvers.functional.functional import Functional
 __all__ = ('TemporalAttachmentMetamorphosisGeom', 'IntegrateTemplateEvol',
-           'ShootTemplateFromVectorFieldsFinal' , 'ShootTemplateFromVectorFields' )
+           'ShootTemplateFromVectorFieldsFinal' , 'ShootTemplateFromVectorFields',
+           'ShootSourceTermBackwardlist')
 
 
 def padded_ft_op(space, padded_size):
@@ -87,6 +88,21 @@ def IntegrateTemplateEvol(template,zeta,k0,k1):
     for i in range(k0,k1):
         I[i+1]=I[i]+ inv_N * zeta[i]
     return I
+
+def ShootSourceTermBackwardlist(vector_field_list, zeta):
+    N=vector_field_list.size-1
+    inv_N=1/N
+    series_image_space_integration = ProductSpace(zeta[0].space,N+1)
+    zeta_transp=series_image_space_integration.element()
+    space_zeta=zeta[0].space
+    for i in range(0,N+1):
+        temp=zeta[i].copy()
+        for j in range(i):
+            temp=space_zeta.element(
+                _linear_deform(temp,
+                               inv_N * vector_field_list[j])).copy()
+        zeta_transp[i]=temp.copy()
+    return zeta_transp
 
 class TemporalAttachmentMetamorphosisGeom(Functional):
 
@@ -180,7 +196,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
 
 
-    def _call(self,X , out=None):
+    def _call(self, X, out=None):
         vector_field_list=X[0]
         zeta_list=X[1]
 
@@ -192,18 +208,25 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         for j in range(self.nb_data):
             #energy+=self.Norm(self.forward_op[j](image_data[j]) -  self.data[j])
             energy+=self.S[j](image_list[j])
+        attach=energy
 
+        a=0
+        b=0
         for i in range(self.N):
             temp=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(vector_field_list[i]) * self.ft_kernel_fitting).copy()
-            energy+=self.lamb*vector_field_list[i].inner(temp)
-            energy+=self.tau*zeta_list[i].inner(zeta_list[i])
-
+            #energy+=self.lamb*vector_field_list[i].inner(temp)
+            #energy+=self.tau*zeta_list[i].inner(zeta_list[i])
+            a+=self.lamb*vector_field_list[i].inner(temp)
+            b+=self.tau*zeta_list[i].inner(zeta_list[i])
+        energy+=a
+        energy+=b
+        print("Attachmant term = {} , norm v = {} , norm zeta = {} ".format(attach,a,b))
         return energy
 
-    def ComputeMetamorphosis(self,vector_field_list,zeta_list,):
+    def ComputeMetamorphosis(self,vector_field_list,zeta_list):
         image_list=ProductSpace(self.template.space,self.nb_data).element()
-
-        template_evolution=IntegrateTemplateEvol(self.template,zeta_list,0,self.N)
+        zeta_transp=ShootSourceTermBackwardlist(vector_field_list, zeta_list).copy()
+        template_evolution=IntegrateTemplateEvol(self.template,zeta_transp,0,self.N)
         # We build for each j image_list[j]= template_t_j \circ \phi_{t_j}^-1
         for j in range(self.nb_data):
                 delta0=(self.data_time_points[j] -((self.k_j_list[j])/self.N))
@@ -212,7 +235,37 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                         -delta0 * vector_field_list[self.k_j_list[j]])).copy()
                 #image_t_j_k_j= template_t_j \circ \phi_{\tau_k_j}^-1
                 image_t_j_k_j=ShootTemplateFromVectorFieldsFinal(
-                        vector_field_list,template_t_j,0,self.k_j_list[j])
+                        vector_field_list,template_t_j,0,self.k_j_list[j]).copy()
+                image_list[j]=self.image_domain.element(
+                        _linear_deform(image_t_j_k_j,
+                        -delta0 * vector_field_list[self.k_j_list[j]])).copy()
+
+        return image_list
+
+    def ComputeMetamorphosisListInt(self,vector_field_list,zeta_list):
+        image_list=ProductSpace(self.template.space,self.N+1).element()
+        zeta_transp=ShootSourceTermBackwardlist(vector_field_list, zeta_list).copy()
+        template_evolution=IntegrateTemplateEvol(self.template,zeta_transp,0,self.N)
+        # We build for each j image_list[j]= template_t_j \circ \phi_{t_j}^-1
+        for k in range(self.N +1):
+                image_list[k]=ShootTemplateFromVectorFieldsFinal(
+                        vector_field_list,template_evolution[k],0,k).copy()
+
+        return image_list
+
+
+    def ComputeMetamorphosisFromZetaTransp(self,vector_field_list,zeta_transp):
+        image_list=ProductSpace(self.template.space,self.nb_data).element()
+        template_evolution=IntegrateTemplateEvol(self.template,zeta_transp,0,self.N)
+        # We build for each j image_list[j]= template_t_j \circ \phi_{t_j}^-1
+        for j in range(self.nb_data):
+                delta0=(self.data_time_points[j] -((self.k_j_list[j])/self.N))
+                template_t_j=self.image_domain.element(
+                        _linear_deform(template_evolution[self.k_j_list[j]],
+                        -delta0 * vector_field_list[self.k_j_list[j]])).copy()
+                #image_t_j_k_j= template_t_j \circ \phi_{\tau_k_j}^-1
+                image_t_j_k_j=ShootTemplateFromVectorFieldsFinal(
+                        vector_field_list,template_t_j,0,self.k_j_list[j]).copy()
                 image_list[j]=self.image_domain.element(
                         _linear_deform(image_t_j_k_j,
                         -delta0 * vector_field_list[self.k_j_list[j]])).copy()
@@ -247,8 +300,8 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                 for d in range(dim):
                     tmp[d] *= tmp1
                 tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
-                h[k_j]-=tmp3.copy()
-                eta[k_j]-=detDphi*grad_S
+                h[k_j]+=tmp3.copy()
+                eta[k_j]+=detDphi*grad_S
 
             delta_t= self.inv_N
             for u in range(k_j):
@@ -266,10 +319,10 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                 tmp=H[k].copy()
                 tmp1=(grad_S * detDphi).copy()
                 for d in range(dim):
-                    tmp[d] *= tmp1
+                    tmp[d] *= tmp1.copy()
                 tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
-                h[k]-=tmp3.copy()
-                eta[k]-=detDphi*grad_S
+                h[k]+=tmp3.copy()
+                eta[k]+=detDphi*grad_S
 
             return [h,eta]
 
@@ -298,31 +351,33 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                 eta=zeta_list.space.zero()
 
                 # Compute the metamorphosis at the data time points
-                image_list=functional.ComputeMetamorphosis(vector_field_list,zeta_list)
+                # zeta_transp [k] = zeta_list [k] \circ \varphi_{\tau_k}
+                zeta_transp=ShootSourceTermBackwardlist(vector_field_list, zeta_list).copy()
+                image_list=functional.ComputeMetamorphosisFromZetaTransp(vector_field_list,zeta_transp).copy()
 
-                template_deformation=ShootTemplateFromVectorFields(vector_field_list,functional.template)
+                template_deformation=ShootTemplateFromVectorFields(vector_field_list,functional.template).copy()
 
                 # Computation of G_k=\nabla (template \circ \phi_{\tau_k}^-1) for each k
                 G=odl.ProductSpace(functional.image_domain.tangent_bundle, functional.N +1).element()
                 grad_op = Gradient(domain=functional.image_domain, method='forward',
                    pad_mode='symmetric')
                 for k in range(functional.N +1):
-                    G[k]=grad_op(template_deformation[k])
+                    G[k]=grad_op(template_deformation[k]).copy()
 
 
-                # Computation of  \int_0^\tau_k \nabla (\zeta(\tau) \circ \phi_{\tau_k , \tau}) d\tau
+                # Addition of  \int_0^\tau_k \nabla (\zeta(\tau) \circ \phi_{\tau_k , \tau}) d\tau
                 for k in range(functional.N +1):
-                    G[k]+= (functional.inv_N * grad_op(zeta_list[k])).copy()
-                    for q in range(k-1):
+                    #G[k]+= (functional.inv_N * grad_op(zeta_list[k])).copy()
+                    for q in range(k):
                         p=k-1-q
-                        temp=ShootTemplateFromVectorFieldsFinal(vector_field_list,zeta_list[p],p,k)
+                        temp=ShootTemplateFromVectorFieldsFinal(vector_field_list,zeta_transp[p],0,k).copy()
                         G[k]+= (functional.inv_N * grad_op(temp)).copy()
 
                 for j in range(functional.nb_data):
-                    conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list)
+                    conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
                     for k in range(functional.k_j_list[j]):
-                        h[k]-=conv[0][k]
-                        eta[k]-=conv[1][k]
+                        h[k]-=conv[0][k].copy()
+                        eta[k]+=conv[1][k].copy()
 
                 for k in range(functional.N):
                     h[k]+=2*functional.lamb*vector_field_list[k]
