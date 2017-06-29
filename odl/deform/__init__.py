@@ -37,3 +37,4 @@ __all__ += LDDMM_4Dregistration_gatingFunction.__all__
 
 from .Metamorphosis import *
 __all__ += Metamorphosis.__all__
+
