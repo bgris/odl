@@ -146,7 +146,7 @@ eps = 0.01
 
 # Give regularization parameter
 lamb = 1*1e-11
-tau = 100* 1e0
+tau = 100* 1e-2
 # Give the number of time points
 time_itvs = 5
 nb_time_point_int=time_itvs
