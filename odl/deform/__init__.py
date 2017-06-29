@@ -44,7 +44,8 @@ __all__ += LDDMM_4Dregistration_periodic.__all__
 from .LDDMM_4Dregistration_gatingFunction import *
 __all__ += LDDMM_4Dregistration_gatingFunction.__all__
 
-from .Metamorphosis import *__all__ += MEtamorphosis.__all__
+from .Metamorphosis import *
+__all__ += Metamorphosis.__all__
 
 
 
