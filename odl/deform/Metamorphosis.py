@@ -44,7 +44,7 @@ def padded_ft_op(space, padded_size):
         space, ran_shp=[padded_size for _ in range(space.ndim)])
     shifts = [not s % 2 for s in space.shape]
     ft_op = FourierTransform(
-        padded_op.range, halfcomplex=False, shift=shifts, impl='pyfftw')
+        padded_op.range, halfcomplex=False, shift=shifts, impl='numpy')
 
     return ft_op * padded_op
 

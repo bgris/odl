@@ -306,6 +306,132 @@ class TemporalAttachmentLDDMMGeom(Functional):
                 return grad
 
         return TemporalAttachmentLDDMMGeomGradient()
+    
+    
+    @property
+    def gradientL2(self):
+
+        functional = self
+
+        class TemporalAttachmentLDDMMGeomGradient(Operator):
+
+            """The gradient operator of the TemporalAttachmentLDDMMGeom
+            functional."""
+
+            def __init__(self):
+                """Initialize a new instance."""
+                super().__init__(functional.domain, functional.domain,
+                                 linear=False)
+
+            def _call(self, vector_field_list):
+
+                # Get the dimension
+                dim = functional.image_domain.ndim
+
+                # Compute the transport of the template
+                series_image_space_integration = ProductSpace(functional.image_domain, functional.N+1)
+                series_image_space_data = ProductSpace(functional.image_domain, functional.nb_data)
+                image_integration = series_image_space_integration.element()
+                image_integration[0] = functional.image_domain.element(functional.template).copy()
+                image_data = series_image_space_data.element()
+                vector_field_list_data=odl.ProductSpace(
+                  functional.image_domain.tangent_bundle,functional.nb_data).element()
+
+                # Integration of the transport of the template
+                for i in range(functional.N):
+                    # Update image_N0[i+1] by image_N0[i] and vector_fields[i+1]
+                    image_integration[i+1] = functional.image_domain.element(
+                        _linear_deform(image_integration[i],
+                                       -functional.inv_N * vector_field_list[i+1])).copy()
+
+                # time interpolation to obtain at the data time points
+                # - the transported template  : linear deformation from
+                #    image_integration[self.k_j_list[j]] with
+                #    delta0* vector_field_list[self.k_j_list[j]]
+                # - the vector field  : interpolation
+                for j in range(functional.nb_data):
+                        delta0=(functional.data_time_points[j] -((functional.k_j_list[j])/functional.N))
+                        image_data[j]=functional.image_domain.element(
+                                _linear_deform(image_integration[functional.k_j_list[j]],
+                                -delta0 * vector_field_list[functional.k_j_list[j]])).copy()
+                        delta1=1-functional.N*delta0
+                        v0=vector_field_list[functional.k_j_list[j]]
+                        if functional.k_j_list[j]<functional.N:
+                            v1=vector_field_list[functional.k_j_list[j]+1]
+                            vector_field_list_data[j]=delta0*v1+delta1*v0
+                        else:
+                            vector_field_list_data[j]=v0
+
+                # FFT setting for data matching term, 1 means 100% padding
+                padded_size = 2 * functional.image_domain.shape[0]
+                padded_ft_fit_op = padded_ft_op(functional.image_domain, padded_size)
+                vectorial_ft_fit_op = DiagonalOperator(*([padded_ft_fit_op] * dim))
+
+                # Compute the FT of kernel in fitting term
+                discretized_kernel = fitting_kernel(functional.image_domain, functional.kernel)
+                ft_kernel_fitting = vectorial_ft_fit_op(discretized_kernel)
+
+                # Computation of h_tj_tauk and then the gradient
+                grad=functional.domain.zero()
+
+                # Create the gradient op
+                grad_op = Gradient(domain=functional.image_domain, method='forward',
+                       pad_mode='symmetric')
+                # Create the divergence op
+                div_op = -grad_op.adjoint
+#                detDphi_N1 = series_image_space_integration.element()
+
+                for j in range(functional.nb_data):
+                    grad_S=series_image_space_integration.element()
+                    detDphi=series_image_space_integration.element()
+                    # initialization at time t_j
+                    #detDphi_t_j=image_domain.one() # initialization not necessary here
+                    grad_S_tj=functional.S[j].gradient(image_data[j]).copy()
+
+#                    grad_S_tj=((functional.forward_op[j].adjoint * (functional.forward_op[j] - functional.data[j]))(image_data[j])).copy()
+                    # computation at time tau_k_j
+                    delta_t= functional.data_time_points[j]-(functional.k_j_list[j]*functional.inv_N)
+                    detDphi[functional.k_j_list[j]]=functional.image_domain.element(
+                                      np.exp(delta_t *
+                                      div_op(vector_field_list_data[j]))).copy()
+                    grad_S[functional.k_j_list[j]]=functional.image_domain.element(
+                                   _linear_deform(grad_S_tj,
+                                   delta_t * vector_field_list_data[j])).copy()
+
+                    tmp= grad_op(image_integration[functional.k_j_list[j]]).copy()
+                    tmp1=(grad_S[functional.k_j_list[j]] *
+                          detDphi[functional.k_j_list[j]]).copy()
+                    for d in range(dim):
+                        tmp[d] *= tmp1
+
+
+                    grad[functional.k_j_list[j]]-=tmp.copy()
+
+                    # loop for k < k_j
+                    delta_t= functional.inv_N
+                    for u in range(functional.k_j_list[j]):
+                        k=functional.k_j_list[j] -u-1
+                        detDphi[k]=functional.image_domain.element(
+                                _linear_deform(detDphi[k+1],
+                                delta_t*vector_field_list[k])).copy()
+                        detDphi[k]=functional.image_domain.element(detDphi[k]*
+                                   functional.image_domain.element(np.exp(delta_t *
+                                     div_op(vector_field_list[k])))).copy()
+                        grad_S[k]=functional.image_domain.element(
+                                       _linear_deform(grad_S[k+1],
+                                       delta_t * vector_field_list[k])).copy()
+
+                        tmp= grad_op(image_integration[k]).copy()
+                        tmp1=(grad_S[k] * detDphi[k]).copy()
+                        for d in range(dim):
+                            tmp[d] *= tmp1
+
+
+                        grad[k]-=tmp.copy()
+
+                return grad
+
+        return TemporalAttachmentLDDMMGeomGradient()
 
 
 
