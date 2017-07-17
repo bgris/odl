@@ -214,7 +214,7 @@ import os
 
 attachment_term=functional(X)
 print(" Initial ,  attachment term : {}".format(attachment_term))
-epsV=0.02
+epsV=0.002
 epsZ=0.00002
 for k in range(niter):
     #for t in range(nb_time_point_int):
