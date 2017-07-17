@@ -24,7 +24,6 @@ ET image reconstruction using LDDMM.
 """
 
 # Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
 from future import standard_library
 import numpy as np
 import matplotlib.pyplot as plt
@@ -146,12 +145,12 @@ eps = 0.01
 
 # Give regularization parameter
 lamb = 1*1e-11
-tau = 100* 1e0
+tau = 1* 1e-2
 # Give the number of time points
 time_itvs = 5
 nb_time_point_int=time_itvs
 # Choose parameter for kernel function
-sigma = 0.5
+sigma = 5
 
 # Give kernel function
 def kernel(x):
@@ -216,7 +215,7 @@ import os
 attachment_term=functional(X)
 print(" Initial ,  attachment term : {}".format(attachment_term))
 epsV=0.02
-epsZ=0.0002
+epsZ=0.00002
 for k in range(niter):
     #for t in range(nb_time_point_int):
     #   np.savetxt('vector_fields_list' + str(t),np.asarray(vector_fields_list[t]))

@@ -133,10 +133,10 @@ rec_space = odl.uniform_discr(
     dtype='float32', interp='linear')
 
 # Create the ground truth as the given image
-ground_truth = rec_space.element(I0)
+ground_truth = rec_space.element(I1)
 
 # Create the template as the given image
-template = rec_space.element(I1)
+template = 0.5*rec_space.element(I0)
 
 # Implementation method for mass preserving or not,
 # impl chooses 'mp' or 'geom', 'mp' means mass-preserving deformation method,
@@ -161,7 +161,7 @@ eps = 0.04
 lamb = 1e-7
 
 # Give the number of directions
-num_angles = 6
+num_angles = 10
 
 # Create the uniformly distributed directions
 angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
@@ -230,7 +230,7 @@ for k in range(niter):
 #%% Compute estimated trajectory
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #
-grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
+grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
 
 #
 #for t in range(nb_time_point_int):
@@ -251,6 +251,91 @@ for t in range(nb_time_point_int):
     grid=grid_points[t].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
     image_N0[t].show('t= {}'.format(t))
     plot_grid(grid, 2)
+#%%% plot with similar scale
+# Plot the results of interest
+plt.figure(1, figsize=(24, 24))
+#plt.clf()
+mini=0
+maxi=1
+plt.subplot(3, 3, 1)
+plt.imshow(np.rot90(template), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+#plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
+plt.colorbar()
+plt.title('Template')
+
+plt.subplot(3, 3, 2)
+plt.imshow(np.rot90(rec_result_1), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4))
+
+plt.subplot(3, 3, 3)
+plt.imshow(np.rot90(rec_result_2), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+
+plt.subplot(3, 3, 4)
+plt.imshow(np.rot90(rec_result_3), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+
+plt.subplot(3, 3, 5)
+plt.imshow(np.rot90(rec_result), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('Reconstructed by {!r} iters, '
+    '{!r} projs'.format(niter, num_angles))
+
+plt.subplot(3, 3, 6)
+plt.imshow(np.rot90(ground_truth), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('Ground truth')
+
+plt.subplot(3, 3, 7)
+plt.plot(np.asarray(proj_data)[0], 'b', linewidth=1.0)
+plt.plot(np.asarray(noise_proj_data)[0], 'r', linewidth=0.5)
+plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
+#    plt.title('$\Theta=0^\circ$, b: truth, r: noisy, '
+#        'g: rec_proj, SNR = {:.3}dB'.format(snr))
+#    plt.gca().axes.yaxis.set_ticklabels([])
+
+plt.subplot(3, 3, 8)
+plt.plot(np.asarray(proj_data)[2], 'b', linewidth=1.0)
+plt.plot(np.asarray(noise_proj_data)[2], 'r', linewidth=0.5)
+plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
+#    plt.title('$\Theta=90^\circ$')
+#    plt.gca().axes.yaxis.set_ticklabels([])
+
+plt.subplot(3, 3, 9)
+plt.plot(np.asarray(proj_data)[4], 'b', linewidth=1.0)
+plt.plot(np.asarray(noise_proj_data)[4], 'r', linewidth=0.5)
+plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
+#    plt.title('$\Theta=162^\circ$')
+#    plt.gca().axes.yaxis.set_ticklabels([])'
+#
+#plt.figure(2, figsize=(8, 1.5))
+##plt.clf()
+#plt.plot(E)
+#plt.ylabel('Energy')
+## plt.gca().axes.yaxis.set_ticklabels(['0']+['']*8)
+#plt.gca().axes.yaxis.set_ticklabels([])
+#plt.grid(True, linestyle='--')
 #%%%
 # Plot the results of interest
 plt.figure(1, figsize=(24, 24))
@@ -259,7 +344,7 @@ plt.figure(1, figsize=(24, 24))
 plt.subplot(3, 3, 1)
 plt.imshow(np.rot90(template), cmap='bone',
            vmin=np.asarray(template).min(),
-           vmax=np.asarray(template).max())
+           vmax=np.asarray(template).max(), clim=[0,1])
 plt.axis('off')
 #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
 plt.colorbar()

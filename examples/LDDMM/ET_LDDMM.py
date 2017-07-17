@@ -252,6 +252,18 @@ odl.deform.mrc_data_io.result_2_mrc_format(result=template,
 
 
 
+#%% fbp
+import nibabel as nib
+import os
+lam_fbp=0.8
+fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
+reco_fbp=fbp(data_elem)
+A = np.asarray(reco_fbp)
+img = nib.Nifti1Image(A, np.eye(4))
+img.get_data_dtype() == np.dtype(np.float32)
+img.header.get_xyzt_units()
+img.to_filename(os.path.join('/home/bgris/odl/examples/TEM','reco_fbp_'+ str(lam_fbp) + '.nii'))
+
 
 
 

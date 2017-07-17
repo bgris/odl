@@ -121,8 +121,8 @@ def plot_grid(grid, skip):
 #
 #%%
 
-I0name = '/home/bgris/Downloads/pictures/v.png'
-I1name = '/home/bgris/Downloads/pictures/j.png'
+I1name = '/home/bgris/Downloads/pictures/v.png'
+I0name = '/home/bgris/Downloads/pictures/j.png'
 I0 = np.rot90(plt.imread(I0name).astype('float'), -1)
 I1 = np.rot90(plt.imread(I1name).astype('float'), -1)
 

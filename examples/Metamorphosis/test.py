@@ -247,6 +247,7 @@ for k in range(niter):
     X[1]= (X[1]- epsZ *grad[1]).copy()
     energy=functional(X)
     print(" iter : {}  , energy : {}".format(k,energy))
+
 #
 
 #%%
@@ -327,7 +328,8 @@ rec_proj_data = forward_op(rec_result)
 # Plot the results of interest
 plt.figure(1, figsize=(24, 24))
 #plt.clf()
-
+mini=0
+maxi=1
 plt.subplot(3, 3, 1)
 plt.imshow(np.rot90(template), cmap='bone',
            vmin=mini,
@@ -360,8 +362,11 @@ plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
            vmin=mini,
            vmax=maxi)
+<<<<<<< d595d3e68921fe9294c4f8a3716855c641ae99f2
 #grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
 #plot_grid(grid, 2)
+=======
+>>>>>>> examples
 plt.axis('off')
 plt.colorbar()
 plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
@@ -384,11 +389,11 @@ plt.imshow(np.rot90(ground_truth), cmap='bone',
 plt.axis('off')
 plt.colorbar()
 plt.title('Ground truth')
-
+#%%
 plt.subplot(3, 3, 7)
 plt.plot(np.asarray(proj_data)[0], 'b', linewidth=1.0)
 plt.plot(np.asarray(noise_proj_data)[0], 'r', linewidth=0.5)
-plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -5, 25]), plt.grid(True, linestyle='--')
+plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
 #    plt.title('$\Theta=0^\circ$, b: truth, r: noisy, '
 #        'g: rec_proj, SNR = {:.3}dB'.format(snr))
 #    plt.gca().axes.yaxis.set_ticklabels([])
@@ -396,7 +401,7 @@ plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -5, 25]), plt.grid(True,
 plt.subplot(3, 3, 8)
 plt.plot(np.asarray(proj_data)[2], 'b', linewidth=1.0)
 plt.plot(np.asarray(noise_proj_data)[2], 'r', linewidth=0.5)
-plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -5, 25]), plt.grid(True, linestyle='--')
+plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
 #    plt.title('$\Theta=90^\circ$')
 #    plt.gca().axes.yaxis.set_ticklabels([])
 
@@ -579,3 +584,4 @@ plt.title('Ground truth')
 
 name=name0 + 'image.png'
 plt.savefig(name, bbox_inches='tight')
+
