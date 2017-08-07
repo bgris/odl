@@ -231,7 +231,7 @@ functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
                             domain=None)
 
 nameinit='/home/barbara/odl/examples/Metamorphosis/Triangles/triangle_fac_greyscale_0_1_'
-name0= nameinit + 'Metamorphosis_sigma_2_angle_10_lam_0_5_e__11_tau_0_5_e__2_iter_100'    
+name0= nameinit + 'Metamorphosis_sigma_2_angle_10_lam_0_5_e__11_tau_0_5_e__2_iter_100'
 #%% Gradient descent
 niter=100
 epsV=0.02
@@ -362,11 +362,6 @@ plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
            vmin=mini,
            vmax=maxi)
-<<<<<<< d595d3e68921fe9294c4f8a3716855c641ae99f2
-#grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
-#plot_grid(grid, 2)
-=======
->>>>>>> examples
 plt.axis('off')
 plt.colorbar()
 plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
