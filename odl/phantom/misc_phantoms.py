@@ -64,8 +64,8 @@ def _submarine_2d_smooth(space, taper):
         ``(0.4, 0.14)``. For other domains, the values are scaled
         accordingly.
         """
-        halfaxes = np.array([0.4, 0.14]) * space.domain.extent
-        center = np.array([0.6, 0.3]) * space.domain.extent
+        halfaxes = np.array([0.4, 0.14]) * space.domain.extent()
+        center = np.array([0.6, 0.3]) * space.domain.extent()
         center += space.domain.min()
 
         # Efficiently calculate |z|^2, z = (x - center) / radii
@@ -86,9 +86,9 @@ def _submarine_2d_smooth(space, taper):
         ``(0.76, 0.6)``. For other domains, the values are scaled
         accordingly.
         """
-        xlower = np.array([0.56, 0.4]) * space.domain.extent
+        xlower = np.array([0.56, 0.4]) * space.domain.extent()
         xlower += space.domain.min()
-        xupper = np.array([0.76, 0.6]) * space.domain.extent
+        xupper = np.array([0.76, 0.6]) * space.domain.extent()
         xupper += space.domain.min()
 
         out = np.ones_like(x[0])
@@ -114,8 +114,8 @@ def _submarine_2d_nonsmooth(space):
         ``(0.4, 0.14)``. For other domains, the values are scaled
         accordingly.
         """
-        halfaxes = np.array([0.4, 0.14]) * space.domain.extent
-        center = np.array([0.6, 0.3]) * space.domain.extent
+        halfaxes = np.array([0.4, 0.14]) * space.domain.extent()
+        center = np.array([0.6, 0.3]) * space.domain.extent()
         center += space.domain.min()
 
         sq_ndist = np.zeros_like(x[0])
@@ -132,9 +132,9 @@ def _submarine_2d_nonsmooth(space):
         ``(0.76, 0.6)``. For other domains, the values are scaled
         accordingly.
         """
-        xlower = np.array([0.56, 0.4]) * space.domain.extent
+        xlower = np.array([0.56, 0.4]) * space.domain.extent()
         xlower += space.domain.min()
-        xupper = np.array([0.76, 0.6]) * space.domain.extent
+        xupper = np.array([0.76, 0.6]) * space.domain.extent()
         xupper += space.domain.min()
 
         out = np.ones_like(x[0])
@@ -455,11 +455,11 @@ def _donut_2d_nonsmooth(discr):
         return np.where(sq_ndist <= 1, 1, 0)
 
     out = discr.element(circle_1) - discr.element(circle_2)
-
+    
     return out.ufuncs.minimum(1, out=out)
 
 
-def sphere(discr, smooth=True, taper=20.0, radius=0.05):
+def sphere(discr, smooth=True, taper=20.0):
     """Return a 'sphere' phantom.
 
     Parameters
@@ -479,7 +479,7 @@ def sphere(discr, smooth=True, taper=20.0, radius=0.05):
     """
     if discr.ndim == 3:
         if smooth:
-            return _sphere_3d_smooth(discr, taper, radius)
+            return _sphere_3d_smooth(discr, taper)
         else:
             return _sphere_3d_nonsmooth(discr)
     else:
@@ -487,7 +487,7 @@ def sphere(discr, smooth=True, taper=20.0, radius=0.05):
                          ''.format(discr.dim))
 
 
-def _sphere_3d_smooth(discr, taper, radius=0.05):
+def _sphere_3d_smooth(discr, taper):
     """Return a 3d smooth 'sphere' phantom."""
 
     def logistic(x, c):
@@ -501,7 +501,7 @@ def _sphere_3d_smooth(discr, taper, radius=0.05):
         ``(0.1, 0.1, 0.1)``. For other domains, the values are scaled
         accordingly.
         """
-        halfaxes = np.array([radius, radius, radius]) * discr.domain.extent() / 2
+        halfaxes = np.array([0.05, 0.05, 0.05]) * discr.domain.extent() / 2
         center = np.array([0.0, 0.0, -0.15]) * discr.domain.extent() / 2
 
         # Efficiently calculate |z|^2, z = (x - center) / radii
@@ -726,23 +726,23 @@ if __name__ == '__main__':
     donut(space, smooth=False).show('donut smooth=False')
     donut(space, smooth=True).show('donut smooth=True')
     donut(space, smooth=True, taper=50).show('donut taper=50')
-
+    
     space_3d = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
-
+    
     sphere(space_3d, smooth=False).show('sphere smooth=False',
           indices=np.s_[:, :, space_3d.shape[-1] // 2])
     sphere(space_3d, smooth=True).show('sphere smooth=True',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere(space_3d, smooth=True, taper=50).show('sphere taper=50',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
-
+    
     sphere2(space_3d, smooth=False).show('sphere smooth=False',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere2(space_3d, smooth=True).show('sphere smooth=True',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
     sphere2(space_3d, smooth=True, taper=50).show('sphere taper=50',
           indices=np.s_[space_3d.shape[-1] // 2, :, :])
-
+    
     cube(space_3d, smooth=False).show('cube smooth=False',
         indices=np.s_[space_3d.shape[-1] // 2, :, :])
     cube(space_3d, smooth=True).show('cube smooth=True',
