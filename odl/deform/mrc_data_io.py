@@ -75,9 +75,9 @@ def geometry_mrc_data(data_extent=None, data_shape=None, det_pix_size=None,
     """
 
     # Generate sampling on detector region, assume (0,0) is in the middle
-#    detector_partition = uniform_partition(-data_extent[0:2],
-#                                           data_extent[0:2],
-#                                           data_shape[0:2])
+    #detector_partition = uniform_partition(-data_extent[0:2],
+    #                                        data_extent[0:2],
+    #                                        data_shape[0:2])
     if units == 'pixel':
         detector_partition = uniform_partition(-data_extent[0:2] / 2,
                                                data_extent[0:2] / 2,

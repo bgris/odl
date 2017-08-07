@@ -211,6 +211,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         dim=self.image_domain.ndim
         energy=0
         for j in range(self.nb_data):
+
             energy+=self.Norm(self.forward_op[j](image_list[j]) -  self.data[j])
             #energy+=self.S[j](image_list[j])
         attach=energy

@@ -307,3 +307,4 @@ plt.title('Ground truth')
 
 name=nameinit + 'LDDMM.png'
 plt.savefig(name, bbox_inches='tight')
+

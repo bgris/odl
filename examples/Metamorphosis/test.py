@@ -580,3 +580,4 @@ plt.title('Ground truth')
 name=name0 + 'image.png'
 plt.savefig(name, bbox_inches='tight')
 
+
