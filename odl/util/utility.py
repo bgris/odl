@@ -913,8 +913,7 @@ def snr(signal, noise, impl='general'):
         impl='general'
             SNR = s_power / n_power
         impl='dB'
-            SNR = 10 * log10 (
-                s_power / n_power)
+            SNR = 10 * log10 (s_power / n_power)
     Parameters
     ----------
     signal : projection
@@ -930,9 +929,7 @@ def snr(signal, noise, impl='general'):
             snr = s_power / n_power
         else:
             snr = 10.0 * np.log10(s_power / n_power)
-
         return snr
-
     else:
         return float('inf')
 
