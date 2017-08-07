@@ -117,7 +117,7 @@ dtype='float32', interp='linear')
 
 
 ## sphere for rod, triangle, sphere2 for sphere
-template = sphere(rec_space, smooth=True, taper=10.0, radius=0.5)
+template = sphere(rec_space, smooth=True, taper=10.0, radius=0.5) 
 #%%
 #mean = np.sum(data_temp2[data_temp2.shape[0] // 2]) / data_temp2[data_temp2.shape[0] // 2].size
 #temp = data_temp2[data_temp2.shape[0] // 2] - mean

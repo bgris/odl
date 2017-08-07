@@ -212,7 +212,6 @@ energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,da
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
 
-
 Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 
 functional = energy_op + lamb*Reg
@@ -233,8 +232,14 @@ for k in range(niter):
 #%% Compute estimated trajectory
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #
-grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
+grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
 
+#%%
+t=nb_time_point_int
+image_N0[t].show('Mixed strategy time {}'.format(t+1))
+grid=grid_points[t].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+plot_grid(grid, 5)
+#
 #%%
 rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
 rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
@@ -299,32 +304,6 @@ plt.axis('off')
 plt.colorbar()
 plt.title('Ground truth')
 
-plt.subplot(3, 3, 7)
-plt.plot(np.asarray(proj_data)[0], 'b', linewidth=1.0)
-plt.plot(np.asarray(noise_proj_data)[0], 'r', linewidth=0.5)
-plt.axis([0, 619, -4, 20]), plt.grid(True, linestyle='--')
-#    plt.title('$\Theta=0^\circ$, b: truth, r: noisy, '
-#        'g: rec_proj, SNR = {:.3}dB'.format(snr))
-#    plt.gca().axes.yaxis.set_ticklabels([])
 
-plt.subplot(3, 3, 8)
-plt.plot(np.asarray(proj_data)[2], 'b', linewidth=1.0)
-plt.plot(np.asarray(noise_proj_data)[2], 'r', linewidth=0.5)
-plt.axis([0, 619, -4, 20]), plt.grid(True, linestyle='--')
-#    plt.title('$\Theta=90^\circ$')
-#    plt.gca().axes.yaxis.set_ticklabels([])
-
-plt.subplot(3, 3, 9)
-plt.plot(np.asarray(proj_data)[4], 'b', linewidth=1.0)
-plt.plot(np.asarray(noise_proj_data)[4], 'r', linewidth=0.5)
-plt.axis([0, 619, -4, 20]), plt.grid(True, linestyle='--')
-#    plt.title('$\Theta=162^\circ$')
-#    plt.gca().axes.yaxis.set_ticklabels([])'
-
-plt.figure(2, figsize=(8, 1.5))
-#plt.clf()
-plt.plot(E)
-plt.ylabel('Energy')
-# plt.gca().axes.yaxis.set_ticklabels(['0']+['']*8)
-plt.gca().axes.yaxis.set_ticklabels([])
-plt.grid(True, linestyle='--')
+name=nameinit + 'LDDMM.png'
+plt.savefig(name, bbox_inches='tight')
