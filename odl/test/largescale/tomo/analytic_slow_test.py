@@ -1,37 +1,26 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test analytical reconstruction methods."""
 
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
-# External
+from __future__ import division
 import pytest
 import numpy as np
 
-# Internal
 import odl
 import odl.tomo as tomo
 from odl.util.testutils import skip_if_no_largescale, simple_fixture
 from odl.tomo.util.testutils import (skip_if_no_astra, skip_if_no_astra_cuda,
-                                     skip_if_no_scikit)
+                                     skip_if_no_skimage)
+
+
+# --- pytest fixtures --- #
+
 
 filter_type = simple_fixture(
     'filter_type', ['Ram-Lak', 'Shepp-Logan', 'Cosine', 'Hamming', 'Hann'])
@@ -47,7 +36,7 @@ projectors = [skip_if_no_astra('par2d astra_cpu uniform'),
               skip_if_no_astra_cuda('par3d astra_cuda uniform'),
               skip_if_no_astra_cuda('cone3d astra_cuda uniform'),
               skip_if_no_astra_cuda('helical astra_cuda uniform'),
-              skip_if_no_scikit('par2d scikit uniform')]
+              skip_if_no_skimage('par2d skimage uniform')]
 
 projector_ids = ['geom={}, impl={}, angles={}'
                  ''.format(*p.args[1].split()) for p in projectors]
@@ -86,7 +75,7 @@ def projector(request):
         raise ValueError('angle not valid')
 
     if geom == 'par2d':
-        # Discrete reconstruction space
+        # Reconstruction space
         discr_reco_space = odl.uniform_discr([-20, -20], [20, 20],
                                              [100, 100], dtype=dtype)
 
@@ -98,7 +87,7 @@ def projector(request):
         return tomo.RayTransform(discr_reco_space, geom, impl=impl)
 
     elif geom == 'par3d':
-        # Discrete reconstruction space
+        # Reconstruction space
         discr_reco_space = odl.uniform_discr([-20, -20, -20], [20, 20, 20],
                                              [100, 100, 100], dtype=dtype)
 
@@ -110,7 +99,7 @@ def projector(request):
         return tomo.RayTransform(discr_reco_space, geom, impl=impl)
 
     elif geom == 'cone2d':
-        # Discrete reconstruction space
+        # Reconstruction space
         discr_reco_space = odl.uniform_discr([-20, -20], [20, 20],
                                              [100, 100], dtype=dtype)
 
@@ -123,20 +112,20 @@ def projector(request):
         return tomo.RayTransform(discr_reco_space, geom, impl=impl)
 
     elif geom == 'cone3d':
-        # Discrete reconstruction space
+        # Reconstruction space
         discr_reco_space = odl.uniform_discr([-20, -20, -20], [20, 20, 20],
                                              [100, 100, 100], dtype=dtype)
 
         # Geometry
         dpart = odl.uniform_partition([-50, -50], [50, 50], [200, 200])
-        geom = tomo.CircularConeFlatGeometry(
+        geom = tomo.ConeFlatGeometry(
             apart, dpart, src_radius=100, det_radius=100, axis=[1, 0, 0])
 
         # Ray transform
         return tomo.RayTransform(discr_reco_space, geom, impl=impl)
 
     elif geom == 'helical':
-        # Discrete reconstruction space
+        # Reconstruction space
         discr_reco_space = odl.uniform_discr([-20, -20, 0], [20, 20, 40],
                                              [100, 100, 100], dtype=dtype)
 
@@ -145,13 +134,16 @@ def projector(request):
         n_angle = 2000
         apart = odl.uniform_partition(0, 8 * 2 * np.pi, n_angle)
         dpart = odl.uniform_partition([-50, -4], [50, 4], [200, 20])
-        geom = tomo.HelicalConeFlatGeometry(apart, dpart, pitch=5.0,
-                                            src_radius=100, det_radius=100)
+        geom = tomo.ConeFlatGeometry(
+            apart, dpart, src_radius=100, det_radius=100, pitch=5.0)
 
         # Windowed ray transform
         return tomo.RayTransform(discr_reco_space, geom, impl=impl)
     else:
         raise ValueError('param not valid')
+
+
+# --- FBP tests --- #
 
 
 @skip_if_no_largescale
@@ -168,7 +160,7 @@ def test_fbp_reconstruction(projector):
     fbp_operator = odl.tomo.fbp_op(projector)
 
     # Add window if problem is in 3d.
-    if (isinstance(projector.geometry, odl.tomo.HelicalConeFlatGeometry) and
+    if (isinstance(projector.geometry, odl.tomo.ConeFlatGeometry) and
             projector.geometry.pitch != 0):
         fbp_operator = fbp_operator * odl.tomo.tam_danielson_window(projector)
 

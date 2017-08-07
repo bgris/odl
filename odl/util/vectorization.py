@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Utilities for internal functionality connected to vectorization."""
 
@@ -115,7 +106,7 @@ class OptionalArgDecorator(object):
                def myfunc(x):
                    pass
 
-           which is equivalent to::
+           which is equivalent to ::
 
                def myfunc(x):
                    pass
@@ -132,7 +123,7 @@ class OptionalArgDecorator(object):
                def myfunc(x):
                    pass
 
-           which is equivalent to::
+           which is equivalent to ::
 
                def myfunc(x):
                    pass
@@ -181,8 +172,12 @@ class OptionalArgDecorator(object):
 
     @staticmethod
     def _wrapper(func, *wrapper_args, **wrapper_kwargs):
-        """Return the wrapped function."""
-        raise NotImplementedError
+        """Make a wrapper for ``func`` and return it.
+
+        This is a default implementation that simply returns the wrapped
+        function, i.e., the resulting decorator is the identity.
+        """
+        return func
 
 
 class vectorize(OptionalArgDecorator):
@@ -230,7 +225,7 @@ class vectorize(OptionalArgDecorator):
     def _wrapper(func, *vect_args, **vect_kwargs):
         """Return the vectorized wrapper function."""
         if not hasattr(func, '__name__'):
-            # Set name if not available. Happens if func is actually a callable
+            # Set name if not available. Happens if func is actually a function
             func.__name__ = '{}.__call__'.format(func.__class__.__name__)
 
         return wraps(func)(_NumpyVectorizeWrapper(func, *vect_args,

@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Douglas-Rachford splitting algorithm for convex optimization."""
 
@@ -46,6 +37,8 @@ def douglas_rachford_pd(x, f, g, L, tau, sigma, niter,
     where ``l_i`` are convex functions and ``@`` is the infimal convolution::
 
         (g @ l)(x) = inf_y g(y) + l(x - y)
+
+    For references on the algorithm, see algorithm 3.1 in [BH2013].
 
     Parameters
     ----------
@@ -123,7 +116,10 @@ def douglas_rachford_pd(x, f, g, L, tau, sigma, niter,
 
     References
     ----------
-    For references on the algorithm, see algorithm 3.1 in [BH2013]_.
+    [BH2013] Bot, R I, and Hendrich, C. *A Douglas-Rachford type
+    primal-dual method for solving inclusions with mixtures of
+    composite and parallel-sum type monotone operators*. SIAM Journal
+    on Optimization, 23.4 (2013), pp 2541--2565.
     """
 
     # Problem size
@@ -169,32 +165,62 @@ def douglas_rachford_pd(x, f, g, L, tau, sigma, niter,
     w1 = x.space.zero()
     w2 = [Li.range.zero() for Li in L]
 
+    # Temporaries (not in original article)
+    tmp_domain = x.space.zero()
+
     for k in range(niter):
-        tmp_1 = sum(Li.adjoint(vi) for Li, vi in zip(L, v))
-        tmp_1.lincomb(1, x, -tau / 2, tmp_1)
-        f.proximal(tau)(tmp_1, out=p1)
+        lam_k = lam(k)
+
+        if len(L) > 0:
+            # Compute tmp_domain = sum(Li.adjoint(vi) for Li, vi in zip(L, v))
+            L[0].adjoint(v[0], out=tmp_domain)
+            for Li, vi in zip(L[1:], v[1:]):
+                Li.adjoint(vi, out=p1)
+                tmp_domain += p1
+
+            tmp_domain.lincomb(1, x, -tau / 2, tmp_domain)
+        else:
+            tmp_domain.assign(x)
+
+        f.proximal(tau)(tmp_domain, out=p1)
         w1.lincomb(2, p1, -1, x)
 
         for i in range(m):
-            prox_cc_g[i](sigma[i])(v[i] + (sigma[i] / 2.0) * L[i](w1),
-                                   out=p2[i])
+            tmp = v[i] + (sigma[i] / 2.0) * L[i](w1)
+            prox_cc_g[i](sigma[i])(tmp, out=p2[i])
             w2[i].lincomb(2.0, p2[i], -1, v[i])
 
-        tmp_2 = sum(Li.adjoint(wi) for Li, wi in zip(L, w2))
-        z1.lincomb(1.0, w1, - (tau / 2.0), tmp_2)
-        x += lam(k) * (z1 - p1)
+        if len(L) > 0:
+            # Compute:
+            # tmp_domain = sum(Li.adjoint(w2i) for Li, w2i in zip(L, w2))
+            L[0].adjoint(w2[0], out=tmp_domain)
+            for Li, w2i in zip(L[1:], w2[1:]):
+                Li.adjoint(w2i, out=z1)
+                tmp_domain += z1
+        else:
+            tmp_domain.set_zero()
 
+        z1.lincomb(1.0, w1, - (tau / 2.0), tmp_domain)
+
+        # Compute x += lam(k) * (z1 - p1)
+        x.lincomb(1, x, lam_k, z1)
+        x.lincomb(1, x, -lam_k, p1)
+
+        tmp_domain.lincomb(2, z1, -1, w1)
         for i in range(m):
-            tmp = w2[i] + (sigma[i] / 2.0) * L[i](2.0 * z1 - w1)
             if l is not None:
                 # In this case the infimal convolution is used.
+                tmp = w2[i] + (sigma[i] / 2.0) * L[i](tmp_domain)
                 prox_cc_l[i](sigma[i])(tmp, out=z2[i])
             else:
                 # If the infimal convolution is not given, prox_cc_l is the
                 # identity and hence omitted. For more details, see the
                 # documentation.
-                z2[i].assign(tmp)
-            v[i] += lam(k) * (z2[i] - p2[i])
+                z2[i].lincomb(1, w2[i], sigma[i] / 2.0, L[i](tmp_domain))
+
+            # Compute v[i] += lam(k) * (z2[i] - p2[i])
+            v[i].lincomb(1, v[i], lam_k, z2[i])
+            v[i].lincomb(1, v[i], -lam_k, p2[i])
 
         if callback is not None:
             callback(p1)

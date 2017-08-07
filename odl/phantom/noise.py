@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Functions to create noise samples of different distributions."""
 
@@ -23,13 +14,13 @@ from future import standard_library
 standard_library.install_aliases()
 
 import numpy as np
-from odl.util import as_flat_array
+from odl.util import as_flat_array, NumpyRandomSeed
 
 
 __all__ = ('white_noise', 'poisson_noise', 'salt_pepper_noise')
 
 
-def white_noise(space, mean=0, stddev=1):
+def white_noise(space, mean=0, stddev=1, seed=None):
     """Standard gaussian noise in space, pointwise ``N(mean, stddev**2)``.
 
     Parameters
@@ -44,6 +35,9 @@ def white_noise(space, mean=0, stddev=1):
     stddev : `float` or ``space`` `element-like`, optional
         The standard deviation of the white noise. If a scalar, it is
         interpreted as ``stddev * space.one()``.
+    seed : int, optional
+        Random seed to use for generating the noise.
+        For ``None``, use the current seed.
 
     Returns
     -------
@@ -56,21 +50,26 @@ def white_noise(space, mean=0, stddev=1):
     numpy.random.normal
     """
     from odl.space import ProductSpace
-    if isinstance(space, ProductSpace):
-        values = [white_noise(subspace, mean, stddev) for subspace in space]
-    else:
-        if space.is_cn:
-            real = np.random.normal(
-                loc=mean.real, scale=stddev, size=space.shape)
-            imag = np.random.normal(
-                loc=mean.imag, scale=stddev, size=space.shape)
-            values = real + 1j * imag
+
+    with NumpyRandomSeed(seed):
+        if isinstance(space, ProductSpace):
+            values = [white_noise(subspace, mean, stddev)
+                      for subspace in space]
         else:
-            values = np.random.normal(loc=mean, scale=stddev, size=space.shape)
+            if space.is_cn:
+                real = np.random.normal(
+                    loc=mean.real, scale=stddev, size=space.shape)
+                imag = np.random.normal(
+                    loc=mean.imag, scale=stddev, size=space.shape)
+                values = real + 1j * imag
+            else:
+                values = np.random.normal(
+                    loc=mean, scale=stddev, size=space.shape)
+
     return space.element(values)
 
 
-def poisson_noise(intensity):
+def poisson_noise(intensity, seed=None):
     """Poisson distributed noise with given intensity.
 
     Parameters
@@ -82,6 +81,9 @@ def poisson_noise(intensity):
     -------
     poisson_noise : ``intensity.space`` element
         Poisson distributed random variable.
+    seed : int, optional
+        Random seed to use for generating the noise.
+        For ``None``, use the current seed.
 
     Notes
     -----
@@ -101,15 +103,19 @@ def poisson_noise(intensity):
     numpy.random.poisson
     """
     from odl.space import ProductSpace
-    if isinstance(intensity.space, ProductSpace):
-        values = [poisson_noise(subintensity) for subintensity in intensity]
-    else:
-        values = np.random.poisson(intensity.asarray())
+
+    with NumpyRandomSeed(seed):
+        if isinstance(intensity.space, ProductSpace):
+            values = [poisson_noise(subintensity)
+                      for subintensity in intensity]
+        else:
+            values = np.random.poisson(intensity.asarray())
+
     return intensity.space.element(values)
 
 
 def salt_pepper_noise(vector, fraction=0.05, salt_vs_pepper=0.5,
-                      low_val=None, high_val=None):
+                      low_val=None, high_val=None, seed=None):
     """Add salt and pepper noise to vector.
 
     Salt and pepper noise replaces random elements in ``vector`` with
@@ -134,6 +140,9 @@ def salt_pepper_noise(vector, fraction=0.05, salt_vs_pepper=0.5,
         The "salt" value in the noise.
         Default: maximuim value of ``vector``. For product spaces the maximum
         value per subspace is taken.
+    seed : int, optional
+        Random seed to use for generating the noise.
+        For ``None``, use the current seed.
 
     Returns
     -------
@@ -158,29 +167,30 @@ def salt_pepper_noise(vector, fraction=0.05, salt_vs_pepper=0.5,
         raise ValueError('`salt_vs_pepper` ({}) should be a float in the '
                          'interval [0, 1]'.format(salt_vs_pepper_in))
 
-    if isinstance(vector.space, ProductSpace):
-        values = [salt_pepper_noise(subintensity, fraction, salt_vs_pepper,
-                                    low_val, high_val)
-                  for subintensity in vector]
-    else:
-        # Extract vector of values
-        values = as_flat_array(vector).copy()
+    with NumpyRandomSeed(seed):
+        if isinstance(vector.space, ProductSpace):
+            values = [salt_pepper_noise(subintensity, fraction, salt_vs_pepper,
+                                        low_val, high_val)
+                      for subintensity in vector]
+        else:
+            # Extract vector of values
+            values = as_flat_array(vector).copy()
 
-        # Determine fill-in values if not given
-        if low_val is None:
-            low_val = np.min(values)
-        if high_val is None:
-            high_val = np.max(values)
+            # Determine fill-in values if not given
+            if low_val is None:
+                low_val = np.min(values)
+            if high_val is None:
+                high_val = np.max(values)
 
-        # Create randomly selected points as a subset of image.
-        a = np.arange(vector.size)
-        np.random.shuffle(a)
-        salt_indices = a[:int(fraction * vector.size * salt_vs_pepper)]
-        pepper_indices = a[int(fraction * vector.size * salt_vs_pepper):
-                           int(fraction * vector.size)]
+            # Create randomly selected points as a subset of image.
+            a = np.arange(vector.size)
+            np.random.shuffle(a)
+            salt_indices = a[:int(fraction * vector.size * salt_vs_pepper)]
+            pepper_indices = a[int(fraction * vector.size * salt_vs_pepper):
+                               int(fraction * vector.size)]
 
-        values[salt_indices] = high_val
-        values[pepper_indices] = -low_val
+            values[salt_indices] = high_val
+            values[pepper_indices] = -low_val
 
     return vector.space.element(values)
 

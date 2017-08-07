@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
@@ -29,14 +20,16 @@ from odl.operator.operator import (
 from odl.operator.default_ops import (IdentityOperator, ConstantOperator)
 from odl.solvers.nonsmooth import (proximal_arg_scaling, proximal_translation,
                                    proximal_quadratic_perturbation,
-                                   proximal_const_func, proximal_cconj)
+                                   proximal_const_func, proximal_convex_conj)
+from odl.util import (signature_string, indent_rows)
 
 
 __all__ = ('Functional', 'FunctionalLeftScalarMult',
            'FunctionalRightScalarMult', 'FunctionalComp',
            'FunctionalRightVectorMult', 'FunctionalSum', 'FunctionalScalarSum',
-           'FunctionalTranslation', 'FunctionalLinearPerturb',
-           'FunctionalProduct', 'FunctionalQuotient', 'simple_functional')
+           'FunctionalTranslation', 'InfimalConvolution',
+           'FunctionalQuadraticPerturb', 'FunctionalProduct',
+           'FunctionalQuotient', 'simple_functional')
 
 
 class Functional(Operator):
@@ -94,14 +87,15 @@ class Functional(Operator):
         The operator that corresponds to the mapping
 
         .. math::
-
             x \\to \\nabla f(x)
 
         where :math:`\\nabla f(x)` is the element used to evaluate
         derivatives in a direction :math:`d` by
         :math:`\\langle \\nabla f(x), d \\rangle`.
         """
-        raise NotImplementedError
+        raise NotImplementedError(
+            'no gradient implemented for functional {!r}'
+            ''.format(self))
 
     @property
     def proximal(self):
@@ -111,10 +105,9 @@ class Functional(Operator):
         -----
         The proximal operator of a function :math:`f` is an operator defined as
 
-            .. math::
-
-                prox_{\\sigma f}(x) = \\sup_{y} \\left\{ f(y) -
-                \\frac{1}{2\\sigma} \| y-x \|_2^2 \\right\}.
+        .. math::
+            prox_{\\sigma f}(x) = \\sup_{y} \\left\{ f(y) -
+            \\frac{1}{2\\sigma} \| y-x \|_2^2 \\right\}.
 
         Proximal operators are often used in different optimization algorithms,
         especially when designed to handle nonsmooth functionals.
@@ -127,7 +120,9 @@ class Functional(Operator):
         i.e., a function returning a proximal operator. See for example
         `forward_backward_pd`.
         """
-        raise NotImplementedError
+        raise NotImplementedError(
+            'no proximal operator implemented for functional {!r}'
+            ''.format(self))
 
     @property
     def convex_conj(self):
@@ -139,20 +134,23 @@ class Functional(Operator):
         defined on a Hilber space, is defined as the functional
 
         .. math::
-
             f^*(x^*) = \\sup_{x} \{ \\langle x^*,x \\rangle - f(x)  \}.
 
         The concept is also known as the Legendre transformation.
 
-        References
-        ----------
-        Wikipedia article on `Convex conjugate
-        <https://en.wikipedia.org/wiki/Convex_conjugate>`_.
-
-        Wikipedia article on `Legendre transformation
+        For literature references see, e.g., [Lue1969], [Roc1970], the
+        wikipedia article on `Convex conjugate
+        <https://en.wikipedia.org/wiki/Convex_conjugate>`_ or the wikipedia
+        article on the `Legendre transformation
         <https://en.wikipedia.org/wiki/Legendre_transformation>`_.
 
-        For literature references see, e.g., [Lue1969]_, [Roc1970]_.
+        References
+        ----------
+        [Lue1969] Luenberger, D G. *Optimization by vector space methods*.
+        Wiley, 1969.
+
+        [Roc1970] Rockafellar, R. T. *Convex analysis*. Princeton
+        University Press, 1970.
         """
         return FunctionalDefaultConvexConjugate(self)
 
@@ -575,6 +573,17 @@ class FunctionalComp(Functional, OperatorComp):
                 """Apply the gradient operator to the given point."""
                 return op.derivative(x).adjoint(func.gradient(op(x)))
 
+            def derivative(self, x):
+                """The derivative in point ``x``.
+
+                This is only defined
+                """
+                if not op.is_linear:
+                    raise NotImplementedError('derivative only implemented '
+                                              'for linear opertors.')
+                else:
+                    return (op.adjoint * func.gradient * op).derivative(x)
+
         return FunctionalCompositionGradient()
 
 
@@ -791,11 +800,18 @@ class FunctionalTranslation(Functional):
         .. math::
             (f( . - y))^* (x) = f^*(x) + <y, x>.
 
-        For reference on the identity used, see [KP2015]_.
+        For reference on the identity used, see [KP2015].
+
+        References
+        ----------
+        [KP2015] Komodakis, N, and Pesquet, J-C. *Playing with Duality: An
+        overview of recent primal-dual approaches for solving large-scale
+        optimization problems*. IEEE Signal Processing Magazine, 32.6 (2015),
+        pp 31--54.
         """
-        return FunctionalLinearPerturb(
+        return FunctionalQuadraticPerturb(
             self.functional.convex_conj,
-            self.translation)
+            linear_term=self.translation)
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -808,66 +824,161 @@ class FunctionalTranslation(Functional):
                                           self.translation)
 
 
-class FunctionalLinearPerturb(Functional):
+class InfimalConvolution(Functional):
 
-    """The ``Functional`` representing ``f(.) + <linear_term, .>``."""
+    """Functional representing ``h(x) = inf_y f(x-y) + g(y)``."""
 
-    def __init__(self, func, linear_term):
+    def __init__(self, left, right):
+        """Initialize a new instance.
+
+        Parameters
+        ----------
+        left : `Functional`
+            Function corresponding to ``f``.
+        right : `Functional`
+            Function corresponding to ``g``.
+
+        Example
+        -------
+        >>> space = odl.rn(3)
+        >>> l1 = odl.solvers.L1Norm(space)
+        >>> l2 = odl.solvers.L2Norm(space)
+        >>> f = odl.solvers.InfimalConvolution(l1.convex_conj, l2.convex_conj)
+        >>> x = f.domain.one()
+        >>> f.convex_conj(x) - (l1(x) + l2(x))
+        0.0
+        """
+        if not isinstance(left, Functional):
+            raise TypeError('`func` {} is not a `Functional` instance'
+                            ''.format(left))
+
+        if not isinstance(right, Functional):
+            raise TypeError('`func` {} is not a `Functional` instance'
+                            ''.format(right))
+
+        self.__left = left
+        self.__right = right
+
+        super().__init__(space=left.domain, linear=False,
+                         grad_lipschitz=np.nan)
+
+    @property
+    def left(self):
+        """Left functional."""
+        return self.__left
+
+    @property
+    def right(self):
+        """Right functional."""
+        return self.__right
+
+    @property
+    def convex_conj(self):
+        """Convex conjugate functional of the functional.
+
+        Notes
+        -----
+        The convex conjugate of the infimal convolution
+
+        .. math::
+            h(x) = inf_y f(x-y) + g(y)
+
+        is the sum of it:
+
+        .. math::
+            h^*(x) = f^*(x) + g^*(x)
+
+        """
+        return self.left.convex_conj + self.right.convex_conj
+
+    def __repr__(self):
+        """Return ``repr(self)``."""
+        posargs = [self.left, self.right]
+        inner_str = signature_string(posargs, [], sep=',\n')
+        return '{}(\n{}\n)'.format(self.__class__.__name__,
+                                   indent_rows(inner_str))
+
+    def __str__(self):
+        """Return ``str(self)``."""
+        return repr(self)
+
+
+class FunctionalQuadraticPerturb(Functional):
+
+    """The functional representing ``F(.) + a * <., .> + <., u>``."""
+
+    def __init__(self, func, quadratic_coeff=0, linear_term=None):
         """Initialize a new instance.
 
         Parameters
         ----------
         func : `Functional`
             Function corresponding to ``f``.
-        linear_term : `domain` element
+        quadratic_coeff : ``domain.field`` element, optional
+            Coefficient of the quadratic term.
+        linear_term : `domain` element, optional
             Element in domain of ``func``, corresponding to the translation.
+            Default: Zero element.
         """
         if not isinstance(func, Functional):
             raise TypeError('`func` {} is not a `Functional` instance'
                             ''.format(func))
 
-        super().__init__(space=func.domain,
-                         linear=func.is_linear)
-
-        # Only compute the grad_lipschitz if it is not inf
-        if (not func.grad_lipschitz == np.inf and
-                not np.isnan(func.grad_lipschitz)):
-            self.__grad_lipschitz = (func.grad_lipschitz +
-                                     linear_term.norm())
-
         self.__functional = func
-        self.__linear_term = func.domain.element(linear_term)
+        self.__quadratic_coeff = func.domain.field.element(quadratic_coeff)
+
+        if linear_term is not None:
+            self.__linear_term = func.domain.element(linear_term)
+        else:
+            self.__linear_term = func.domain.zero()
+
+        if linear_term is None:
+            grad_lipschitz = func.grad_lipschitz
+        else:
+            grad_lipschitz = (func.grad_lipschitz + self.linear_term.norm())
+
+        super().__init__(space=func.domain,
+                         linear=func.is_linear and (quadratic_coeff == 0),
+                         grad_lipschitz=grad_lipschitz)
 
     @property
     def functional(self):
-        """The original functional."""
+        """Original functional."""
         return self.__functional
 
     @property
+    def quadratic_coeff(self):
+        """Cofficient of the quadratic term."""
+        return self.__quadratic_coeff
+
+    @property
     def linear_term(self):
-        """The translation."""
+        """Linear term."""
         return self.__linear_term
 
     def _call(self, x):
         """Apply the functional to the given point."""
-        return self.functional(x) + x.inner(self.linear_term)
+        return (self.functional(x) +
+                self.quadratic_coeff * x.inner(x) +
+                x.inner(self.linear_term))
 
     @property
     def gradient(self):
         """Gradient operator of the functional."""
-        return self.functional.gradient + ConstantOperator(self.linear_term)
+        return (self.functional.gradient +
+                (2 * self.quadratic_coeff) * IdentityOperator(self.domain) +
+                ConstantOperator(self.linear_term))
 
     @property
     def proximal(self):
-        """Proximal factory of the linearly perturbed functional.
+        """Proximal factory of the quadratically perturbed functional."""
+        if self.quadratic_coeff < 0:
+            raise TypeError('`quadratic_coeff` {} must be non-negative'
+                            ''.format(self.quadratic_coeff))
 
-        See Also
-        --------
-        odl.solvers.nonsmooth.proximal_operators.\
-proximal_quadratic_perturbation
-        """
         return proximal_quadratic_perturbation(
-            self.functional.proximal, a=0, u=self.linear_term)
+            self.functional.proximal,
+            a=self.quadratic_coeff, u=self.linear_term)
 
     @property
     def convex_conj(self):
@@ -882,20 +993,34 @@ proximal_quadratic_perturbation
         .. math::
             (f(x) + <y, x>)^* (x) = f^*(x - y).
 
-        For reference on the identity used, see [KP2015]_.
+        For reference on the identity used, see [KP2015].
+
+        References
+        ----------
+        [KP2015] Komodakis, N, and Pesquet, J-C. *Playing with Duality: An
+        overview of recent primal-dual approaches for solving large-scale
+        optimization problems*. IEEE Signal Processing Magazine, 32.6 (2015),
+        pp 31--54.
         """
-        return self.functional.convex_conj.translated(
-            self.linear_term)
+        if self.quadratic_coeff == 0:
+            return self.functional.convex_conj.translated(
+                self.linear_term)
+        else:
+            return super().convex_conj
 
     def __repr__(self):
         """Return ``repr(self)``."""
-        return '{}({!r}, {!r})'.format(self.__class__.__name__,
-                                       self.functional, self.linear_term)
+        return '{}({!r}, {!r}, {!r})'.format(self.__class__.__name__,
+                                             self.functional,
+                                             self.quadratic_coeff,
+                                             self.linear_term)
 
     def __str__(self):
         """Return ``str(self)``."""
-        return '{}({}, {})'.format(self.__class__.__name__,
-                                   self.functional, self.linear_term)
+        return '{}({}, {}, {})'.format(self.__class__.__name__,
+                                       self.functional,
+                                       self.quadratic_coeff,
+                                       self.linear_term)
 
 
 class FunctionalProduct(Functional, OperatorPointwiseProduct):
@@ -1096,10 +1221,10 @@ class FunctionalDefaultConvexConjugate(Functional):
 
         Returns
         -------
-        proximal : proximal_cconj
+        proximal : proximal_convex_conj
             Proximal computed using the Moreu identity
         """
-        return proximal_cconj(self.convex_conj.proximal)
+        return proximal_convex_conj(self.convex_conj.proximal)
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -1111,8 +1236,9 @@ class FunctionalDefaultConvexConjugate(Functional):
 
 
 def simple_functional(space, fcall=None, grad=None, prox=None, grad_lip=np.nan,
-                      cconj_fcall=None, cconj_grad=None, cconj_prox=None,
-                      cconj_grad_lip=np.nan, linear=False):
+                      convex_conj_fcall=None, convex_conj_grad=None,
+                      convex_conj_prox=None, convex_conj_grad_lip=np.nan,
+                      linear=False):
     """Simplified interface to create a functional with specific properties.
 
     Users may specify as many properties as is needed by the application.
@@ -1129,13 +1255,13 @@ def simple_functional(space, fcall=None, grad=None, prox=None, grad_lip=np.nan,
         Proximal factory for the functional.
     grad_lip : float, optional
         lipschitz constant of the functional.
-    cconj_fcall : callable, optional
+    convex_conj_fcall : callable, optional
         Function to evaluate when calling the convex conjugate functional.
-    cconj_grad : callable or `Operator`, optional
+    convex_conj_grad : callable or `Operator`, optional
         Gradient operator of the convex conjugate functional
-    cconj_prox : `proximal factory`, optional
+    convex_conj_prox : `proximal factory`, optional
         Proximal factory for the convex conjugate functional.
-    cconj_grad_lip : float, optional
+    convex_conj_grad_lip : float, optional
         lipschitz constant of the convex conjugate functional.
     linear : bool, optional
         True if the operator is linear.
@@ -1172,18 +1298,20 @@ def simple_functional(space, fcall=None, grad=None, prox=None, grad_lip=np.nan,
 
         grad = SimpleFunctionalGradient(space, space, linear=False)
 
-    if cconj_grad is not None and not isinstance(cconj_grad, Operator):
-        cconj_grad_in = cconj_grad
+    if (convex_conj_grad is not None and
+            not isinstance(convex_conj_grad, Operator)):
+        convex_conj_grad_in = convex_conj_grad
 
-        class SimpleFunctionalCConjGradient(Operator):
+        class SimpleFunctionalConvexConjGradient(Operator):
 
             """Gradient of the convex conj of a  `SimpleFunctional`."""
 
             def _call(self, x):
                 """Return ``self(x)``."""
-                return cconj_grad_in(x)
+                return convex_conj_grad_in(x)
 
-        cconj_grad = SimpleFunctionalCConjGradient(space, space, linear=False)
+        convex_conj_grad = SimpleFunctionalConvexConjGradient(space, space,
+                                                              linear=False)
 
     class SimpleFunctional(Functional):
 
@@ -1218,10 +1346,14 @@ def simple_functional(space, fcall=None, grad=None, prox=None, grad_lip=np.nan,
 
         @property
         def convex_conj(self):
-            return simple_functional(space, fcall=cconj_fcall, grad=cconj_grad,
-                                     prox=cconj_prox, grad_lip=cconj_grad_lip,
-                                     cconj_fcall=fcall, cconj_grad=grad,
-                                     cconj_prox=prox, cconj_grad_lip=grad_lip,
+            return simple_functional(space, fcall=convex_conj_fcall,
+                                     grad=convex_conj_grad,
+                                     prox=convex_conj_prox,
+                                     grad_lip=convex_conj_grad_lip,
+                                     convex_conj_fcall=fcall,
+                                     convex_conj_grad=grad,
+                                     convex_conj_prox=prox,
+                                     convex_conj_grad_lip=grad_lip,
                                      linear=linear)
 
     return SimpleFunctional()

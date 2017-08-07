@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """:math:`L^p` type discretizations of function spaces."""
 
@@ -122,15 +113,16 @@ class DiscreteLp(DiscretizedSpace):
             if interp not in _SUPPORTED_INTERP:
                 raise ValueError("`interp` type '{}' not understood"
                                  "".format(interp_in))
-            self.__interp_by_axis = [interp] * partition.ndim
+            # Ensure that there is 1 entry for ndim == 0
+            self.__interp_byaxis = (interp,) * max(partition.ndim, 1)
         except TypeError:
             # Got sequence of strings
             if len(interp) != partition.ndim:
                 raise ValueError('expected {} (ndim) entries in interp, '
                                  'got {}'.format(partition.ndim, len(interp)))
 
-            self.__interp_by_axis = [str(s).lower() for s in interp]
-            if any(s not in _SUPPORTED_INTERP for s in self.interp_by_axis):
+            self.__interp_byaxis = tuple(str(s).lower() for s in interp)
+            if any(s not in _SUPPORTED_INTERP for s in self.interp_byaxis):
                 raise ValueError('interp sequence {} contains illegal '
                                  'values'.format(interp))
 
@@ -143,15 +135,15 @@ class DiscreteLp(DiscretizedSpace):
         self.__partition = partition
         sampling = PointCollocation(fspace, self.partition, dspace,
                                     order=self.order)
-        if all(s == 'nearest' for s in self.interp_by_axis):
+        if all(s == 'nearest' for s in self.interp_byaxis):
             interpol = NearestInterpolation(fspace, self.partition, dspace,
                                             order=self.order)
-        elif all(s == 'linear' for s in self.interp_by_axis):
+        elif all(s == 'linear' for s in self.interp_byaxis):
             interpol = LinearInterpolation(fspace, self.partition, dspace,
                                            order=self.order)
         else:
             interpol = PerAxisInterpolation(
-                fspace, self.partition, dspace, self.interp_by_axis,
+                fspace, self.partition, dspace, self.interp_byaxis,
                 order=self.order)
 
         DiscretizedSpace.__init__(self, fspace, dspace, sampling, interpol)
@@ -177,16 +169,16 @@ class DiscreteLp(DiscretizedSpace):
     @property
     def interp(self):
         """Interpolation type of this discretization."""
-        if all(interp == self.interp_by_axis[0]
-               for interp in self.interp_by_axis):
-            return self.interp_by_axis[0]
+        if all(interp == self.interp_byaxis[0]
+               for interp in self.interp_byaxis):
+            return self.interp_byaxis[0]
         else:
-            return self.interp_by_axis
+            return self.interp_byaxis
 
     @property
-    def interp_by_axis(self):
+    def interp_byaxis(self):
         """Interpolation by axis type of this discretization."""
-        return self.__interp_by_axis
+        return self.__interp_byaxis
 
     @property
     def axis_labels(self):
@@ -220,7 +212,7 @@ class DiscreteLp(DiscretizedSpace):
 
     @property
     def is_uniform(self):
-        """``True`` if ``self.partition`` is uniform."""
+        """``True`` if `partition` is uniform."""
         return self.partition.is_uniform
 
     @property
@@ -276,7 +268,26 @@ class DiscreteLp(DiscretizedSpace):
         This space can be identified with the power space ``X^d`` as used
         in this implementation.
         """
-        return ProductSpace(self, self.ndim)
+        if self.ndim == 0:
+            return ProductSpace(field=self.field)
+        else:
+            return ProductSpace(self, self.ndim)
+
+    @property
+    def is_uniformly_weighted(self):
+        """If the weighting of the space is the same for all points."""
+        try:
+            is_uniformly_weighted = self.__is_uniformly_weighted
+        except AttributeError:
+            bdry_fracs = self.partition.boundary_cell_fractions
+            is_uniformly_weighted = (
+                np.allclose(bdry_fracs, 1.0) or
+                self.exponent == float('inf') or
+                not getattr(self.dspace, 'is_weighted', False))
+
+            self.__is_uniformly_weighted = is_uniformly_weighted
+
+        return is_uniformly_weighted
 
     def element(self, inp=None, **kwargs):
         """Create an element from ``inp`` or from scratch.
@@ -385,7 +396,7 @@ class DiscreteLp(DiscretizedSpace):
         dspace = self.dspace.astype(dtype)
         return type(self)(fspace, self.partition, dspace,
                           exponent=self.exponent, interp=self.interp,
-                          order=self.order)
+                          order=self.order, axis_labels=self.axis_labels)
 
     # Overrides for space functions depending on partition
     #
@@ -396,14 +407,11 @@ class DiscreteLp(DiscretizedSpace):
     # discretized integrals need to be scaled by that fraction.
     def _inner(self, x, y):
         """Return ``self.inner(x, y)``."""
-        bdry_fracs = self.partition.boundary_cell_fractions
-        if (np.allclose(bdry_fracs, 1.0) or
-                self.exponent == float('inf') or
-                not getattr(self.dspace, 'is_weighted', False)):
-            # no boundary weighting
+        if self.is_uniformly_weighted:
             return super()._inner(x, y)
         else:
             # TODO: implement without copying x
+            bdry_fracs = self.partition.boundary_cell_fractions
             func_list = _scaling_func_list(bdry_fracs)
 
             x_arr = apply_on_boundary(x, func=func_list, only_once=False)
@@ -411,14 +419,11 @@ class DiscreteLp(DiscretizedSpace):
 
     def _norm(self, x):
         """Return ``self.norm(x)``."""
-        bdry_fracs = self.partition.boundary_cell_fractions
-        if (np.allclose(bdry_fracs, 1.0) or
-                self.exponent == float('inf') or
-                not getattr(self.dspace, 'is_weighted', False)):
-            # no boundary weighting
+        if self.is_uniformly_weighted:
             return super()._norm(x)
         else:
             # TODO: implement without copying x
+            bdry_fracs = self.partition.boundary_cell_fractions
             func_list = _scaling_func_list(bdry_fracs, exponent=self.exponent)
 
             x_arr = apply_on_boundary(x, func=func_list, only_once=False)
@@ -426,14 +431,11 @@ class DiscreteLp(DiscretizedSpace):
 
     def _dist(self, x, y):
         """Return ``self.dist(x, y)``."""
-        bdry_fracs = self.partition.boundary_cell_fractions
-        if (np.allclose(bdry_fracs, 1.0) or
-                self.exponent == float('inf') or
-                not getattr(self.dspace, 'is_weighted', False)):
-            # no boundary weighting
+        if self.is_uniformly_weighted:
             return super()._dist(x, y)
         else:
             # TODO: implement without copying x
+            bdry_fracs = self.partition.boundary_cell_fractions
             func_list = _scaling_func_list(bdry_fracs, exponent=self.exponent)
 
             arrs = [apply_on_boundary(vec, func=func_list, only_once=False)
@@ -477,7 +479,11 @@ class DiscreteLp(DiscretizedSpace):
             if isinstance(self.weighting, NoWeighting):
                 weighting = 'none'
             elif (isinstance(self.weighting, ConstWeighting) and
-                  np.isclose(self.weighting.const, self.cell_volume)):
+                  (np.isclose(self.weighting.const, self.cell_volume))):
+                weighting = 'const'
+            elif (self.ndim == 0 and
+                  isinstance(self.weighting, ConstWeighting) and
+                  (np.isclose(self.weighting.const, 1.0))):
                 weighting = 'const'
             else:
                 weighting = self.weighting
@@ -511,7 +517,9 @@ class DiscreteLp(DiscretizedSpace):
 
             return '{}(\n{}\n)'.format(constructor, indent_rows(inner_str))
 
-    __str__ = __repr__
+    def __str__(self):
+        """Return ``str(self)``."""
+        return repr(self)
 
     @property
     def element_type(self):
@@ -534,8 +542,13 @@ class DiscreteLpElement(DiscretizedSpaceElement):
             shape.
         """
         if out is None:
-            return DiscretizedSpaceElement.asarray(self).reshape(
-                self.shape, order=self.space.order)
+            if self.space.ndim == 0:
+                out = DiscretizedSpaceElement.asarray(self)
+            else:
+                out = DiscretizedSpaceElement.asarray(self).reshape(
+                    self.shape, order=self.space.order)
+            return out
+
         else:
             if out.shape not in (self.space.shape, (self.space.size,)):
                 raise ValueError('output array has shape {}, expected '
@@ -745,18 +758,15 @@ class DiscreteLpElement(DiscretizedSpaceElement):
         method : string, optional
             1d methods:
 
-            'plot' : graph plot
-
-            'scatter' : scattered 2d points
-            (2nd axis <-> value)
+            - ``'plot'`` : graph plot (default for 1d data)
+            - ``'scatter'`` : scattered 2d points (2nd axis <-> value)
 
             2d methods:
 
-            'imshow' : image plot with coloring according to value,
-            including a colorbar.
-
-            'scatter' : cloud of scattered 3d points
-            (3rd axis <-> value)
+            - ``'imshow'`` : image plot with coloring according to value,
+              including a colorbar (default for 2d data).
+            - ``'scatter'`` : cloud of scattered 3d points
+              (3rd axis <-> value)
 
         coords : `array-like`, optional
             Display a slice of the array instead of the full array.
@@ -767,17 +777,35 @@ class DiscreteLpElement(DiscretizedSpaceElement):
             If a sequence is provided, it specifies the minimum and maximum
             point to be shown, i.e. ``[None, [0, 1]]`` shows all of the
             first axis and values between 0 and 1 in the second.
-            This option is mutually exclusive to ``indices``.
+            This option is mutually exclusive with ``indices``.
 
-        indices : index expression, optional
-            Display a slice of the array instead of the full array. The
-            index expression is most easily created with the `numpy.s_`
-            constructor, i.e. supply ``np.s_[:, 1, :]`` to display the
-            first slice along the second axis.
-            For data with 3 or more dimensions, the 2d slice in the first
-            two axes at the "middle" along the remaining axes is shown
+        indices : int, slice, Ellipsis or sequence, optional
+            Display a slice of the array instead of the full array.
+            If a sequence is given, the i-th entry indexes the i-th axis,
+            with the following behavior for the different types of entries:
+
+                - ``int``: take entries with this index along axis ``i``,
+                  removing this axis from the result
+                - ``slice``: take a subset along axis ``i``, keeping it
+                  intact
+                - ``None``: equivalent to ``slice(None)``
+                - ``Ellipsis`` (``...``): equivalent to the number of
+                  ``None`` entries required to fill up the sequence to
+                  correct length.
+
+            The typical use case is to show a slice for a fixed index in
+            a specific axis, which can be done most easily by setting, e.g.,
+            ``indices=[None, 50, None]`` to take the 2d slice parallel to
+            the x-z coordinate plane at index ``y = 50``.
+
+            A single ``int`` or ``slice`` object indexes the first
+            axis, i.e., is treated as ``(int_or_slice, Ellipsis)``.
+            For the default ``None``, the array is kepty as-is for data
+            that has at most 2 dimensions. For higher-dimensional
+            data, the 2d slice in the first two axes at the middle
+            position along the remaining axes is shown
             (semantically ``[:, :, shape[2:] // 2]``).
-            This option is mutually exclusive to ``coords``.
+            This option is mutually exclusive with ``coords``.
 
         force_show : bool, optional
             Whether the plot should be forced to be shown now or deferred until
@@ -804,8 +832,10 @@ class DiscreteLpElement(DiscretizedSpaceElement):
         --------
         odl.util.graphics.show_discrete_data : Underlying implementation
         """
-
         from odl.util.graphics import show_discrete_data
+
+        if self.ndim == 0:
+            raise ValueError('nothing to show for 0-dimensional vector')
 
         if coords is not None:
             if indices is not None:
@@ -814,8 +844,7 @@ class DiscreteLpElement(DiscretizedSpaceElement):
             partition = self.space.partition
             shape = self.shape
             indices = []
-            for axis, (n, coord) in enumerate(
-                    zip(shape, coords)):
+            for axis, (n, coord) in enumerate(zip(shape, coords)):
                 try:
                     coord_minp, coord_maxp = coord
                 except TypeError:
@@ -830,9 +859,9 @@ class DiscreteLpElement(DiscretizedSpaceElement):
                     coord_maxp = subpart.set.element(coord_maxp)
 
                 if len(subpart) == 0:  # trivial cases
-                    indices += [0]
+                    indices.append(0)
                 elif coord_minp is not None and coord_minp == coord_maxp:
-                    indices += [subpart.index(coord_minp)]
+                    indices.append(subpart.index(coord_minp))
                 else:
                     if coord_minp is None:
                         min_ind = 0
@@ -846,33 +875,44 @@ class DiscreteLpElement(DiscretizedSpaceElement):
                         max_ind = np.ceil(subpart.index(coord_maxp,
                                                         floating=True))
 
-                    indices += [slice(int(min_ind), int(max_ind))]
+                    indices.append(slice(int(min_ind), int(max_ind)))
 
         # Default to showing x-y slice "in the middle"
         if indices is None and self.ndim >= 3:
-            indices = [np.s_[:]] * 2
-            indices += [n // 2 for n in self.space.shape[2:]]
+            indices = ((slice(None),) * 2 +
+                       tuple(n // 2 for n in self.space.shape[2:]))
 
+        # Normalize indices
         if isinstance(indices, (Integral, slice)):
             indices = (indices,)
         elif indices is None or indices == Ellipsis:
-            indices = (np.s_[:],) * self.ndim
-        else:
-            indices = tuple(indices)
+            indices = (slice(None),) * self.ndim
 
-        if Ellipsis in indices:
-            # Replace Ellipsis with the correct number of [:] expressions
+        # Single index or slice indexes the first axis, rest untouched
+        if len(indices) == 1:
+            indices = tuple(indices) + (Ellipsis,)
+
+        # Convert `Ellipsis` objects
+        if indices.count(Ellipsis) > 1:
+            raise ValueError('cannot use more than 1 `Ellipsis` (`...`)')
+        elif Ellipsis in indices:
+            # Replace Ellipsis with the correct number of `slice(None)`
             pos = indices.index(Ellipsis)
-            indices = (indices[:pos] +
-                       (np.s_[:], ) * (self.ndim - len(indices) + 1) +
-                       indices[pos + 1:])
+            indices = (tuple(indices[:pos]) +
+                       (slice(None),) * (self.ndim - len(indices) + 1) +
+                       tuple(indices[pos + 1:]))
 
+        # Now indices should be exactly of length `ndim`
         if len(indices) < self.ndim:
             raise ValueError('too few axes ({} < {})'.format(len(indices),
                                                              self.ndim))
         if len(indices) > self.ndim:
             raise ValueError('too many axes ({} > {})'.format(len(indices),
                                                               self.ndim))
+
+        # Map `None` to `slice(None)` in indices for syntax like `coords`
+        indices = tuple(slice(None) if idx is None else idx
+                        for idx in indices)
 
         squeezed_axes = [axis for axis in range(self.ndim)
                          if not isinstance(indices[axis], Integral)]
@@ -970,7 +1010,7 @@ def uniform_discr_frompartition(partition, exponent=2.0, interp='nearest',
         if weighting == 'none' or float(exponent) == float('inf'):
             weighting = None
         elif weighting == 'const':
-            weighting = partition.cell_volume
+            weighting = 1.0 if partition.ndim == 0 else partition.cell_volume
         else:
             raise ValueError("`weighting` '{}' not understood"
                              "".format(weighting_in))

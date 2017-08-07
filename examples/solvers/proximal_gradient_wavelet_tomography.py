@@ -17,7 +17,7 @@ import numpy as np
 # --- Set up problem definition --- #
 
 
-# Discrete reconstruction space: discretized functions on the rectangle
+# Reconstruction space: discretized functions on the rectangle
 # [-20, 20]^2 with 256 samples per dimension.
 space = odl.uniform_discr(
     min_pt=[-20, -20], max_pt=[20, 20], shape=[256, 256], dtype='float32')
@@ -74,7 +74,7 @@ gamma = 0.2
 
 # Optionally pass callback to the solver to display intermediate results
 callback = (odl.solvers.CallbackPrintIteration() &
-            odl.solvers.CallbackShow(display_step=5))
+            odl.solvers.CallbackShow(step=5))
 
 
 def callb(x):

@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Gradient-based optimization schemes."""
 
@@ -40,7 +31,8 @@ def steepest_descent(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
     General implementation of steepest decent (also known as gradient
     decent) for solving
 
-        :math:`\min f(x)`
+    .. math::
+        \min f(x)
 
     The algorithm is intended for unconstrained problems. It needs line
     search in order guarantee convergence. With appropriate line search,
@@ -49,10 +41,10 @@ def steepest_descent(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
     :math:`f(x) = \infty` for :math:`x\\not\\in C`, or by providing a
     ``projection`` function that projects the iterates on :math:`C`.
 
-    The algorithm is described in [BV2004]_, section 9.3--9.4
+    The algorithm is described in [BV2004], section 9.3--9.4
     (`book available online
     <http://stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf>`_),
-    [GNS2009]_, Section 12.2, and wikipedia
+    [GNS2009], Section 12.2, and wikipedia
     `Gradient_descent
     <https://en.wikipedia.org/wiki/Gradient_descent>`_.
 
@@ -82,6 +74,14 @@ def steepest_descent(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
         Optimized solver for the case ``f(x) = ||Ax - b||_2^2``
     odl.solvers.iterative.iterative.conjugate_gradient :
         Optimized solver for the case ``f(x) = x^T Ax - 2 x^T b``
+
+    References
+    ----------
+    [BV2004] Boyd, S, and Vandenberghe, L. *Convex optimization*.
+    Cambridge university press, 2004.
+
+    [GNS2009] Griva, I, Nash, S G, and Sofer, A. *Linear and nonlinear
+    optimization*. Siam, 2009.
     """
     grad = f.gradient
     if x not in grad.domain:

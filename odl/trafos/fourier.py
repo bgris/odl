@@ -1,19 +1,10 @@
-# Copyright 2014, 2015 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Discretized Fourier transform on L^p spaces."""
 
@@ -43,8 +34,10 @@ __all__ = ('DiscreteFourierTransform', 'DiscreteFourierTransformInverse',
 
 
 _SUPPORTED_FOURIER_IMPLS = ('numpy',)
+_DEFAULT_FOURIER_IMPL = 'numpy'
 if PYFFTW_AVAILABLE:
     _SUPPORTED_FOURIER_IMPLS += ('pyfftw',)
+    _DEFAULT_FOURIER_IMPL = 'pyfftw'
 
 
 class DiscreteFourierTransformBase(Operator):
@@ -52,7 +45,7 @@ class DiscreteFourierTransformBase(Operator):
     """Base class for discrete fourier transform classes."""
 
     def __init__(self, inverse, domain, range=None, axes=None, sign='-',
-                 halfcomplex=False, impl='numpy'):
+                 halfcomplex=False, impl=None):
         """Initialize a new instance.
 
         All parameters are given according to the specifics of the forward
@@ -86,9 +79,10 @@ class DiscreteFourierTransformBase(Operator):
             arrays.
             Otherwise, calculate the full complex FFT. If ``dom_dtype``
             is a complex type, this option has no effect.
-        impl : {'numpy', 'pyfftw'}, optional
+        impl : {'numpy', 'pyfftw', ``None``}, optional
             Backend for the FFT implementation. The 'pyfftw' backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
         """
         if not isinstance(domain, DiscreteLp):
             raise TypeError('`domain` {!r} is not a `DiscreteLp` instance'
@@ -98,6 +92,8 @@ class DiscreteFourierTransformBase(Operator):
                             ''.format(range))
 
         # Implementation
+        if impl is None:
+            impl = _DEFAULT_FOURIER_IMPL
         impl, impl_in = str(impl).lower(), impl
         if impl not in _SUPPORTED_FOURIER_IMPLS:
             raise ValueError("`impl` '{}' not supported".format(impl_in))
@@ -386,7 +382,7 @@ class DiscreteFourierTransform(DiscreteFourierTransformBase):
     """
 
     def __init__(self, domain, range=None, axes=None, sign='-',
-                 halfcomplex=False, impl='numpy'):
+                 halfcomplex=False, impl=None):
         """Initialize a new instance.
 
         Parameters
@@ -416,6 +412,7 @@ class DiscreteFourierTransform(DiscreteFourierTransformBase):
         impl : {'numpy', 'pyfftw'}, optional
             Backend for the FFT implementation. The ``'pyfftw'`` backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
 
         Examples
         --------
@@ -535,7 +532,7 @@ class DiscreteFourierTransformInverse(DiscreteFourierTransformBase):
        http://www.fftw.org/fftw3_doc/What-FFTW-Really-Computes.html
     """
     def __init__(self, range, domain=None, axes=None, sign='+',
-                 halfcomplex=False, impl='numpy'):
+                 halfcomplex=False, impl=None):
         """Initialize a new instance.
 
         Parameters
@@ -565,6 +562,7 @@ class DiscreteFourierTransformInverse(DiscreteFourierTransformBase):
         impl : {'numpy', 'pyfftw'}, optional
             Backend for the FFT implementation. The 'pyfftw' backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
 
         Examples
         --------
@@ -708,7 +706,7 @@ class FourierTransformBase(Operator):
     dft_postprocess_data
     """
 
-    def __init__(self, inverse, domain, range=None, impl='numpy', **kwargs):
+    def __init__(self, inverse, domain, range=None, impl=None, **kwargs):
         """Initialize a new instance.
 
         All parameters are given according to the specifics of the forward
@@ -733,6 +731,7 @@ class FourierTransformBase(Operator):
         impl : {'numpy', 'pyfftw'}, optional
             Backend for the FFT implementation. The 'pyfftw' backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
         axes : int or sequence of ints, optional
             Dimensions along which to take the transform.
             Default: all axes
@@ -804,13 +803,15 @@ class FourierTransformBase(Operator):
         self.__axes = normalized_axes_tuple(axes, domain.ndim)
 
         # Implementation
+        if impl is None:
+            impl = _DEFAULT_FOURIER_IMPL
         impl, impl_in = str(impl).lower(), impl
         if impl not in _SUPPORTED_FOURIER_IMPLS:
             raise ValueError("`impl` '{}' not supported".format(impl_in))
         self.__impl = impl
 
         # Handle half-complex yes/no and shifts
-        if domain.grid.is_uniform:
+        if all(domain.grid.is_uniform_byaxis[i] for i in self.axes):
             if domain.field == ComplexNumbers():
                 self.__halfcomplex = False
             else:
@@ -1155,7 +1156,7 @@ class FourierTransform(FourierTransformBase):
     dft_postprocess_data
     """
 
-    def __init__(self, domain, range=None, impl='numpy', **kwargs):
+    def __init__(self, domain, range=None, impl=None, **kwargs):
         """Initialize a new instance.
 
         Parameters
@@ -1173,6 +1174,7 @@ class FourierTransform(FourierTransformBase):
         impl : {'numpy', 'pyfftw'}, optional
             Backend for the FFT implementation. The 'pyfftw' backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
         axes : int or sequence of ints, optional
             Dimensions along which to take the transform.
             Default: all axes
@@ -1391,7 +1393,7 @@ class FourierTransformInverse(FourierTransformBase):
     DiscreteFourierTransformInverse
     """
 
-    def __init__(self, range, domain=None, impl='numpy', **kwargs):
+    def __init__(self, range, domain=None, impl=None, **kwargs):
         """
         Parameters
         ----------
@@ -1408,6 +1410,7 @@ class FourierTransformInverse(FourierTransformBase):
         impl : {'numpy', 'pyfftw'}, optional
             Backend for the FFT implementation. The 'pyfftw' backend
             is faster but requires the ``pyfftw`` package.
+            ``None`` selects the fastest available backend.
         axes : int or sequence of ints, optional
             Dimensions along which to take the transform.
             Default: all axes

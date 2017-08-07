@@ -1,36 +1,23 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test astra setup functions."""
 
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-
-standard_library.install_aliases()
-
-# External
+from __future__ import division
 import numpy as np
 import pytest
-from odl.tomo.backends.astra_setup import ASTRA_AVAILABLE
-if ASTRA_AVAILABLE:
+try:
     import astra
+except ImportError:
+    pass
 
-# Internal
 import odl
+from odl.tomo.backends.astra_setup import astra_supports
 from odl.util.testutils import is_subdict
 
 
@@ -84,15 +71,12 @@ def _discrete_domain_anisotropic(ndim, interp):
 
 
 def test_vol_geom_2d():
-    """Create ASTRA 2D volume geometry."""
-
-    discr_dom = _discrete_domain(2, 'nearest')
-    vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
-
+    """Check correctness of ASTRA 2D volume geometries."""
     x_pts = 10  # x_pts = Rows
     y_pts = 20  # y_pts = Columns
-    assert discr_dom.grid.shape == (x_pts, y_pts)
 
+    # Isotropic voxel case
+    discr_dom = _discrete_domain(2, 'nearest')
     correct_dict = {
         'GridColCount': y_pts,
         'GridRowCount': x_pts,
@@ -102,25 +86,36 @@ def test_vol_geom_2d():
             'WindowMinY': -1.0,  # x_min
             'WindowMaxY': 1.0}}  # x_amx
 
+    vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
     assert vol_geom == correct_dict
 
-    # non-isotropic case should fail due to lacking ASTRA support
+    # Anisotropic voxel case
     discr_dom = _discrete_domain_anisotropic(2, 'nearest')
-    with pytest.raises(NotImplementedError):
-        odl.tomo.astra_volume_geometry(discr_dom)
+    correct_dict = {
+        'GridColCount': y_pts,
+        'GridRowCount': x_pts,
+        'option': {
+            'WindowMinX': -1.0,  # y_min
+            'WindowMaxX': 1.0,  # y_max
+            'WindowMinY': -1.0,  # x_min
+            'WindowMaxY': 1.0}}  # x_amx
+
+    if astra_supports('anisotropic_voxels_2d'):
+        vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
+        assert vol_geom == correct_dict
+    else:
+        with pytest.raises(NotImplementedError):
+            odl.tomo.astra_volume_geometry(discr_dom)
 
 
 def test_vol_geom_3d():
-    """Create ASTRA 2D volume geometry."""
+    """Check correctness of ASTRA 3D volume geometies."""
+    x_pts = 10
+    y_pts = 20
+    z_pts = 30
 
+    # Isotropic voxel case
     discr_dom = _discrete_domain(3, 'nearest')
-    vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
-
-    x_pts = 10  # x_pts =
-    y_pts = 20  # y_pts =
-    z_pts = 30  # z_pts =
-    assert discr_dom.grid.shape == (x_pts, y_pts, z_pts)
-
     # x = columns, y = rows, z = slices
     correct_dict = {
         'GridColCount': z_pts,
@@ -134,12 +129,29 @@ def test_vol_geom_3d():
             'WindowMinZ': -1.0,  # x_min
             'WindowMaxZ': 1.0}}  # x_amx
 
+    vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
     assert vol_geom == correct_dict
 
-    # non-isotropic case should fail due to lacking ASTRA support
     discr_dom = _discrete_domain_anisotropic(3, 'nearest')
-    with pytest.raises(NotImplementedError):
-        odl.tomo.astra_volume_geometry(discr_dom)
+    # x = columns, y = rows, z = slices
+    correct_dict = {
+        'GridColCount': z_pts,
+        'GridRowCount': y_pts,
+        'GridSliceCount': x_pts,
+        'option': {
+            'WindowMinX': -1.0,  # z_min
+            'WindowMaxX': 1.0,  # z_max
+            'WindowMinY': -1.0,  # y_min
+            'WindowMaxY': 1.0,  # y_amx
+            'WindowMinZ': -1.0,  # x_min
+            'WindowMaxZ': 1.0}}  # x_amx
+
+    if astra_supports('anisotropic_voxels_3d'):
+        vol_geom = odl.tomo.astra_volume_geometry(discr_dom)
+        assert vol_geom == correct_dict
+    else:
+        with pytest.raises(NotImplementedError):
+            odl.tomo.astra_volume_geometry(discr_dom)
 
 
 def test_proj_geom_parallel_2d():
@@ -200,15 +212,14 @@ def test_astra_projection_geometry():
     assert astra_geom['type'] == 'parallel3d_vec'
 
     # Circular conebeam flat
-    geom_ccf = odl.tomo.CircularConeFlatGeometry(apart, dpart, src_rad,
-                                                 det_rad)
+    geom_ccf = odl.tomo.ConeFlatGeometry(apart, dpart, src_rad, det_rad)
     astra_geom = odl.tomo.astra_projection_geometry(geom_ccf)
     assert astra_geom['type'] == 'cone_vec'
 
     # Helical conebeam flat
     pitch = 1
-    geom_hcf = odl.tomo.HelicalConeFlatGeometry(apart, dpart, src_rad,
-                                                det_rad, pitch)
+    geom_hcf = odl.tomo.ConeFlatGeometry(apart, dpart, src_rad, det_rad,
+                                         pitch=pitch)
     astra_geom = odl.tomo.astra_projection_geometry(geom_hcf)
     assert astra_geom['type'] == 'cone_vec'
 
@@ -374,15 +385,14 @@ def test_geom_to_vec():
 
     # Circular cone flat
     dpart = odl.uniform_partition([-40, -3], [40, 3], (10, 5))
-    geom_ccf = odl.tomo.CircularConeFlatGeometry(apart, dpart, src_rad,
-                                                 det_rad)
+    geom_ccf = odl.tomo.ConeFlatGeometry(apart, dpart, src_rad, det_rad)
     vec = odl.tomo.astra_conebeam_3d_geom_to_vec(geom_ccf)
     assert vec.shape == (apart.size, 12)
 
     # Helical cone flat
     pitch = 1
-    geom_hcf = odl.tomo.HelicalConeFlatGeometry(apart, dpart, src_rad,
-                                                det_rad, pitch)
+    geom_hcf = odl.tomo.ConeFlatGeometry(apart, dpart, src_rad, det_rad,
+                                         pitch=pitch)
     vec = odl.tomo.astra_conebeam_3d_geom_to_vec(geom_hcf)
     assert vec.shape == (apart.size, 12)
 

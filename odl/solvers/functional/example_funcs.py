@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Example functionals used in optimization."""
 
@@ -26,9 +17,8 @@ from builtins import super
 import numpy as np
 
 from odl.solvers.functional.functional import Functional
-from odl.operator.operator import Operator
+from odl.operator import Operator, MatrixOperator
 from odl.space.base_ntuples import FnBase
-from odl.space.npy_ntuples import MatVecOperator
 
 
 __all__ = ('RosenbrockFunctional',)
@@ -160,7 +150,7 @@ class RosenbrockFunctional(Functional):
                     matrix[i, i + 1] = -4 * c * x[i]
                 matrix[-1, -1] = 2 * c
                 matrix[0, 0] = 2 + 12 * c * x[0] ** 2 - 4 * c * x[1]
-                return MatVecOperator(matrix, self.domain, self.range)
+                return MatrixOperator(matrix, self.domain, self.range)
 
         return RosenbrockGradient()
 

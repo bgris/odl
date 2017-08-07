@@ -1,41 +1,26 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Tests for the factory functions to create proximal operators."""
 
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
-# External
+from __future__ import division
 import numpy as np
 import pytest
 import scipy.special
 
-# Internal
 import odl
 from odl.solvers.nonsmooth.proximal_operators import (
     combine_proximals, proximal_const_func,
     proximal_box_constraint, proximal_nonnegativity,
-    proximal_cconj_l1,
+    proximal_convex_conj_l1,
     proximal_l2,
-    proximal_cconj_l2_squared,
-    proximal_cconj_kl, proximal_cconj_kl_cross_entropy)
+    proximal_convex_conj_l2_squared,
+    proximal_convex_conj_kl, proximal_convex_conj_kl_cross_entropy)
 from odl.util.testutils import all_almost_equal
 
 
@@ -234,7 +219,7 @@ def test_proximal_convconj_l2_sq_wo_data():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_l2_squared(space, lam=lam)
+    prox_factory = proximal_convex_conj_l2_squared(space, lam=lam)
 
     # Initialize the proximal operator
     sigma = 0.25
@@ -269,7 +254,7 @@ def test_proximal_convconj_l2_sq_with_data():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_l2_squared(space, lam=lam, g=g)
+    prox_factory = proximal_convex_conj_l2_squared(space, lam=lam, g=g)
 
     # Initialize the proximal operator
     sigma = 0.25
@@ -301,7 +286,7 @@ def test_proximal_convconj_l1_simple_space_without_data():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_l1(space, lam=lam)
+    prox_factory = proximal_convex_conj_l1(space, lam=lam)
 
     # Initialize the proximal operator of F^*
     sigma = 0.25
@@ -334,7 +319,7 @@ def test_proximal_convconj_l1_simple_space_with_data():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_l1(space, lam=lam, g=g)
+    prox_factory = proximal_convex_conj_l1(space, lam=lam, g=g)
 
     # Initialize the proximal operator of F^*
     sigma = 0.25
@@ -372,7 +357,8 @@ def test_proximal_convconj_l1_product_space():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_l1(op_domain, lam=lam, g=g, isotropic=True)
+    prox_factory = proximal_convex_conj_l1(op_domain, lam=lam, g=g,
+                                           isotropic=True)
 
     # Initialize the proximal operator
     sigma = 0.25
@@ -407,7 +393,7 @@ def test_proximal_convconj_kl_simple_space():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_kl(space, lam=lam, g=g)
+    prox_factory = proximal_convex_conj_kl(space, lam=lam, g=g)
 
     # Initialize the proximal operator of F^*
     sigma = 0.25
@@ -445,7 +431,7 @@ def test_proximal_convconj_kl_product_space():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_kl(op_domain, lam=lam, g=g)
+    prox_factory = proximal_convex_conj_kl(op_domain, lam=lam, g=g)
 
     # Initialize the proximal operator
     sigma = 0.25
@@ -477,7 +463,7 @@ def test_proximal_convconj_kl_cross_entropy():
 
     # Factory function returning the proximal operator
     lam = 2
-    prox_factory = proximal_cconj_kl_cross_entropy(space, lam=lam, g=g)
+    prox_factory = proximal_convex_conj_kl_cross_entropy(space, lam=lam, g=g)
 
     # Initialize the proximal operator of F^*
     sigma = 0.25

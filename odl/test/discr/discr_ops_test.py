@@ -1,27 +1,14 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Unit tests for `discr_ops`."""
 
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
+from __future__ import division
 import pytest
 import numpy as np
 
@@ -31,7 +18,7 @@ from odl.util import is_scalar_dtype, is_real_floating_dtype
 from odl.util.testutils import almost_equal, noise_element, dtype_places
 
 
-# --- ResizingOperator --- #
+# --- pytest fixtures --- #
 
 
 paddings = list(_SUPPORTED_RESIZE_PAD_MODES)
@@ -54,8 +41,10 @@ def padding(request):
     return pad_mode, pad_const
 
 
-def test_resizing_op_init(fn_impl, padding):
+# --- ResizingOperator tests --- #
 
+
+def test_resizing_op_init(fn_impl, padding):
     # Test if the different init patterns run
 
     pad_mode, pad_const = padding
@@ -74,7 +63,6 @@ def test_resizing_op_init(fn_impl, padding):
 
 
 def test_resizing_op_raise():
-
     # domain not a uniformely discretized Lp
     with pytest.raises(TypeError):
         odl.ResizingOperator(odl.rn(5), ran_shp=(10,))
@@ -116,7 +104,6 @@ def test_resizing_op_raise():
 
 
 def test_resizing_op_properties(fn_impl, padding):
-
     dtypes = [dt for dt in odl.FN_IMPLS[fn_impl].available_dtypes()
               if is_scalar_dtype(dt)]
 
@@ -156,7 +143,6 @@ def test_resizing_op_properties(fn_impl, padding):
 
 
 def test_resizing_op_call(fn_impl):
-
     dtypes = [dt for dt in odl.FN_IMPLS[fn_impl].available_dtypes()
               if is_scalar_dtype(dt)]
 
@@ -191,7 +177,6 @@ def test_resizing_op_call(fn_impl):
 
 
 def test_resizing_op_deriv(padding):
-
     pad_mode, pad_const = padding
     space = odl.uniform_discr([0, -1], [1, 1], (4, 5))
     res_space = odl.uniform_discr([0, -0.6], [2, 0.2], (8, 2))
@@ -208,7 +193,6 @@ def test_resizing_op_deriv(padding):
 
 
 def test_resizing_op_inverse(padding, fn_impl):
-
     pad_mode, pad_const = padding
     dtypes = [dt for dt in odl.FN_IMPLS[fn_impl].available_dtypes()
               if is_scalar_dtype(dt)]
@@ -227,7 +211,6 @@ def test_resizing_op_inverse(padding, fn_impl):
 
 
 def test_resizing_op_adjoint(padding, fn_impl):
-
     pad_mode, pad_const = padding
     dtypes = [dt for dt in odl.FN_IMPLS[fn_impl].available_dtypes()
               if is_real_floating_dtype(dt)]
@@ -250,6 +233,44 @@ def test_resizing_op_adjoint(padding, fn_impl):
         inner1 = res_op(elem).inner(res_elem)
         inner2 = elem.inner(res_op.adjoint(res_elem))
         assert almost_equal(inner1, inner2, places=dtype_places(dtype))
+
+
+def test_resizing_op_mixed_uni_nonuni():
+    """Check if resizing along uniform axes in mixed discretizations works."""
+    nonuni_part = odl.nonuniform_partition([0, 1, 4])
+    uni_part = odl.uniform_partition(-1, 1, 4)
+    part = uni_part.append(nonuni_part, uni_part, nonuni_part)
+    fspace = odl.FunctionSpace(odl.IntervalProd(part.min_pt, part.max_pt))
+    dspace = odl.rn(part.size)
+    space = odl.DiscreteLp(fspace, part, dspace)
+
+    # Keep non-uniform axes fixed
+    res_op = odl.ResizingOperator(space, ran_shp=(6, 3, 6, 3))
+
+    assert res_op.axes == (0, 2)
+    assert res_op.offset == (1, 0, 1, 0)
+
+    # Evaluation test with a simpler case
+    part = uni_part.append(nonuni_part)
+    fspace = odl.FunctionSpace(odl.IntervalProd(part.min_pt, part.max_pt))
+    dspace = odl.rn(part.size)
+    space = odl.DiscreteLp(fspace, part, dspace)
+    res_op = odl.ResizingOperator(space, ran_shp=(6, 3))
+    result = res_op(space.one())
+    true_result = [[0, 0, 0],
+                   [1, 1, 1],
+                   [1, 1, 1],
+                   [1, 1, 1],
+                   [1, 1, 1],
+                   [0, 0, 0]]
+    assert np.array_equal(result, true_result)
+
+    # Test adjoint
+    elem = noise_element(space)
+    res_elem = noise_element(res_op.range)
+    inner1 = res_op(elem).inner(res_elem)
+    inner2 = elem.inner(res_op.adjoint(res_elem))
+    assert almost_equal(inner1, inner2)
 
 
 if __name__ == '__main__':

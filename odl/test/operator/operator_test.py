@@ -1,38 +1,22 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
+from __future__ import division
 from builtins import super
-
-# External module imports
 import pytest
 import numpy as np
 import sys
 
-# ODL imports
 import odl
 from odl import (Operator, OperatorSum, OperatorComp,
                  OperatorLeftScalarMult, OperatorRightScalarMult,
                  FunctionalLeftVectorMult, OperatorRightVectorMult,
-                 MatVecOperator, OperatorLeftVectorMult,
+                 MatrixOperator, OperatorLeftVectorMult,
                  OpTypeError, OpDomainError, OpRangeError)
 from odl.operator.operator import _signature_from_spec, _dispatch_call_args
 from odl.util.testutils import almost_equal, all_almost_equal, noise_element
@@ -58,7 +42,7 @@ class MultiplyAndSquareOp(Operator):
             out **= 2
 
     def derivative(self, x):
-        return 2 * odl.MatVecOperator(self.matrix)
+        return 2 * odl.MatrixOperator(self.matrix)
 
     def __str__(self):
         return "MaS: " + str(self.matrix) + " ** 2"
@@ -88,6 +72,25 @@ def check_call(operator, point, expected):
     operator(point, out=out)
 
     assert all_almost_equal(out, expected)
+
+
+def test_call_in_place_wrong_return():
+    """Test that operator with out parameter actually returns out."""
+    class BadInplaceOperator(odl.Operator):
+        def _call(self, x, out):
+            # badly implemented operator
+            out = 42
+            return out
+
+    space = odl.rn(3)
+    op = BadInplaceOperator(space, space)
+
+    with pytest.raises(ValueError):
+        op(space.zero())
+
+    with pytest.raises(ValueError):
+        out = space.zero()
+        op(space.zero(), out=out)
 
 
 def test_nonlinear_addition():
@@ -210,7 +213,7 @@ def test_linear_Op():
     x = np.random.rand(3)
     out = np.random.rand(3)
 
-    Aop = MatVecOperator(A)
+    Aop = MatrixOperator(A)
     xvec = Aop.domain.element(x)
     outvec = Aop.range.element()
 
@@ -229,7 +232,7 @@ def test_linear_op_nonsquare():
     x = np.random.rand(3)
     out = np.random.rand(4)
 
-    Aop = MatVecOperator(A)
+    Aop = MatrixOperator(A)
 
     xvec = Aop.domain.element(x)
     outvec = Aop.range.element()
@@ -248,7 +251,7 @@ def test_linear_adjoint():
     x = np.random.rand(4)
     out = np.random.rand(3)
 
-    Aop = MatVecOperator(A)
+    Aop = MatrixOperator(A)
     xvec = Aop.range.element(x)
     outvec = Aop.domain.element()
 
@@ -267,8 +270,8 @@ def test_linear_addition():
     x = np.random.rand(3)
     y = np.random.rand(4)
 
-    Aop = MatVecOperator(A)
-    Bop = MatVecOperator(B)
+    Aop = MatrixOperator(A)
+    Bop = MatrixOperator(B)
     xvec = Aop.domain.element(x)
     yvec = Aop.range.element(y)
 
@@ -293,7 +296,7 @@ def test_linear_scale():
     x = np.random.rand(3)
     y = np.random.rand(4)
 
-    Aop = MatVecOperator(A)
+    Aop = MatrixOperator(A)
     xvec = Aop.domain.element(x)
     yvec = Aop.range.element(y)
 
@@ -323,7 +326,7 @@ def test_linear_scale():
 def test_linear_right_vector_mult():
     A = np.random.rand(4, 3)
 
-    Aop = MatVecOperator(A)
+    Aop = MatrixOperator(A)
     vec = Aop.domain.element([1, 2, 3])
     x = Aop.domain.element([4, 5, 6])
     y = Aop.range.element([5, 6, 7, 8])
@@ -352,8 +355,8 @@ def test_linear_composition():
     x = np.random.rand(3)
     y = np.random.rand(5)
 
-    Aop = MatVecOperator(A)
-    Bop = MatVecOperator(B)
+    Aop = MatrixOperator(A)
+    Bop = MatrixOperator(B)
     xvec = Bop.domain.element(x)
     yvec = Aop.range.element(y)
 
@@ -370,7 +373,7 @@ def test_type_errors():
     r3 = odl.rn(3)
     r4 = odl.rn(4)
 
-    Aop = MatVecOperator(np.random.rand(3, 3))
+    Aop = MatrixOperator(np.random.rand(3, 3))
     r3Vec1 = r3.zero()
     r3Vec2 = r3.zero()
     r4Vec1 = r4.zero()

@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
@@ -32,8 +23,7 @@ __all__ = ('fbp_op', 'fbp_filter_op', 'tam_danielson_window',
 
 def _axis_in_detector(geometry):
     """A vector in the detector plane that points along the rotation axis."""
-    du = geometry.det_init_axes[0]
-    dv = geometry.det_init_axes[1]
+    du, dv = geometry.det_axes_init
     axis = geometry.axis
     c = np.array([np.vdot(axis, du), np.vdot(axis, dv)])
     cnorm = np.linalg.norm(c)
@@ -46,8 +36,7 @@ def _axis_in_detector(geometry):
 
 def _rotation_direction_in_detector(geometry):
     """A vector in the detector plane that points in the rotation direction."""
-    du = geometry.det_init_axes[0]
-    dv = geometry.det_init_axes[1]
+    du, dv = geometry.det_axes_init
     axis = geometry.axis
     det_normal = np.cross(du, dv)
     rot_dir = np.cross(axis, det_normal)
@@ -103,7 +92,8 @@ def _fbp_filter(norm_freq, filter_type, frequency_scaling):
                          ''.format(filter_type))
 
     indicator = (norm_freq <= frequency_scaling)
-    return indicator * filt
+    filt *= indicator
+    return filt
 
 
 def tam_danielson_window(ray_trafo, smoothing_width=0.05, n_half_rot=1):
@@ -136,11 +126,14 @@ def tam_danielson_window(ray_trafo, smoothing_width=0.05, n_half_rot=1):
     --------
     fbp_op : Filtered back-projection operator from `RayTransform`
     tam_danielson_window : Weighting for short scan data
-    HelicalConeFlatGeometry : The primary use case for this window function.
+    ConeFlatGeometry : Primary use case for this window function.
 
     References
     ----------
-    .. _TAM1998: http://iopscience.iop.org/article/10.1088/0031-9155/43/4/028
+    [TSS1998] Tam, K C, Samarasekera, S and Sauer, F.
+    *Exact cone beam CT with a spiral scan*.
+    Physics in Medicine & Biology 4 (1998), p 1015.
+    https://dx.doi.org/10.1088/0031-9155/43/4/028
     """
     # Extract parameters
     src_radius = ray_trafo.geometry.src_radius
@@ -230,7 +223,7 @@ def parker_weighting(ray_trafo, q=0.25):
     fbp_op : Filtered back-projection operator from `RayTransform`
     tam_danielson_window : Indicator function for helical data
     FanFlatGeometry : Use case in 2d
-    CircularConeFlatGeometry : Use case in 3d
+    ConeFlatGeometry : Use case in 3d (for pitch 0)
 
     References
     ----------
@@ -259,8 +252,15 @@ def parker_weighting(ray_trafo, q=0.25):
     elif ndim == 3:
         # Find projection of axis on detector
         rot_dir = _rotation_direction_in_detector(ray_trafo.geometry)
-        dx = (rot_dir[0] * ray_trafo.range.meshgrid[1] +
-              rot_dir[1] * ray_trafo.range.meshgrid[2])
+        # If axis is aligned to a coordinate axis, save some memory and time by
+        # using broadcasting
+        if rot_dir[0] == 0:
+            dx = rot_dir[1] * ray_trafo.range.meshgrid[2]
+        elif rot_dir[1] == 0:
+            dx = rot_dir[0] * ray_trafo.range.meshgrid[1]
+        else:
+            dx = (rot_dir[0] * ray_trafo.range.meshgrid[1] +
+                  rot_dir[1] * ray_trafo.range.meshgrid[2])
 
     # Compute parameters
     dx_abs_max = np.max(np.abs(dx))
@@ -280,16 +280,19 @@ def parker_weighting(ray_trafo, q=0.25):
         return q * (2 * delta - 2 * alpha + epsilon)
 
     # Create weighting function
-    beta = angles - min_rot_angle  # rotation angle
-    alpha = np.arctan2(dx, src_radius + det_radius)
+    beta = np.asarray(angles - min_rot_angle,
+                      dtype=ray_trafo.range.dtype)  # rotation angle
+    alpha = np.asarray(np.arctan2(dx, src_radius + det_radius),
+                       dtype=ray_trafo.range.dtype)
 
-    S1 = S(beta / b(alpha) - 0.5)
-    S2 = S((beta - 2 * delta + 2 * alpha - epsilon) / b(alpha) + 0.5)
-    S3 = S((beta - np.pi + 2 * alpha) / b(-alpha) - 0.5)
-    S4 = S((beta - np.pi - 2 * delta - epsilon) / b(-alpha) + 0.5)
+    # Compute sum in place to save memory
+    S_sum = S(beta / b(alpha) - 0.5)
+    S_sum += S((beta - 2 * delta + 2 * alpha - epsilon) / b(alpha) + 0.5)
+    S_sum -= S((beta - np.pi + 2 * alpha) / b(-alpha) - 0.5)
+    S_sum -= S((beta - np.pi - 2 * delta - epsilon) / b(-alpha) + 0.5)
 
     scale = 0.5 * alen / np.pi
-    return ray_trafo.range.element((S1 + S2 - S3 - S4) * scale)
+    return ray_trafo.range.element(S_sum * scale)
 
 
 def fbp_filter_op(ray_trafo, padding=True, filter_type='Ram-Lak',
@@ -306,13 +309,13 @@ def fbp_filter_op(ray_trafo, padding=True, filter_type='Ram-Lak',
 
         `Parallel3dAxisGeometry` : Exact reconstruction
 
-        `FanFlatGeometry` : Approximate reconstruction, correct in limit of fan
-        angle = 0.
+        `FanFlatGeometry` : Approximate reconstruction, correct in limit of
+        fan angle = 0.
 
-        `CircularConeFlatGeometry` : Approximate reconstruction, correct in
-        limit of fan angle = 0 and cone angle = 0.
+        `ConeFlatGeometry`, pitch = 0 (circular) : Approximate reconstruction,
+        correct in the limit of fan angle = 0 and cone angle = 0.
 
-        `HelicalConeFlatGeometry` : Very approximate unless a
+        `ConeFlatGeometry`, pitch > 0 (helical) : Very approximate unless a
         `tam_danielson_window` is used. Accurate with the window.
 
         Other geometries: Not supported
@@ -341,6 +344,7 @@ def fbp_filter_op(ray_trafo, padding=True, filter_type='Ram-Lak',
     tam_danielson_window : Windowing for helical data
     """
     impl = 'pyfftw' if PYFFTW_AVAILABLE else 'numpy'
+    impl = 'numpy'
     alen = ray_trafo.geometry.motion_params.length
 
     if ray_trafo.domain.ndim == 2:
@@ -395,7 +399,14 @@ def fbp_filter_op(ray_trafo, padding=True, filter_type='Ram-Lak',
 
         # Define ramp filter
         def fourier_filter(x):
-            abs_freq = np.abs(rot_dir[0] * x[1] + rot_dir[1] * x[2])
+            # If axis is aligned to a coordinate axis, save some memory and
+            # time by using broadcasting
+            if not used_axes[0]:
+                abs_freq = np.abs(rot_dir[1] * x[2])
+            elif not used_axes[1]:
+                abs_freq = np.abs(rot_dir[0] * x[1])
+            else:
+                abs_freq = np.abs(rot_dir[0] * x[1] + rot_dir[1] * x[2])
             norm_freq = abs_freq / np.max(abs_freq)
             filt = _fbp_filter(norm_freq, filter_type, frequency_scaling)
             scaling = scale / (2 * alen)
@@ -453,10 +464,10 @@ def fbp_op(ray_trafo, padding=True, filter_type='Ram-Lak',
         `FanFlatGeometry` : Approximate reconstruction, correct in limit of fan
         angle = 0.
 
-        `CircularConeFlatGeometry` : Approximate reconstruction, correct in
-        limit of fan angle = 0 and cone angle = 0.
+        `ConeFlatGeometry`, pitch = 0 (circular) : Approximate reconstruction,
+        correct in the limit of fan angle = 0 and cone angle = 0.
 
-        `HelicalConeFlatGeometry` : Very approximate unless a
+        `ConeFlatGeometry`, pitch > 0 (helical) : Very approximate unless a
         `tam_danielson_window` is used. Accurate with the window.
 
         Other geometries: Not supported
@@ -510,7 +521,7 @@ if __name__ == '__main__':
         min_pt=[-20, -20, 0], max_pt=[20, 20, 40], shape=[300, 300, 300])
     angle_partition = odl.uniform_partition(0, 8 * 2 * np.pi, 2000)
     detector_partition = odl.uniform_partition([-40, -4], [40, 4], [500, 500])
-    geometry = odl.tomo.HelicalConeFlatGeometry(
+    geometry = odl.tomo.ConeFlatGeometry(
         angle_partition, detector_partition, src_radius=100, det_radius=100,
         pitch=5.0)
     ray_trafo = odl.tomo.RayTransform(reco_space, geometry, impl='astra_cuda')

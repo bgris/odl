@@ -1,22 +1,12 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 from __future__ import division
-
 import pytest
 import numpy as np
 
@@ -257,6 +247,38 @@ def test_partition_getitem():
     lst_grid = odl.RectGrid(lst_vec1, vec2, vec3, vec4)
     lst_part = odl.RectPartition(lst_intv, lst_grid)
     assert part[[0, 2]] == lst_part
+
+
+def test_empty_partition():
+    """Check if empty partitions behave as expected and all methods work."""
+    part = odl.RectPartition(odl.IntervalProd([], []),
+                             odl.uniform_grid([], [], ()))
+
+    assert part.cell_boundary_vecs == ()
+    assert part.nodes_on_bdry is True
+    assert part.nodes_on_bdry_byaxis == ()
+    assert part.has_isotropic_cells
+    assert part.boundary_cell_fractions == ()
+    assert part.cell_sizes_vecs == ()
+    assert np.array_equal(part.cell_sides, [])
+    assert part.cell_volume == 0
+
+    same = odl.RectPartition(odl.IntervalProd([], []),
+                             odl.uniform_grid([], [], ()))
+    assert part == same
+    assert hash(part) == hash(same)
+    other = odl.uniform_partition(0, 1, 4)
+    assert part != other
+
+    assert part[[]] == part
+    assert part.insert(0, other) == other
+    assert other.insert(0, part) == other
+    assert other.insert(1, part) == other
+    assert part.squeeze() == part
+    assert part.index([]) == ()
+    part.byaxis
+    assert part == odl.uniform_partition([], [], ())
+    repr(part)
 
 
 # ---- Functions ---- #

@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Discrete wavelet transformation on L2 spaces."""
 
@@ -30,7 +21,7 @@ from odl.operator import Operator
 from odl.trafos.backends.pywt_bindings import (
     PYWT_AVAILABLE, PAD_MODES_ODL2PYWT,
     pywt_pad_mode, pywt_wavelet, pywt_flat_coeff_size, pywt_coeff_shapes,
-    pywt_flat_array_from_coeffs, pywt_coeffs_from_flat_array,
+    pywt_max_nlevels, pywt_flat_array_from_coeffs, pywt_coeffs_from_flat_array,
     pywt_multi_level_decomp, pywt_multi_level_recon)
 
 __all__ = ('WaveletTransform', 'WaveletTransformInverse')
@@ -80,12 +71,13 @@ class WaveletTransformBase(Operator):
 
             ``'dmey'``: Discrete FIR approximation of the Meyer wavelet
 
-        nlevels : positive int
+        variant : {'forward', 'inverse', 'adjoint'}
+            Wavelet transform variant to be created.
+        nlevels : positive int, optional
             Number of scaling levels to be used in the decomposition. The
             maximum number of levels can be calculated with
             `pywt.dwt_max_level`.
-        variant : {'forward', 'inverse', 'adjoint'}
-            Wavelet transform variant to be created.
+            Default: Use maximum number of levels.
         pad_mode : string, optional
             Method to be used to extend the signal.
 
@@ -119,6 +111,8 @@ class WaveletTransformBase(Operator):
             raise TypeError('`space` {!r} is not a `DiscreteLp` instance.'
                             ''.format(space))
 
+        if nlevels is None:
+            nlevels = pywt_max_nlevels(space.shape, wavelet)
         self.__nlevels, nlevels_in = int(nlevels), nlevels
         if self.nlevels != nlevels_in:
             raise ValueError('`nlevels` must be integer, got {}'
@@ -221,7 +215,7 @@ class WaveletTransform(WaveletTransformBase):
 
     """Discrete wavelet transform between discretized Lp spaces."""
 
-    def __init__(self, domain, wavelet, nlevels, pad_mode='constant',
+    def __init__(self, domain, wavelet, nlevels=None, pad_mode='constant',
                  pad_const=0, impl='pywt'):
         """Initialize a new instance.
 
@@ -250,10 +244,11 @@ class WaveletTransform(WaveletTransformBase):
 
             ``'dmey'``: Discrete FIR approximation of the Meyer wavelet
 
-        nlevels : positive int
+        nlevels : positive int, optional
             Number of scaling levels to be used in the decomposition. The
             maximum number of levels can be calculated with
             `pywt.dwt_max_level`.
+            Default: Use maximum number of levels.
         pad_mode : string, optional
             Method to be used to extend the signal.
 
@@ -350,7 +345,7 @@ class WaveletTransform(WaveletTransformBase):
         adjoint
         """
         return WaveletTransformInverse(
-            range=self.domain, nlevels=self.nlevels, wavelet=self.pywt_wavelet,
+            range=self.domain, wavelet=self.pywt_wavelet, nlevels=self.nlevels,
             pad_mode=self.pad_mode, pad_const=self.pad_const, impl=self.impl)
 
 
@@ -363,7 +358,7 @@ class WaveletTransformInverse(WaveletTransformBase):
     WaveletTransform
     """
 
-    def __init__(self, range, nlevels, wavelet, pad_mode='constant',
+    def __init__(self, range, wavelet, nlevels=None, pad_mode='constant',
                  pad_const=0, impl='pywt'):
         """Initialize a new instance.
 
@@ -372,10 +367,6 @@ class WaveletTransformInverse(WaveletTransformBase):
         range : `DiscreteLp`
             Domain of the forward wavelet transform (the "image domain"),
             which is the range of this inverse transform.
-        nlevels : positive int
-            Number of scaling levels to be used in the decomposition. The
-            maximum number of levels can be calculated with
-            `pywt.dwt_max_level`.
         wavelet : string or `pywt.Wavelet`
             Specification of the wavelet to be used in the transform.
             If a string is given, it is converted to a `pywt.Wavelet`.
@@ -397,6 +388,11 @@ class WaveletTransformInverse(WaveletTransformBase):
 
             ``'dmey'``: Discrete FIR approximation of the Meyer wavelet
 
+        nlevels : positive int, optional
+            Number of scaling levels to be used in the decomposition. The
+            maximum number of levels can be calculated with
+            `pywt.dwt_max_level`.
+            Default: Use maximum number of levels.
         pad_mode : string, optional
             Method to be used to extend the signal.
 
@@ -443,8 +439,8 @@ class WaveletTransformInverse(WaveletTransformBase):
         >>> np.allclose(recon, orig_array)
         True
         """
-        super().__init__(space=range, wavelet=wavelet, nlevels=nlevels,
-                         variant='inverse', pad_mode=pad_mode,
+        super().__init__(space=range, wavelet=wavelet, variant='inverse',
+                         nlevels=nlevels, pad_mode=pad_mode,
                          pad_const=pad_const, impl=impl)
 
     def _call(self, coeffs):
@@ -497,7 +493,7 @@ class WaveletTransformInverse(WaveletTransformBase):
         adjoint
         """
         return WaveletTransform(
-            domain=self.range, nlevels=self.nlevels, wavelet=self.pywt_wavelet,
+            domain=self.range, wavelet=self.pywt_wavelet, nlevels=self.nlevels,
             pad_mode=self.pad_mode, pad_const=self.pad_const, impl=self.impl)
 
 

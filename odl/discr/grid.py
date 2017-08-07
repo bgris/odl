@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Sparse implementations of n-dimensional sampling grids.
 
@@ -169,9 +160,6 @@ class RectGrid(Set):
         Ordering is only relevant when the point array is actually created;
         the grid itself is independent of this ordering.
         """
-        if not coord_vectors:
-            raise ValueError('no coordinate vectors given')
-
         vecs = tuple(np.atleast_1d(vec).astype('float64')
                      for vec in coord_vectors)
         for i, vec in enumerate(vecs):
@@ -197,11 +185,13 @@ class RectGrid(Set):
                 raise ValueError('vector {} contains duplicates'
                                  ''.format(i + 1))
 
+        # Lazily evaluates strides when needed but stores the result
+        self.__stride = None
+
         self.__coord_vectors = vecs
 
         # Non-degenerate axes
-        self.__nondegen_byaxis = np.fromiter(
-            (len(v) > 1 for v in self.coord_vectors), dtype=bool)
+        self.__nondegen_byaxis = tuple(len(v) > 1 for v in self.coord_vectors)
 
         # Uniformity, setting True in degenerate axes
         diffs = [np.diff(v) for v in self.coord_vectors]
@@ -236,17 +226,28 @@ class RectGrid(Set):
     @property
     def ndim(self):
         """Number of dimensions of the grid."""
-        return len(self.coord_vectors)
+        try:
+            return self.__ndim
+        except AttributeError:
+            ndim = len(self.coord_vectors)
+            self.__ndim = ndim
+            return ndim
 
     @property
     def shape(self):
         """Number of grid points per axis."""
-        return tuple(len(vec) for vec in self.coord_vectors)
+        try:
+            return self.__shape
+        except AttributeError:
+            shape = tuple(len(vec) for vec in self.coord_vectors)
+            self.__shape = shape
+            return shape
 
     @property
     def size(self):
         """Total number of grid points."""
-        return np.prod(self.shape)
+        # Since np.prod(()) == 1.0 we need to handle that by ourselves
+        return 0 if self.shape == () else np.prod(self.shape)
 
     def __len__(self):
         """Return ``len(self)``.
@@ -263,7 +264,7 @@ class RectGrid(Set):
         --------
         size : The total number of elements.
         """
-        return self.shape[0]
+        return 0 if self.shape == () else self.shape[0]
 
     @property
     def min_pt(self):
@@ -297,7 +298,7 @@ class RectGrid(Set):
         --------
         >>> g = uniform_grid([0, 0], [1, 1], (5, 1))
         >>> g.nondegen_byaxis
-        array([ True, False], dtype=bool)
+        (True, False)
         """
         return self.__nondegen_byaxis
 
@@ -390,33 +391,56 @@ class RectGrid(Set):
     def stride(self):
         """Step per axis between neighboring points of a uniform grid.
 
-        Raises
-        ------
-        NotImplementedError
-            if the grid is not uniform
+        If the grid contains axes that are not uniform, ``stride`` has
+        a ``NaN`` entry.
+
+        For degenerate (length 1) axes, ``stride`` has value ``0.0``.
+
+        Returns
+        -------
+        stride : numpy.array
+            Array of dtype ``float`` and length `ndim`.
 
         Examples
         --------
         >>> rg = uniform_grid([-1.5, -1], [-0.5, 3], (2, 3))
         >>> rg.stride
         array([ 1.,  2.])
-        """
-        if not self.is_uniform:
-            raise NotImplementedError('`stride` not defined for non-uniform '
-                                      'grid')
-        strd = np.zeros(self.ndim)
-        strd[self.nondegen_byaxis] = (
-            self.extent()[self.nondegen_byaxis] /
-            (np.array(self.shape)[self.nondegen_byaxis] - 1))
-        return strd
 
+        NaN returned for non-uniform dimension:
+
+        >>> g = RectGrid([0, 1, 2], [0, 1, 4])
+        >>> g.stride
+        array([ 1.,  nan])
+
+        0.0 returned for degenerate dimension:
+
+        >>> g = RectGrid([0, 1, 2], [0])
+        >>> g.stride
+        array([ 1.,  0.])
+        """
+        # Cache for efficiency instead of re-computing
+        if self.__stride is None:
+            strd = []
+            for i in range(self.ndim):
+                if not self.is_uniform_byaxis[i]:
+                    strd.append(float('nan'))
+                elif self.nondegen_byaxis[i]:
+                    strd.append(self.extent[i] / (self.shape[i] - 1.0))
+                else:
+                    strd.append(0.0)
+            self.__stride = np.array(strd)
+
+        return self.__stride.copy()
+
+    @property
     def extent(self):
         """Return the edge lengths of this grid's minimal bounding box.
 
         Examples
         --------
         >>> g = RectGrid([1, 2, 5], [-2, 1.5, 2])
-        >>> g.extent()
+        >>> g.extent
         array([ 4.,  4.])
         """
         return self.max_pt - self.min_pt
@@ -586,6 +610,8 @@ class RectGrid(Set):
                    self.max_pt[i] <= other.max_pt[i] + atol
                    for i in range(self.ndim)):
             return False
+        if self.size == 0:
+            return True
 
         if self.is_uniform and other.is_uniform:
             # For uniform grids, it suffices to show that min_pt, max_pt
@@ -615,27 +641,27 @@ class RectGrid(Set):
                     return False
             return True
 
-    def insert(self, index, other):
-        """Return a copy with ``other`` inserted before ``index``.
+    def insert(self, index, *grids):
+        """Return a copy with ``grids`` inserted before ``index``.
 
-        The given grid (``m`` dimensions) is inserted into the current
-        one (``n`` dimensions) before the given index, resulting in a new
-        `RectGrid` with ``n + m`` dimensions.
+        The given grids are inserted (as a block) into ``self``, yielding
+        a new grid whose number of dimensions is the sum of the numbers of
+        dimensions of all involved grids.
         Note that no changes are made in-place.
 
         Parameters
         ----------
         index : int
-            The index of the dimension before which ``other`` is to
+            The index of the dimension before which ``grids`` are to
             be inserted. Negative indices count backwards from
             ``self.ndim``.
-        other :  `RectGrid`
-            The grid to be inserted
+        grid1, ..., gridN :  `RectGrid`
+            The grids to be inserted into ``self``.
 
         Returns
         -------
         newgrid : `RectGrid`
-            The enlarged grid
+            The enlarged grid.
 
         Examples
         --------
@@ -648,33 +674,51 @@ class RectGrid(Set):
             [-6.0, 15.0],
             [-1.0, 0.0, 2.0]
         )
+        >>> g1.insert(1, g2, g2)
+        RectGrid(
+            [0.0, 1.0],
+            [1.0],
+            [-6.0, 15.0],
+            [1.0],
+            [-6.0, 15.0],
+            [-1.0, 0.0, 2.0]
+        )
 
         See Also
         --------
         append
         """
-        if not isinstance(other, RectGrid):
-            raise TypeError('`other` must be a `RectGrid` instance, got {}'
-                            ''.format(other))
-        idx = safe_int_conv(index)
-        # Support backward indexing
-        if idx < 0:
-            idx = self.ndim + idx
-        if not 0 <= idx <= self.ndim:
-            raise IndexError('index {} outside the valid range 0 ... {}'
-                             ''.format(idx, self.ndim))
+        index, index_in = safe_int_conv(index), index
+        if not -self.ndim <= index <= self.ndim:
+            raise IndexError('index {0} outside the valid range -{1} ... {1}'
+                             ''.format(index_in, self.ndim))
+        if index < 0:
+            index += self.ndim
 
-        new_vecs = (self.coord_vectors[:idx] + other.coord_vectors +
-                    self.coord_vectors[idx:])
-        return RectGrid(*new_vecs)
+        if len(grids) > 1:
+            return self.insert(index, grids[0]).insert(
+                index + grids[0].ndim, *(grids[1:]))
+        else:
+            grid = grids[0]
+            if not isinstance(grid, RectGrid):
+                raise TypeError('{!r} is not a `RectGrid` instance'
+                                ''.format(grid))
+            new_vecs = (self.coord_vectors[:index] + grid.coord_vectors +
+                        self.coord_vectors[index:])
+            return RectGrid(*new_vecs)
 
-    def append(self, other):
-        """Insert grid ``other`` at the end.
+    def append(self, *grids):
+        """Insert ``grids`` at the end as a block.
 
         Parameters
         ----------
-        other : `RectGrid`
-            Set to be inserted.
+        grid1, ..., gridN :  `RectGrid`
+            The grids to be appended to ``self``.
+
+        Returns
+        -------
+        newgrid : `RectGrid`
+            The enlarged grid.
 
         Examples
         --------
@@ -687,12 +731,21 @@ class RectGrid(Set):
             [1.0],
             [-6.0, 15.0]
         )
+        >>> g1.append(g2, g2)
+        RectGrid(
+            [0.0, 1.0],
+            [-1.0, 0.0, 2.0],
+            [1.0],
+            [-6.0, 15.0],
+            [1.0],
+            [-6.0, 15.0]
+        )
 
         See Also
         --------
         insert
         """
-        return self.insert(self.ndim, other)
+        return self.insert(self.ndim, *grids)
 
     def squeeze(self):
         """Return the grid with removed degenerate (length 1) dimensions.
@@ -712,7 +765,8 @@ class RectGrid(Set):
         )
 
         """
-        nondegen_indcs = np.flatnonzero(self.nondegen_byaxis)
+        nondegen_indcs = [i for i in range(self.ndim)
+                          if self.nondegen_byaxis[i]]
         coord_vecs = [self.coord_vectors[axis] for axis in nondegen_indcs]
         return RectGrid(*coord_vecs)
 
@@ -906,8 +960,11 @@ class RectGrid(Set):
         True
         """
         if isinstance(indices, list):
-            new_coord_vecs = [self.coord_vectors[0][indices]]
-            new_coord_vecs += self.coord_vectors[1:]
+            if indices == []:
+                new_coord_vecs = []
+            else:
+                new_coord_vecs = [self.coord_vectors[0][indices]]
+                new_coord_vecs += self.coord_vectors[1:]
             return RectGrid(*new_coord_vecs)
 
         indices = normalized_index_expression(indices, self.shape,

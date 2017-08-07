@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Utilities for internal use."""
 
@@ -23,15 +14,18 @@ from future import standard_library
 standard_library.install_aliases()
 
 from functools import wraps
+from collections import OrderedDict
 import numpy as np
+from pkg_resources import parse_requirements
 
 
 __all__ = ('array1d_repr', 'array1d_str', 'arraynd_repr', 'arraynd_str',
-           'dtype_repr', 'dtype_str', 'signature_string', 'indent_rows',
+           'dtype_repr', 'snr', 'dtype_str', 'signature_string', 'indent_rows',
            'is_scalar_dtype', 'is_int_dtype', 'is_floating_dtype',
            'is_real_dtype', 'is_real_floating_dtype',
            'is_complex_floating_dtype', 'real_dtype', 'complex_dtype',
-           'conj_exponent', 'as_flat_array', 'writable_array')
+           'conj_exponent', 'as_flat_array', 'writable_array',
+           'run_from_ipython', 'NumpyRandomSeed', 'cache_arguments', 'unique')
 
 TYPE_MAP_R2C = {np.dtype(dtype): np.result_type(dtype, 1j)
                 for dtype in np.sctypes['float']}
@@ -230,31 +224,55 @@ def with_metaclass(meta, *bases):
     return metaclass('temporary_class', None, {})
 
 
+def cache_arguments(function):
+    """Decorate function to cache the result with given arguments.
+
+    This is equivalent to `functools.lru_cache` with Python 3, and currently
+    does nothing with Python 2 but this may change at some later point.
+
+    Parameters
+    ----------
+    function : `callable`
+        Function that should be wrapped.
+    """
+    try:
+        from functools import lru_cache
+        return lru_cache()(function)
+    except ImportError:
+        return function
+
+
+@cache_arguments
 def is_scalar_dtype(dtype):
     """Return ``True`` if ``dtype`` is a scalar type."""
     return np.issubsctype(dtype, np.number)
 
 
+@cache_arguments
 def is_int_dtype(dtype):
     """Return ``True`` if ``dtype`` is an integer type."""
     return np.issubsctype(dtype, np.integer)
 
 
+@cache_arguments
 def is_floating_dtype(dtype):
     """Return ``True`` if ``dtype`` is a floating point type."""
     return is_real_floating_dtype(dtype) or is_complex_floating_dtype(dtype)
 
 
+@cache_arguments
 def is_real_dtype(dtype):
     """Return ``True`` if ``dtype`` is a real (including integer) type."""
     return is_scalar_dtype(dtype) and not is_complex_floating_dtype(dtype)
 
 
+@cache_arguments
 def is_real_floating_dtype(dtype):
     """Return ``True`` if ``dtype`` is a real floating point type."""
     return np.issubsctype(dtype, np.floating)
 
 
+@cache_arguments
 def is_complex_floating_dtype(dtype):
     """Return ``True`` if ``dtype`` is a complex floating point type."""
     return np.issubsctype(dtype, np.complexfloating)
@@ -705,6 +723,224 @@ def signature_string(posargs, optargs, sep=', ', mod=''):
         parts.append(opt_sep.join(optargs_conv))
 
     return part_sep.join(parts)
+
+
+def run_from_ipython():
+    """If the process is run from IPython."""
+    return '__IPYTHON__' in globals()
+
+
+def pkg_supports(feature, pkg_version, pkg_feat_dict):
+    """Return bool indicating whether a package supports ``feature``.
+
+    Parameters
+    ----------
+    feature : str
+        Name of a potential feature of a package.
+    pkg_version : str
+        Version of the package that should be checked for presence of the
+        feature.
+    pkg_feat_dict : dict
+        Specification of features of a package. Each item has the
+        following form::
+
+            feature_name: version_specification
+
+        Here, ``feature_name`` is a string that is matched against
+        ``feature``, and ``version_specification`` is a string or a
+        sequence of strings that specifies version sets. These
+        specifications are the same as for ``setuptools`` requirements,
+        just without the package name.
+        A ``None`` entry signals "no support in any version", i.e.,
+        always ``False``.
+        If a sequence of requirements are given, they are OR-ed together.
+        See ``Examples`` for details.
+
+    Returns
+    -------
+    supports : bool
+        ``True`` if ``pkg_version`` of the package in question supports
+        ``feature``, ``False`` otherwise.
+
+    Examples
+    --------
+    >>> feat_dict = {
+    ...     'feat1': '==0.5.1',
+    ...     'feat2': '>0.6, <=0.9',  # both required simultaneously
+    ...     'feat3': ['>0.6', '<=0.9'],  # only one required, i.e. always True
+    ...     'feat4': ['==0.5.1', '>0.6, <=0.9'],
+    ...     'feat5': None
+    ... }
+    >>> pkg_supports('feat1', '0.5.1', feat_dict)
+    True
+    >>> pkg_supports('feat1', '0.4', feat_dict)
+    False
+    >>> pkg_supports('feat2', '0.5.1', feat_dict)
+    False
+    >>> pkg_supports('feat2', '0.6.1', feat_dict)
+    True
+    >>> pkg_supports('feat2', '0.9', feat_dict)
+    True
+    >>> pkg_supports('feat2', '1.0', feat_dict)
+    False
+    >>> pkg_supports('feat3', '0.4', feat_dict)
+    True
+    >>> pkg_supports('feat3', '1.0', feat_dict)
+    True
+    >>> pkg_supports('feat4', '0.5.1', feat_dict)
+    True
+    >>> pkg_supports('feat4', '0.6', feat_dict)
+    False
+    >>> pkg_supports('feat4', '0.6.1', feat_dict)
+    True
+    >>> pkg_supports('feat4', '1.0', feat_dict)
+    False
+    >>> pkg_supports('feat5', '0.6.1', feat_dict)
+    False
+    >>> pkg_supports('feat5', '1.0', feat_dict)
+    False
+    """
+    feature = str(feature)
+    pkg_version = str(pkg_version)
+    supp_versions = pkg_feat_dict.get(feature, None)
+    if supp_versions is None:
+        return False
+
+    # Make sequence from single string
+    try:
+        supp_versions + ''
+    except TypeError:
+        pass
+    else:
+        supp_versions = [supp_versions]
+
+    # Make valid package requirements
+    ver_specs = ['pkg' + supp_ver for supp_ver in supp_versions]
+    # Each parse_requirements list contains only one entry since we specify
+    # only one package
+    ver_reqs = [list(parse_requirements(ver_spec))[0]
+                for ver_spec in ver_specs]
+
+    # If one of the requirements in the list is met, return True
+    for req in ver_reqs:
+        if req.specifier.contains(pkg_version):
+            return True
+
+    # No match
+    return False
+
+
+class NumpyRandomSeed(object):
+    """Context manager for Numpy random seeds."""
+
+    def __init__(self, seed):
+        """Initialize an instance.
+
+        Parameters
+        ----------
+        seed : int or None
+            Seed value for the random number generator.
+            ``None`` is interpreted as keeping the current seed.
+
+        Examples
+        --------
+        Use this to make drawing pseudo-random numbers repeatable:
+
+        >>> with NumpyRandomSeed(42):
+        ...     rand_int = np.random.randint(10)
+        >>> with NumpyRandomSeed(42):
+        ...     same_rand_int = np.random.randint(10)
+        >>> rand_int == same_rand_int
+        True
+        """
+        self.seed = seed
+
+    def __enter__(self):
+        """Called by ``with`` command."""
+        if self.seed is not None:
+            self.startstate = np.random.get_state()
+            np.random.seed(self.seed)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Called upon exiting ``with`` command."""
+        if self.seed is not None:
+            np.random.set_state(self.startstate)
+
+
+def unique(seq):
+    """Return the unique values in a sequence.
+
+    Parameters
+    ----------
+    seq : sequence
+        Sequence with (possibly duplicate) elements.
+
+    Returns
+    -------
+    unique : list
+        Unique elements of ``seq``.
+        Order is guaranteed to be the same as in seq.
+
+    Examples
+    --------
+    Determine unique elements in list
+
+    >>> unique([1, 2, 3, 3])
+    [1, 2, 3]
+
+    >>> unique((1, 'str', 'str'))
+    [1, 'str']
+
+    The utility also works with unhashable types:
+
+    >>> unique((1, [1], [1]))
+    [1, [1]]
+    """
+    # First check if all elements are hashable, if so O(n) can be done
+    try:
+        return list(OrderedDict.fromkeys(seq))
+    except TypeError:
+        # Unhashable, resort to O(n^2)
+        unique_values = []
+        for i in seq:
+            if i not in unique_values:
+                unique_values.append(i)
+        return unique_values
+
+def snr(signal, noise, impl='general'):
+    """Compute the signal-to-noise ratio.
+
+    Parameters
+    ----------
+    signal : `array-like`
+        Noiseless data.
+    noise : `array-like`
+        Noise.
+    impl : {'general', 'dB'}
+        Implementation method.
+        'general' means SNR = variance(signal) / variance(noise),
+        'dB' means SNR = 10 * log10 (variance(signal) / variance(noise)).
+
+    Returns
+    -------
+    snr : `float`
+        Value of signal-to-noise ratio.
+        If the power of noise is zero, then the return is 'inf',
+        otherwise, the computed value.
+    """
+    if np.abs(np.asarray(noise)).sum() != 0:
+        ave1 = np.sum(signal) / signal.size
+        ave2 = np.sum(noise) / noise.size
+        s_power = np.sqrt(np.sum((signal - ave1) * (signal - ave1)))
+        n_power = np.sqrt(np.sum((noise - ave2) * (noise - ave2)))
+        if impl == 'general':
+            return s_power / n_power
+        elif impl == 'dB':
+            return 10.0 * np.log10(s_power / n_power)
+        else:
+            raise ValueError('unknown `impl` {}'.format(impl))
+    else:
+        return float('inf')
 
 
 if __name__ == '__main__':

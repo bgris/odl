@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Backend for ASTRA using CPU."""
 
@@ -26,6 +17,7 @@ try:
     import astra
 except ImportError:
     pass
+import numpy as np
 
 from odl.discr import DiscreteLp, DiscreteLpElement
 from odl.tomo.backends.astra_setup import (
@@ -96,8 +88,8 @@ def astra_cpu_forward_projector(vol_data, geometry, proj_space, out=None):
     proj_geom = astra_projection_geometry(geometry)
 
     # Create projector
-    if not all(s == vol_data.space.interp_by_axis[0]
-               for s in vol_data.space.interp_by_axis):
+    if not all(s == vol_data.space.interp_byaxis[0]
+               for s in vol_data.space.interp_byaxis):
         raise ValueError('volume interpolation must be the same in each '
                          'dimension, got {}'.format(vol_data.space.interp))
     vol_interp = vol_data.space.interp
@@ -105,11 +97,12 @@ def astra_cpu_forward_projector(vol_data, geometry, proj_space, out=None):
                               impl='cpu')
 
     # Create ASTRA data structures
-    vol_id = astra_data(vol_geom, datatype='volume', data=vol_data,
+    vol_data_arr = np.asarray(vol_data)
+    vol_id = astra_data(vol_geom, datatype='volume', data=vol_data_arr,
                         allow_copy=True)
 
-    with writable_array(out, dtype='float32', order='C') as arr:
-        sino_id = astra_data(proj_geom, datatype='projection', data=arr,
+    with writable_array(out, dtype='float32', order='C') as out_arr:
+        sino_id = astra_data(proj_geom, datatype='projection', data=out_arr,
                              ndim=proj_space.ndim)
 
         # Create algorithm
@@ -188,36 +181,29 @@ def astra_cpu_back_projector(proj_data, geometry, reco_space, out=None):
 
     # Create projector
     # TODO: implement with different schemes for angles and detector
-    if not all(s == proj_data.space.interp_by_axis[0]
-               for s in proj_data.space.interp_by_axis):
+    if not all(s == proj_data.space.interp_byaxis[0]
+               for s in proj_data.space.interp_byaxis):
         raise ValueError('data interpolation must be the same in each '
                          'dimension, got {}'
-                         ''.format(proj_data.space.interp_by_axis))
+                         ''.format(proj_data.space.interp_byaxis))
     proj_interp = proj_data.space.interp
     proj_id = astra_projector(proj_interp, vol_geom, proj_geom, ndim,
                               impl='cpu')
 
-    # convert out to correct dtype and order if needed
-    with writable_array(out, dtype='float32', order='C') as arr:
-        vol_id = astra_data(vol_geom, datatype='volume', data=arr,
+    # Convert out to correct dtype and order if needed.
+    with writable_array(out, dtype='float32', order='C') as out_arr:
+        vol_id = astra_data(vol_geom, datatype='volume', data=out_arr,
                             ndim=reco_space.ndim)
         # Create algorithm
         algo_id = astra_algorithm('backward', ndim, vol_id, sino_id, proj_id,
                                   impl='cpu')
 
-        # Run algorithm and delete it
+        # Run algorithm
         astra.algorithm.run(algo_id)
 
-    # Angular integration weighting factor
-    # angle interval weight by approximate cell volume
-    extent = float(geometry.motion_partition.extent())
-    size = float(geometry.motion_partition.size)
-    scaling_factor = extent / size
-
-    # Fix inconsistent scaling: parallel2d & fanflat scale with (voxel
-    # stride)**2 / (pixel stride), currently only square voxels are supported
-    scaling_factor *= float(geometry.det_partition.cell_sides[0])
-    scaling_factor /= float(reco_space.partition.cell_sides[0]) ** 2
+    # Weight the adjoint by appropriate weights
+    scaling_factor = float(proj_data.space.weighting.const)
+    scaling_factor /= float(reco_space.weighting.const)
 
     out *= scaling_factor
 
@@ -230,6 +216,5 @@ def astra_cpu_back_projector(proj_data, geometry, reco_space, out=None):
 
 
 if __name__ == '__main__':
-    # pylint: disable=wrong-import-position
     from odl.util.testutils import run_doctests
     run_doctests()

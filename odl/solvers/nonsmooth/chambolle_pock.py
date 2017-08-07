@@ -1,25 +1,15 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """First-order primal-dual algorithm developed by Chambolle and Pock.
 
 The Chambolle-Pock algorithm is a flexible method well suited for
-non-smooth convex optimization problems in imaging. It was first
-proposed in [CP2011a]_.
+non-smooth convex optimization problems in imaging.
 """
 
 # Imports for common Python 2/3 codebase
@@ -38,7 +28,7 @@ __all__ = ('chambolle_pock_solver',)
 # TODO: add dual gap as convergence measure
 # TODO: diagonal preconditioning
 
-def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
+def chambolle_pock_solver(x, f, g, L, tau, sigma, niter, **kwargs):
     """Chambolle-Pock algorithm for non-smooth convex optimization problems.
 
     First order primal-dual hybrid-gradient method for non-smooth convex
@@ -74,7 +64,7 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
         Step size parameter for the update of the primal (``g``) variable.
     sigma : positive float
         Step size parameter for the update of the dual (``f``) variable.
-    niter : non-negative int, optional
+    niter : non-negative int
         Number of iterations.
 
     Other Parameters
@@ -104,7 +94,6 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
     The problem of interest is
 
     .. math::
-
         \\min_{x \\in X} F(K x) + G(x),
 
     where the formal conditions are that :math:`K` is an operator
@@ -118,7 +107,6 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
     :math:`\\tau` satisfy
 
     .. math::
-
        \\tau \\sigma \|K\| < 1
 
     where :math:`\|K\|` is the operator norm of :math:`K`.
@@ -127,7 +115,6 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
     for example the classical TV regularized problem
 
     .. math::
-
         \\min_x \|Ax - b\|_2^2 + \|\\nabla x\|_1.
 
     Here it is tempting to let :math:`K=A`, :math:`F(y)=||y||_2^2` and
@@ -137,6 +124,15 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
     Instead, the problem can be formulated :math:`K(x) = (A(x), \\nabla x)`,
     :math:`F((x_1, x_2)) = \|x_1\|_2^2 + \|x_2\|_1`, :math:`G(x)=0`. See the
     examples folder for more information on how to do this.
+
+    For a more detailed documentation see :ref:`chambolle_pock`.
+
+    References on the algorithm can be found in [CP2011a] and [CP2011b].
+
+    This implementation of the CP algorithm is along the lines of
+    [Sid+2012].
+
+    The non-linear case is analyzed in [Val2014].
 
     See Also
     --------
@@ -149,20 +145,24 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
 
     References
     ----------
-    For a more detailed documentation see :ref:`chambolle_pock`.
+    [CP2011a] Chambolle, A and Pock, T. *A First-Order
+    Primal-Dual Algorithm for Convex Problems with Applications to
+    Imaging*. Journal of Mathematical Imaging and Vision, 40 (2011),
+    pp 120-145.
 
-    References on the Chambolle-Pock algorithm can be found in [CP2011a]_ and
-    [CP2011b]_.
+    [CP2011b] Chambolle, A and Pock, T. *Diagonal
+    preconditioning for first order primal-dual algorithms in convex
+    optimization*. 2011 IEEE International Conference on Computer Vision
+    (ICCV), 2011, pp 1762-1769.
 
-    This implementation of the CP algorithm is along the lines of
-    [Sid+2012]_.
+    [Sid+2012] Sidky, E Y, Jorgensen, J H, and Pan, X.
+    *Convex optimization problem prototyping for image reconstruction in
+    computed tomography with the Chambolle-Pock algorithm*. Physics in
+    Medicine and Biology, 57 (2012), pp 3065-3091.
 
-    For more on convex analysis including convex conjugates and
-    resolvent operators see [Roc1970]_.
-
-    For more on proximal operators and algorithms see [PB2014]_.
-
-    The non-linear case is analyzed in [Val2014]_.
+    [Val2014] Valkonen, T.
+    *A primal-dual hybrid gradient method for non-linear operators with
+    applications to MRI*. Inverse Problems, 30 (2014).
     """
     # Forward operator
     if not isinstance(L, Operator):
@@ -229,21 +229,42 @@ def chambolle_pock_solver(x, f, g, L, tau, sigma, niter=1, **kwargs):
     # Get the proximals
     proximal_dual = f.convex_conj.proximal
     proximal_primal = g.proximal
+    proximal_constant = (gamma is None)
+    if proximal_constant:
+        # Pre-compute proximals for efficiency
+        proximal_dual_sigma = proximal_dual(sigma)
+        proximal_primal_tau = proximal_primal(tau)
 
     # Temporary copy to store previous iterate
     x_old = x.space.element()
+
+    # Temporaries
+    dual_tmp = L.range.element()
+    primal_tmp = L.domain.element()
 
     for _ in range(niter):
         # Copy required for relaxation
         x_old.assign(x)
 
         # Gradient ascent in the dual variable y
-        dual_tmp = y + sigma * L(x_relax)
-        proximal_dual(sigma)(dual_tmp, out=y)
+        # Compute dual_tmp = y + sigma * L(x_relax)
+        L(x_relax, out=dual_tmp)
+        dual_tmp.lincomb(1, y, sigma, dual_tmp)
+
+        # Apply the dual proximal
+        if not proximal_constant:
+            proximal_dual_sigma = proximal_dual(sigma)
+        proximal_dual_sigma(dual_tmp, out=y)
 
         # Gradient descent in the primal variable x
-        primal_tmp = x + (- tau) * L.derivative(x).adjoint(y)
-        proximal_primal(tau)(primal_tmp, out=x)
+        # Compute primal_tmp = x + (- tau) * L.derivative(x).adjoint(y)
+        L.derivative(x).adjoint(y, out=primal_tmp)
+        primal_tmp.lincomb(1, x, -tau, primal_tmp)
+
+        # Apply the primal proximal
+        if not proximal_constant:
+            proximal_primal_tau = proximal_primal(tau)
+        proximal_primal_tau(primal_tmp, out=x)
 
         # Acceleration
         if gamma is not None:

@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Bindings to the PyWavelets backend for wavelet transforms.
 
@@ -39,7 +30,7 @@ except ImportError:
 
 __all__ = ('PAD_MODES_ODL2PYWT', 'PYWT_SUPPORTED_MODES', 'PYWT_AVAILABLE',
            'pywt_wavelet', 'pywt_pad_mode', 'pywt_coeff_shapes',
-           'pywt_flat_coeff_size',
+           'pywt_flat_coeff_size', 'pywt_max_nlevels',
            'pywt_flat_array_from_coeffs', 'pywt_coeffs_from_flat_array',
            'pywt_single_level_decomp', 'pywt_single_level_recon',
            'pywt_multi_level_decomp', 'pywt_multi_level_recon')
@@ -144,17 +135,10 @@ modes.html
     if nlevels_in != nlevels:
         raise ValueError('`nlevels` must be integer, got {}'
                          ''.format(nlevels_in))
-    # TODO: adapt for axes
-    for i, n in enumerate(shape):
-        max_levels = pywt.dwt_max_level(n, wavelet.dec_len)
-        if max_levels == 0:
-            raise ValueError('in axis {}: data size {} too small for '
-                             'transform, results in maximal `nlevels` of 0'
-                             ''.format(i, n))
-        if not 0 < nlevels <= max_levels:
-            raise ValueError('in axis {}: `nlevels` must satisfy 0 < nlevels '
-                             '<= {}, got {}'
-                             ''.format(i, max_levels, nlevels))
+    max_nlevels = pywt_max_nlevels(shape, wavelet)
+    if nlevels > max_nlevels:
+        raise ValueError('`nlevels` larger than maximum value {}'
+                         ''.format(nlevels_in, max_nlevels))
 
     mode, mode_in = str(mode).lower(), mode
     if mode not in PYWT_SUPPORTED_MODES:
@@ -178,6 +162,44 @@ modes.html
     shape_list.reverse()
     shape_list.pop()
     return shape_list
+
+
+def pywt_max_nlevels(shape, wavelet):
+    """Return the maximum number of wavelet levels.
+
+    Parameters
+    ----------
+    shape : sequence of ints
+        Shape of an input to the transform.
+    wavelet : string or `pywt.Wavelet`
+        Specification of the wavelet to be used in the transform.
+        If a string is given, it is converted to a `pywt.Wavelet`.
+        Use `pywt.wavelist` to get a list of available wavelets.
+
+    Returns
+    -------
+    max_nlevels : int
+        Maximum value for the nlevels option.
+
+    Examples
+    --------
+    Find maximum nlevels for Haar wavelet:
+
+    >>> pywt_max_nlevels([10], 'haar')
+    3
+    >>> pywt_max_nlevels([1024], 'haar')
+    10
+
+    For multiple axes, the maximum nlevels is determined by the smallest shape:
+
+    >>> pywt_max_nlevels([10, 1024], 'haar')
+    3
+    """
+    shape = tuple(shape)
+    wavelet = pywt_wavelet(wavelet)
+
+    # TODO: adapt for axes
+    return min(pywt.dwt_max_level(n, wavelet.dec_len) for n in shape)
 
 
 def pywt_flat_coeff_size(shape, wavelet, nlevels, mode):
@@ -672,21 +694,14 @@ wavelet-transform.html#multilevel-decomposition-using-wavedec
     arr = np.asarray(arr)
     wavelet = pywt_wavelet(wavelet)
 
-    # TODO: adapt for axes
     nlevels, nlevels_in = int(nlevels), nlevels
     if nlevels_in != nlevels:
         raise ValueError('`nlevels` must be integer, got {}'
                          ''.format(nlevels_in))
-    for i, n in enumerate(arr.shape):
-        max_levels = pywt.dwt_max_level(n, wavelet.dec_len)
-        if max_levels == 0:
-            raise ValueError('in axis {}: data size {} too small for '
-                             'transform, results in maximal `nlevels` of 0'
-                             ''.format(i, n))
-        if not 0 < nlevels <= max_levels:
-            raise ValueError('in axis {}: `nlevels` must satisfy 0 < nlevels '
-                             '<= {}, got {}'
-                             ''.format(i, max_levels, nlevels))
+    max_nlevels = pywt_max_nlevels(arr.shape, wavelet)
+    if nlevels > max_nlevels:
+        raise ValueError('`nlevels` larger than maximum value {}'
+                         ''.format(nlevels_in, max_nlevels))
 
     mode, mode_in = str(mode).lower(), mode
     if mode not in PYWT_SUPPORTED_MODES:

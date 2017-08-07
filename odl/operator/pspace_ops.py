@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Default operators defined on any `ProductSpace`."""
 
@@ -28,6 +19,7 @@ import scipy as sp
 from numbers import Integral
 
 from odl.operator.operator import Operator
+from odl.operator.default_ops import ZeroOperator
 from odl.space import ProductSpace
 
 
@@ -51,7 +43,6 @@ class ProductSpaceOperator(Operator):
     as a linear combination of "sub-operators", e.g.
 
     .. math::
-
         \\left(
         \\begin{array}{ccc}
         A & B & 0 \\\\
@@ -74,7 +65,8 @@ class ProductSpaceOperator(Operator):
 
     Mathematically, a `ProductSpaceOperator` is an operator
 
-        :math:`\mathcal{A}: \mathcal{X} \\to \mathcal{Y}`
+    .. math::
+        \mathcal{A}: \mathcal{X} \\to \mathcal{Y}
 
     between product spaces
     :math:`\mathcal{X}=\mathcal{X}_1 \\times\dots\\times \mathcal{X}_m`
@@ -82,8 +74,9 @@ class ProductSpaceOperator(Operator):
     :math:`\mathcal{Y}=\mathcal{Y}_1 \\times\dots\\times \mathcal{Y}_n`
     which can be written in the form
 
-        :math:`\mathcal{A} = (\mathcal{A}_{ij})_{i,j},  \quad
-        i = 1, \dots, n, \\ j = 1, \dots, m`
+    .. math::
+        \mathcal{A} = (\mathcal{A}_{ij})_{i,j},  \quad
+                          i = 1, \dots, n, \\ j = 1, \dots, m
 
     with *component operators*
     :math:`\mathcal{A}_{ij}: \mathcal{X}_j \\to \mathcal{Y}_i`.
@@ -91,7 +84,8 @@ class ProductSpaceOperator(Operator):
     Its action on a vector :math:`x = (x_1, \dots, x_m)` is defined as
     the matrix multiplication
 
-        :math:`[\mathcal{A}(x)]_i = \sum_{j=1}^m \mathcal{A}_{ij}(x_j)`.
+    .. math::
+        [\mathcal{A}(x)]_i = \sum_{j=1}^m \mathcal{A}_{ij}(x_j).
 
     See Also
     --------
@@ -363,14 +357,17 @@ class ProductSpaceOperator(Operator):
 
         Parameters
         ----------
-        index : tuple of int
+        index : int or tuple of int
             A pair of integers given as (row, col).
 
         Returns
         -------
-        suboperator : `Operator` or ``0``
-            If there is an operator at (row, col), the operator is returned,
-            otherwise ``0``.
+        suboperator : `ReductionOperator`, `Operator` or ``0``
+            If index is an integer, return the row given by the index.
+
+            If index is a tuple, it must have two elements.
+            if there is an operator at ``(row, col)``,  the operator is
+            returned, otherwise ``0``.
 
         Examples
         --------
@@ -388,14 +385,49 @@ class ProductSpaceOperator(Operator):
         0
         >>> prod_op[1, 1]
         0
+
+        By accessing single indices, a row is extracted as a
+        `ReductionOperator`:
+
+        >>> prod_op[0]
+        ReductionOperator(ZeroOperator(rn(3)), IdentityOperator(rn(3)))
         """
-        row, col = index
-        linear_index = np.flatnonzero((self.ops.row == row) &
-                                      (self.ops.col == col))
-        if linear_index.size == 0:
-            return 0
+        if isinstance(index, tuple):
+            row, col = index
+
+            linear_index = np.flatnonzero((self.ops.row == row) &
+                                          (self.ops.col == col))
+            if linear_index.size == 0:
+                return 0
+            else:
+                return self.ops.data[int(linear_index)]
         else:
-            return self.ops.data[int(linear_index)]
+            index = int(index)
+
+            ops = [None] * len(self.domain)
+            for op, col, row in zip(self.ops.data, self.ops.col, self.ops.row):
+                if row == index:
+                    ops[col] = op
+
+            for i in range(len(self.domain)):
+                if ops[i] is None:
+                    ops[i] = ZeroOperator(self.domain[i])
+
+            return ReductionOperator(*ops)
+
+    @property
+    def shape(self):
+        """Shape of the matrix of operators."""
+        return self.ops.shape
+
+    def __len__(self):
+        """Return ``len(self)``."""
+        return self.shape[0]
+
+    @property
+    def size(self):
+        """Total size of the matrix of operators."""
+        return np.prod(self.shape)
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -412,7 +444,8 @@ class ComponentProjection(Operator):
     For a product space :math:`\mathcal{X} = \mathcal{X}_1 \\times \dots
     \\times \mathcal{X}_n`, the component projection
 
-        :math:`\mathcal{P}_i: \mathcal{X} \\to \mathcal{X}_i`
+    .. math::
+       \mathcal{P}_i: \mathcal{X} \\to \mathcal{X}_i
 
     is given by :math:`\mathcal{P}_i(x) = x_i` for an element
     :math:`x = (x_1, \dots, x_n) \\in \mathcal{X}`.
@@ -480,7 +513,7 @@ class ComponentProjection(Operator):
 
     @property
     def adjoint(self):
-        """Return the adjoint operator.
+        """The adjoint operator.
 
         The adjoint is given by extending along `ComponentProjection.index`,
         and setting zero along the others.
@@ -490,6 +523,18 @@ class ComponentProjection(Operator):
         ComponentProjectionAdjoint
         """
         return ComponentProjectionAdjoint(self.domain, self.index)
+
+    def __repr__(self):
+        """Return ``repr(self)``.
+
+        Examples
+        --------
+        >>> X = odl.ProductSpace(odl.rn(1), odl.rn(2))
+        >>> odl.ComponentProjection(X, 0)
+        ComponentProjection(ProductSpace(rn(1), rn(2)), 0)
+        """
+        return '{}({!r}, {})'.format(self.__class__.__name__,
+                                     self.domain, self.index)
 
 
 class ComponentProjectionAdjoint(Operator):
@@ -573,6 +618,18 @@ class ComponentProjectionAdjoint(Operator):
         """
         return ComponentProjection(self.range, self.index)
 
+    def __repr__(self):
+        """Return ``repr(self)``.
+
+        Examples
+        --------
+        >>> X = odl.ProductSpace(odl.rn(1), odl.rn(2))
+        >>> odl.ComponentProjectionAdjoint(X, 0)
+        ComponentProjectionAdjoint(ProductSpace(rn(1), rn(2)), 0)
+        """
+        return '{}({!r}, {})'.format(self.__class__.__name__,
+                                     self.range, self.index)
+
 
 class BroadcastOperator(Operator):
     """Broadcast argument to set of operators.
@@ -648,8 +705,17 @@ class BroadcastOperator(Operator):
         return self.__operators
 
     def __getitem__(self, index):
-        """Return an operator by index."""
+        """Return ``self(index)``."""
         return self.operators[index]
+
+    def __len__(self):
+        """Return ``len(self)``."""
+        return len(self.operators)
+
+    @property
+    def size(self):
+        """Total number of sub-operators."""
+        return len(self)
 
     def _call(self, x, out=None):
         """Evaluate all operators in ``x`` and broadcast."""
@@ -714,6 +780,26 @@ class BroadcastOperator(Operator):
         """
         return ReductionOperator(*[op.adjoint for op in self.operators])
 
+    def __repr__(self):
+        """Return ``repr(self)``.
+
+        Examples
+        --------
+        >>> spc = odl.rn(3)
+        >>> id = odl.IdentityOperator(spc)
+        >>> odl.BroadcastOperator(id, 3)
+        BroadcastOperator(IdentityOperator(rn(3)), 3)
+        >>> scale = odl.ScalingOperator(spc, 3)
+        >>> odl.BroadcastOperator(id, scale)
+        BroadcastOperator(IdentityOperator(rn(3)), ScalingOperator(rn(3), 3.0))
+        """
+        if all(op == self[0] for op in self):
+            return '{}({!r}, {})'.format(self.__class__.__name__,
+                                         self[0], len(self))
+        else:
+            op_repr = ', '.join(repr(op) for op in self)
+            return '{}({})'.format(self.__class__.__name__, op_repr)
+
 
 class ReductionOperator(Operator):
     """Reduce argument over set of operators.
@@ -748,13 +834,25 @@ class ReductionOperator(Operator):
         >>> op.range
         rn(3)
 
-        Evaluating in a point gives sum:
+        Evaluating in a point gives the sum of the evaluation results of
+        the individual operators:
 
         >>> op([[1.0, 2.0, 3.0],
         ...     [4.0, 6.0, 8.0]])
         rn(3).element([9.0, 14.0, 19.0])
 
-        Can also be created using a multiple of a single operator:
+        An ``out`` argument can be given for in-place evaluation:
+
+        >>> out = op.range.element()
+        >>> result = op([[1.0, 2.0, 3.0],
+        ...              [4.0, 6.0, 8.0]], out=out)
+        >>> out
+        rn(3).element([9.0, 14.0, 19.0])
+        >>> result is out
+        True
+
+        There is a simplified syntax for the case that all operators are
+        the same:
 
         >>> op = ReductionOperator(I, 2)
         >>> op.operators
@@ -786,13 +884,23 @@ class ReductionOperator(Operator):
         """Return an operator by index."""
         return self.operators[index]
 
+    def __len__(self):
+        """Return ``len(self)``."""
+        return len(self.operators)
+
+    @property
+    def size(self):
+        """Total number of sub-operators."""
+        return len(self)
+
     def _call(self, x, out=None):
         """Apply operators to ``x`` and sum."""
         if out is None:
             return self.prod_op(x)[0]
         else:
             wrapped_out = self.prod_op.range.element([out], cast=False)
-            return self.prod_op(x, out=wrapped_out)
+            pspace_result = self.prod_op(x, out=wrapped_out)
+            return pspace_result[0]
 
     def derivative(self, x):
         """Derivative of the reduction operator.
@@ -858,6 +966,26 @@ class ReductionOperator(Operator):
         ])
         """
         return BroadcastOperator(*[op.adjoint for op in self.operators])
+
+    def __repr__(self):
+        """Return ``repr(self)``.
+
+        Examples
+        --------
+        >>> spc = odl.rn(3)
+        >>> id = odl.IdentityOperator(spc)
+        >>> odl.ReductionOperator(id, 3)
+        ReductionOperator(IdentityOperator(rn(3)), 3)
+        >>> scale = odl.ScalingOperator(spc, 3)
+        >>> odl.ReductionOperator(id, scale)
+        ReductionOperator(IdentityOperator(rn(3)), ScalingOperator(rn(3), 3.0))
+        """
+        if all(op == self[0] for op in self):
+            return '{}({!r}, {})'.format(self.__class__.__name__,
+                                         self[0], len(self))
+        else:
+            op_repr = ', '.join(repr(op) for op in self)
+            return '{}({})'.format(self.__class__.__name__, op_repr)
 
 
 class DiagonalOperator(ProductSpaceOperator):
@@ -939,6 +1067,15 @@ class DiagonalOperator(ProductSpaceOperator):
     def __getitem__(self, index):
         """Return an operator by index."""
         return self.operators[index]
+
+    def __len__(self):
+        """Return ``len(self)``."""
+        return len(self.operators)
+
+    @property
+    def size(self):
+        """Total number of sub-operators."""
+        return len(self)
 
     def derivative(self, point):
         """Derivative of this operator.
@@ -1032,6 +1169,26 @@ class DiagonalOperator(ProductSpaceOperator):
         inverses = [op.inverse for op in self.operators]
         return DiagonalOperator(*inverses,
                                 domain=self.range, range=self.domain)
+
+    def __repr__(self):
+        """Return ``repr(self)``.
+
+        Examples
+        --------
+        >>> spc = odl.rn(3)
+        >>> id = odl.IdentityOperator(spc)
+        >>> odl.DiagonalOperator(id, 3)
+        DiagonalOperator(IdentityOperator(rn(3)), 3)
+        >>> scale = odl.ScalingOperator(spc, 3)
+        >>> odl.DiagonalOperator(id, scale)
+        DiagonalOperator(IdentityOperator(rn(3)), ScalingOperator(rn(3), 3.0))
+        """
+        if all(op == self[0] for op in self):
+            return '{}({!r}, {})'.format(self.__class__.__name__,
+                                         self[0], len(self))
+        else:
+            op_repr = ', '.join(repr(op) for op in self)
+            return '{}({})'.format(self.__class__.__name__, op_repr)
 
 
 if __name__ == '__main__':

@@ -1,36 +1,29 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
 from future import standard_library
 standard_library.install_aliases()
 
-import pytest
+__all__ = ('skip_if_no_astra', 'skip_if_no_astra_cuda', 'skip_if_no_skimage')
 
+try:
+    import pytest
+except ImportError:
+    # Use the identity decorator (default of OptionalArgDecorator)
+    from odl.util import OptionalArgDecorator as ident
+    skip_if_no_astra = skip_if_no_astra_cuda = skip_if_no_skimage = ident
 
-__all__ = ('skip_if_no_astra', 'skip_if_no_astra_cuda', 'skip_if_no_scikit')
-
-
-skip_if_no_astra = pytest.mark.skipif("not odl.tomo.ASTRA_AVAILABLE",
-                                      reason='ASTRA not available')
-
-skip_if_no_astra_cuda = pytest.mark.skipif("not odl.tomo.ASTRA_CUDA_AVAILABLE",
-                                           reason='ASTRA CUDA not available')
-
-skip_if_no_scikit = pytest.mark.skipif("not odl.tomo.SCIKIT_IMAGE_AVAILABLE",
-                                       reason='scikit not available')
+else:
+    skip_if_no_astra = pytest.mark.skipif('not odl.tomo.ASTRA_AVAILABLE',
+                                          reason='ASTRA not available')
+    skip_if_no_astra_cuda = pytest.mark.skipif(
+        'not odl.tomo.ASTRA_CUDA_AVAILABLE', reason='ASTRA CUDA not available')
+    skip_if_no_skimage = pytest.mark.skipif(
+        'not odl.tomo.SKIMAGE_AVAILABLE', reason='skimage not available')

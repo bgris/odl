@@ -1,44 +1,27 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test ASTRA back-end using CUDA."""
 
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-
-standard_library.install_aliases()
-
-# External
+from __future__ import division
 import numpy as np
 import pytest
-import sys
 
-# Internal
 import odl
 from odl.tomo.backends.astra_cuda import (
     AstraCudaProjectorImpl, AstraCudaBackProjectorImpl)
 from odl.tomo.util.testutils import skip_if_no_astra_cuda
 from odl.util.testutils import simple_fixture
 
-
 # TODO: test with CUDA implemented uniform_discr
 
 
-use_cache = simple_fixture('use_cache', [False, True])
+# --- pytest fixtures --- #
 
 # Find the valid projectors
 projectors = [skip_if_no_astra_cuda('par2d'),
@@ -79,8 +62,8 @@ def space_and_geometry(request):
                                        dtype=dtype)
         dpart = odl.uniform_partition([-7, -8], [7, 8], (7, 8))
 
-        geom = odl.tomo.CircularConeFlatGeometry(apart, dpart, src_radius=200,
-                                                 det_radius=100)
+        geom = odl.tomo.ConeFlatGeometry(apart, dpart,
+                                         src_radius=200, det_radius=100)
     elif geom == 'helical':
         reco_space = odl.uniform_discr([-4, -5, -6], [4, 5, 6], (4, 5, 6),
                                        dtype=dtype)
@@ -88,15 +71,18 @@ def space_and_geometry(request):
         # overwrite angle
         apart = odl.uniform_partition(0, 2 * 2 * np.pi, 18)
         dpart = odl.uniform_partition([-7, -8], [7, 8], (7, 8))
-        geom = odl.tomo.HelicalConeFlatGeometry(apart, dpart, pitch=1.0,
-                                                src_radius=200, det_radius=100)
+        geom = odl.tomo.ConeFlatGeometry(apart, dpart, pitch=1.0,
+                                         src_radius=200, det_radius=100)
     else:
         raise ValueError('geom not valid')
 
     return reco_space, geom
 
 
-def test_astra_cuda_projector(space_and_geometry, use_cache):
+# --- CUDA projector tests --- #
+
+
+def test_astra_cuda_projector(space_and_geometry):
     """Test ASTRA CUDA projector."""
 
     # Create reco space and a phantom
@@ -108,16 +94,14 @@ def test_astra_cuda_projector(space_and_geometry, use_cache):
                                                  dtype=reco_space.dtype)
 
     # Forward evaluation
-    projector = AstraCudaProjectorImpl(geom, reco_space, proj_space,
-                                       use_cache=use_cache)
+    projector = AstraCudaProjectorImpl(geom, reco_space, proj_space)
     proj_data = projector.call_forward(phantom)
     assert proj_data in proj_space
     assert proj_data.norm() > 0
     assert np.all(proj_data.asarray() >= 0)
 
     # Backward evaluation
-    back_projector = AstraCudaBackProjectorImpl(geom, reco_space, proj_space,
-                                                use_cache=use_cache)
+    back_projector = AstraCudaBackProjectorImpl(geom, reco_space, proj_space)
     backproj = back_projector.call_backward(proj_data)
     assert backproj in reco_space
     assert backproj.norm() > 0

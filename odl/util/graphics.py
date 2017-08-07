@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Functions for graphical output."""
 
@@ -23,6 +14,7 @@ from future import standard_library
 standard_library.install_aliases()
 
 import numpy as np
+import warnings
 
 from odl.util.testutils import run_doctests
 from odl.util.utility import is_real_dtype
@@ -31,19 +23,45 @@ from odl.util.utility import is_real_dtype
 __all__ = ('show_discrete_data',)
 
 
+def warning_free_pause():
+    """Issue a matplotlib pause without the warning."""
+    import matplotlib.pyplot as plt
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore",
+                                message="Using default event loop until "
+                                        "function specific to this GUI is "
+                                        "implemented")
+
+        plt.pause(0.0001)
+
+
 def _safe_minmax(values):
     """Calculate min and max of array with guards for nan and inf."""
 
     # Nan and inf guarded min and max
-    minval = np.min(values[np.isfinite(values)])
-    maxval = np.max(values[np.isfinite(values)])
+    isfinite = np.isfinite(values)
+    if np.any(isfinite):
+        # Only use finite values
+        values = values[isfinite]
+
+    minval = np.min(values)
+    maxval = np.max(values)
 
     return minval, maxval
 
 
 def _colorbar_ticks(minval, maxval):
     """Return the ticks (values show) in the colorbar."""
-    return [minval, (maxval + minval) / 2., maxval]
+    if not (np.isfinite(minval) and np.isfinite(maxval)):
+        return [0, 0, 0]
+    elif minval == maxval:
+        return [minval]
+    else:
+        # Add eps to ensure values stay inside the range of the colorbar.
+        # Otherwise they may occationally not display.
+        eps = (maxval - minval) / 1e5
+        return [minval + eps, (maxval + minval) / 2., maxval - eps]
 
 
 def _digits(minval, maxval):
@@ -56,7 +74,10 @@ def _digits(minval, maxval):
 
 def _colorbar_format(minval, maxval):
     """Return the format string for the colorbar."""
-    return '%.{}f'.format(_digits(minval, maxval))
+    if not (np.isfinite(minval) and np.isfinite(maxval)):
+        return str(maxval)
+    else:
+        return '%.{}f'.format(_digits(minval, maxval))
 
 
 def _axes_info(grid, npoints=5):
@@ -135,7 +156,7 @@ def show_discrete_data(values, grid, title=None, method='',
         Axis labels, default: ['x', 'y']
 
     update_in_place : bool, optional
-        Update the content of the figure in place. Intended for faster real
+        Update the content of the figure in-place. Intended for faster real
         time plotting, typically ~5 times faster.
         This is only performed for ``method == 'imshow'`` with real data and
         ``fig != None``. Otherwise this parameter is treated as False.
@@ -180,7 +201,7 @@ def show_discrete_data(values, grid, title=None, method='',
     interp = kwargs.pop('interp', 'nearest')
     axis_fontsize = kwargs.pop('axis_fontsize', 16)
 
-    # Check if we should and can update the plot in place
+    # Check if we should and can update the plot in-place
     update_in_place = kwargs.pop('update_in_place', False)
     if (update_in_place and
             (fig is None or values_are_complex or values.ndim != 2 or
@@ -413,15 +434,16 @@ def show_discrete_data(values, grid, title=None, method='',
                 csub.colorbar.set_ticklabels([format % tick for tick in ticks])
                 csub.colorbar.draw_all()
 
+    # Set title of window
+    if title is not None:
+        if not values_are_complex:
+            # Do not overwrite title for complex values
+            plt.title(title)
+        fig.canvas.manager.set_window_title(title)
+
     # Fixes overlapping stuff at the expense of potentially squashed subplots
     if not update_in_place:
         fig.tight_layout()
-
-        if title is not None:
-            if not values_are_complex:
-                # Do not overwrite title for complex values
-                plt.title(title)
-            fig.canvas.manager.set_window_title(title)
 
     if updatefig or plt.isinteractive():
         # If we are running in interactive mode, we can always show the fig
@@ -430,7 +452,7 @@ def show_discrete_data(values, grid, title=None, method='',
         plt.show(block=False)
         if not update_in_place:
             plt.draw()
-            plt.pause(0.0001)
+            warning_free_pause()
         else:
             try:
                 sub.draw_artist(csub)
@@ -439,7 +461,7 @@ def show_discrete_data(values, grid, title=None, method='',
                 fig.canvas.flush_events()
             except AttributeError:
                 plt.draw()
-                plt.pause(0.0001)
+                warning_free_pause()
 
     if force_show:
         plt.show()

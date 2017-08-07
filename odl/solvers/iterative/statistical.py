@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Maximum Likelihood Expectation Maximization algorithm."""
 
@@ -30,7 +21,7 @@ __all__ = ('mlem', 'osmlem', 'loglikelihood')
 AVAILABLE_MLEM_NOISE = ('poisson',)
 
 
-def mlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
+def mlem(op, x, data, niter, noise='poisson', callback=None, **kwargs):
 
     """Maximum Likelihood Expectation Maximation algorithm.
 
@@ -56,7 +47,7 @@ def mlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
         updated in each iteration step.
     data : ``op.range`` `element-like`
         Right-hand side of the equation defining the inverse problem.
-    niter : int, optional
+    niter : int
         Number of iterations.
     noise : {'poisson'}, optional
         Noise model determining the variant of MLEM.
@@ -78,13 +69,11 @@ def mlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
     the algorithm attempts find an :math:`x` that maximizes:
 
     .. math::
-
         P(g | g \\text{ is } X(A(x)) \\text{ distributed}).
 
     With 'poisson' noise the algorithm is given by:
 
     .. math::
-
        x_{n+1} = \\frac{x_n}{A^* 1} A^* (g / A(x_n))
 
     See Also
@@ -96,7 +85,7 @@ def mlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
            **kwargs)
 
 
-def osmlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
+def osmlem(op, x, data, niter, noise='poisson', callback=None, **kwargs):
     """Ordered Subsets Maximum Likelihood Expectation Maximation algorithm.
 
     This solver attempts to solve::
@@ -121,7 +110,7 @@ def osmlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
         updated in each iteration step.
     data : sequence of ``op.range`` `element-like`
         Right-hand sides of the equation defining the inverse problem.
-    niter : int, optional
+    niter : int
         Number of iterations.
     noise : {'poisson'}, optional
         Noise model determining the variant of MLEM.
@@ -144,13 +133,11 @@ def osmlem(op, x, data, niter=1, noise='poisson', callback=None, **kwargs):
     maximizes:
 
     .. math::
-
         \prod_{i=1}^M P(g_i | g_i \\text{ is } X(A_i(x)) \\text{ distributed}).
 
     With 'poisson' noise the algorithm is given by partial updates:
 
     .. math::
-
        x_{n + m/M} =
        \\frac{x_{n + (m - 1)/M}}{A_i^* 1} A_i^* (g_i / A_i(x_{n + (m - 1)/M}))
 

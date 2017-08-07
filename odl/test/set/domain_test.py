@@ -1,31 +1,15 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
-# External module imports
+from __future__ import division
 import pytest
 import numpy as np
 
-# ODL imports
 from odl.discr.grid import sparse_meshgrid
 from odl.set.domain import IntervalProd
 from odl.util.testutils import almost_equal, all_equal
@@ -128,22 +112,22 @@ def test_true_ndim():
 
 def test_extent():
     set_ = IntervalProd(1, 2)
-    assert set_.extent() == 1
+    assert set_.extent == 1
 
     set_ = IntervalProd(1, 1)
-    assert set_.extent() == 0
+    assert set_.extent == 0
 
     set_ = IntervalProd(0, np.inf)
-    assert set_.extent() == np.inf
+    assert set_.extent == np.inf
 
     set_ = IntervalProd(-np.inf, 0)
-    assert set_.extent() == np.inf
+    assert set_.extent == np.inf
 
     set_ = IntervalProd(-np.inf, np.inf)
-    assert set_.extent() == np.inf
+    assert set_.extent == np.inf
 
     set_ = IntervalProd([1, 2, 3], [5, 6, 7])
-    assert list(set_.extent()) == [4, 4, 4]
+    assert list(set_.extent) == [4, 4, 4]
 
 
 def test_volume():

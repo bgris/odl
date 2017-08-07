@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Abstract mathematical operators."""
 
@@ -29,6 +20,7 @@ from numbers import Number, Integral
 import sys
 
 from odl.set import LinearSpace, LinearSpaceElement, Set, Field
+from odl.util import cache_arguments
 
 
 __all__ = ('Operator', 'OperatorComp', 'OperatorSum', 'OperatorVectorSum',
@@ -59,7 +51,12 @@ def _default_call_out_of_place(op, x, **kwargs):
         evaluation.
     """
     out = op.range.element()
-    op._call_in_place(x, out, **kwargs)
+    result = op._call_in_place(x, out, **kwargs)
+    if result is not None and result is not out:
+        raise ValueError('`op` returned a different value than `out`.'
+                         'With in-place evaluation, the operator can '
+                         'only return nothing (`None`) or the `out` '
+                         'parameter.')
     return out
 
 
@@ -127,6 +124,7 @@ def _signature_from_spec(func):
     return '{}({})'.format(func.__name__, argstr)
 
 
+@cache_arguments
 def _dispatch_call_args(cls=None, bound_call=None, unbound_call=None,
                         attr='_call'):
     """Check the arguments of ``_call()`` or similar for conformity.
@@ -307,14 +305,16 @@ class Operator(object):
 
     An operator is a mapping
 
-        :math:`\mathcal{A}: \mathcal{X} \\to \mathcal{Y}`
+    .. math::
+        \mathcal{A}: \mathcal{X} \\to \mathcal{Y}
 
     between sets :math:`\mathcal{X}` (domain) and :math:`\mathcal{Y}`
     (range). The evaluation of :math:`\mathcal{A}` at an element
     :math:`x \\in \mathcal{X}` is denoted by :math:`\mathcal{A}(x)`
     and produces an element in :math:`\mathcal{Y}`:
 
-        :math:`y = \mathcal{A}(x) \\in \mathcal{Y}`.
+    .. math::
+        y = \mathcal{A}(x) \\in \mathcal{Y}.
 
     Programmatically, these properties are reflected in the `Operator`
     class described in the following.
@@ -687,7 +687,12 @@ class Operator(object):
                 raise TypeError('`out` parameter cannot be used '
                                 'when range is a field')
 
-            self._call_in_place(x, out=out, **kwargs)
+            result = self._call_in_place(x, out=out, **kwargs)
+            if result is not None and result is not out:
+                raise ValueError('`op` returned a different value than `out`. '
+                                 'With in-place evaluation, the operator can '
+                                 'only return nothing (`None`) or the `out` '
+                                 'parameter.')
 
         else:  # Out-of-place evaluation
             out = self._call_out_of_place(x, **kwargs)
@@ -701,6 +706,54 @@ class Operator(object):
                         'the range {!r}'.format(out, self.range))
                     raise_from(new_exc, err)
         return out
+
+    def norm(self, estimate=False, **kwargs):
+        """Return the operator norm of this operator.
+
+        If this operator is non-linear, this should be the Lipschitz constant.
+
+        Parameters
+        ----------
+        estimate : bool
+            If true, estimate the operator norm. By default, it is estimated
+            using `power_method_opnorm`, which is only applicable for linear
+            operators.
+            Subclasses are allowed to ignore this parameter if they can provide
+            an exact value.
+
+        Other Parameters
+        ----------------
+        kwargs :
+            If ``estimate`` is True, pass these arguments to the
+            `power_method_opnorm` call.
+
+        Returns
+        -------
+        norm : float
+
+        Examples
+        --------
+        Some operators know their own operator norm and do not need an estimate
+
+        >>> spc = odl.rn(3)
+        >>> id = odl.IdentityOperator(spc)
+        >>> id.norm(True)
+        1.0
+
+        For others, there is no closed form expression and an estimate is
+        needed:
+
+        >>> spc = odl.uniform_discr(0, 1, 3)
+        >>> grad = odl.Gradient(spc)
+        >>> opnorm = grad.norm(estimate=True)
+        """
+        if not estimate:
+            raise NotImplementedError('`Operator.norm()` not implemented, use '
+                                      '`Operator.norm(estimate=True)` to '
+                                      'obtain an estimate.')
+        else:
+            from odl.operator.oputils import power_method_opnorm
+            return power_method_opnorm(self, **kwargs)
 
     def __add__(self, other):
         """Return ``self + other``.
@@ -1249,8 +1302,12 @@ class OperatorVectorSum(Operator):
 
     def __repr__(self):
         """Return ``repr(self)``."""
-        return '{}({!r}, {!r})'.format(self.__class__.__name__, self.operator,
-                                       self.vector)
+        return '{}({!r}, {!r})'.format(self.__class__.__name__,
+                                       self.operator, self.vector)
+
+    def __str__(self):
+        """Return ``str(self)``."""
+        return '({} + {})'.format(self.left, self.right)
 
 
 class OperatorComp(Operator):
@@ -1345,7 +1402,11 @@ class OperatorComp(Operator):
         if self.is_linear:
             return self
         else:
-            left_deriv = self.left.derivative(self.right(x))
+            if self.left.is_linear:
+                left_deriv = self.left
+            else:
+                left_deriv = self.left.derivative(self.right(x))
+
             right_deriv = self.right.derivative(x)
 
             return OperatorComp(left_deriv, right_deriv,

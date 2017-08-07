@@ -1,28 +1,25 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL. If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Factory functions for creating proximal operators.
 
-Functions with ``cconj`` mean the proximal of the convex conjugate and are
-provided for convenience.
+Functions with ``convex_conj`` mean the proximal of the convex conjugate and
+are provided for convenience.
 
 For more details see :ref:`proximal_operators` and references therein. For
 more details on proximal operators including how to evaluate the proximal
-operator of a variety of functions see [PB2014]_. """
+operator of a variety of functions see [PB2014].
+
+References
+----------
+[PB2014] Parikh, N, and Boyd, S. *Proximal Algorithms*.
+Foundations and Trends in Optimization, 1 (2014), pp 127-239.
+"""
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
@@ -37,16 +34,17 @@ from odl.operator import (Operator, IdentityOperator, ScalingOperator,
                           ConstantOperator, DiagonalOperator)
 from odl.space import ProductSpace
 from odl.set import LinearSpaceElement
+from odl.util import cache_arguments
 
 
-__all__ = ('combine_proximals', 'proximal_cconj', 'proximal_translation',
+__all__ = ('combine_proximals', 'proximal_convex_conj', 'proximal_translation',
            'proximal_arg_scaling', 'proximal_quadratic_perturbation',
            'proximal_composition', 'proximal_const_func',
            'proximal_box_constraint', 'proximal_nonnegativity',
-           'proximal_l1', 'proximal_cconj_l1',
-           'proximal_l2', 'proximal_cconj_l2',
-           'proximal_l2_squared', 'proximal_cconj_l2_squared',
-           'proximal_cconj_kl', 'proximal_cconj_kl_cross_entropy')
+           'proximal_l1', 'proximal_convex_conj_l1',
+           'proximal_l2', 'proximal_convex_conj_l2',
+           'proximal_l2_squared', 'proximal_convex_conj_l2_squared',
+           'proximal_convex_conj_kl', 'proximal_convex_conj_kl_cross_entropy')
 
 
 def combine_proximals(*factory_list):
@@ -95,7 +93,7 @@ def combine_proximals(*factory_list):
     return diag_op_factory
 
 
-def proximal_cconj(prox_factory):
+def proximal_convex_conj(prox_factory):
     """Calculate the proximal of the dual using Moreau decomposition.
 
     Parameters
@@ -115,7 +113,6 @@ def proximal_cconj(prox_factory):
     convex conjugate :math:`F^*`, the proximals satisfy
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(x) +\\sigma \,
         \mathrm{prox}_{F / \\sigma}(x / \\sigma) = x
 
@@ -123,16 +120,23 @@ def proximal_cconj(prox_factory):
     the convex conjugate is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(x) =
         x - \\sigma \, \mathrm{prox}_{F / \\sigma}(x / \\sigma)
 
     Note that since :math:`(F^*)^* = F`, this can be used to get the proximal
     of the original function from the proximal of the convex conjugate.
 
-    For reference on the Moreau identity, see [CP2011c]_.
+    For reference on the Moreau identity, see [CP2011c].
+
+    References
+    ----------
+    [CP2011c] Combettes, P L, and Pesquet, J-C. *Proximal splitting
+    methods in signal processing.* In:  Bauschke, H H, Burachik, R S,
+    Combettes, P L, Elser, V, Luke, D R, and Wolkowicz, H. Fixed-point
+    algorithms for inverse problems in science and engineering, Springer,
+    2011.
     """
-    def cconj_prox_factory(sigma):
+    def convex_conj_prox_factory(sigma):
         """Create proximal for the dual with a given sigma.
 
         Parameters
@@ -149,7 +153,7 @@ def proximal_cconj(prox_factory):
         prox_other = sigma * prox_factory(1.0 / sigma) * (1.0 / sigma)
         return IdentityOperator(prox_other.domain) - prox_other
 
-    return cconj_prox_factory
+    return convex_conj_prox_factory
 
 
 def proximal_translation(prox_factory, y):
@@ -172,13 +176,20 @@ def proximal_translation(prox_factory, y):
     Given a functional :math:`F`, this is calculated according to the rule
 
     .. math::
-
-        \mathrm{prox}_{\\sigma  F( \cdot - y)}(x) =
+        \mathrm{prox}_{\\sigma F( \cdot - y)}(x) =
         y + \mathrm{prox}_{\\sigma F}(x - y)
 
     where :math:`y` is the translation, and :math:`\\sigma` is the step size.
 
-    For reference on the identity used, see [CP2011c]_.
+    For reference on the identity used, see [CP2011c].
+
+    References
+    ----------
+    [CP2011c] Combettes, P L, and Pesquet, J-C. *Proximal splitting
+    methods in signal processing.* In:  Bauschke, H H, Burachik, R S,
+    Combettes, P L, Elser, V, Luke, D R, and Wolkowicz, H. Fixed-point
+    algorithms for inverse problems in science and engineering, Springer,
+    2011.
     """
 
     def translation_prox_factory(sigma):
@@ -220,23 +231,33 @@ def proximal_arg_scaling(prox_factory, scaling):
 
     Notes
     -----
-    Given a functional :math:`F`, this is calculated according to the rule
+    Given a functional :math:`F`, and scaling factor :math:`\\alpha` this is
+    calculated according to the rule
 
     .. math::
-
-        \mathrm{prox}_{\\sigma F( \cdot scal)}(x) =
-        \\frac{1}{scal} \mathrm{prox}_{\\sigma \, scal^2 \, F }(x \, scal)
+        \mathrm{prox}_{\\sigma F(\\alpha \, \cdot)}(x) =
+        \\frac{1}{\\alpha}
+        \mathrm{prox}_{\\sigma \\alpha^2 F(\cdot) }(\\alpha x)
 
     where :math:`scal` is the scaling parameter, and :math:`\\sigma` is the
     step size.
 
-    For reference on the identity used, see [CP2011c]_.
+    For reference on the identity used, see [CP2011c].
+
+    References
+    ----------
+    [CP2011c] Combettes, P L, and Pesquet, J-C. *Proximal splitting
+    methods in signal processing.* In:  Bauschke, H H, Burachik, R S,
+    Combettes, P L, Elser, V, Luke, D R, and Wolkowicz, H. Fixed-point
+    algorithms for inverse problems in science and engineering, Springer,
+    2011.
     """
 
     scaling = float(scaling)
     if scaling == 0:
         return proximal_const_func(prox_factory(1.0).domain)
 
+    @cache_arguments
     def arg_scaling_prox_factory(sigma):
         """Create proximal for the translation with a given sigma.
 
@@ -281,7 +302,6 @@ def proximal_quadratic_perturbation(prox_factory, a, u=None):
     Given a functional :math:`F`, this is calculated according to the rule
 
     .. math::
-
         \mathrm{prox}_{\\sigma \left(F( \cdot ) + a \| \cdot \|^2 +
         <u, \cdot >\\right)}(x) =
         c \; \mathrm{prox}_{\\sigma F( \cdot \, c)}((x - \\sigma u) c)
@@ -289,16 +309,23 @@ def proximal_quadratic_perturbation(prox_factory, a, u=None):
     where :math:`c` is the constant
 
     .. math::
-
         c = \\frac{1}{\\sqrt{2 \\sigma a + 1}},
 
     :math:`a` is the scaling parameter belonging to the quadratic term,
     :math:`u` is the space element defining the linear functional, and
     :math:`\\sigma` is the step size.
 
-    For reference on the identity used, see [CP2011c]_. Note that this identity
+    For reference on the identity used, see [CP2011c]. Note that this identity
     is not the exact one given in the reference, but was recalculated for
     arbitrary step lengths.
+
+    References
+    ----------
+    [CP2011c] Combettes, P L, and Pesquet, J-C. *Proximal splitting
+    methods in signal processing.* In:  Bauschke, H H, Burachik, R S,
+    Combettes, P L, Elser, V, Luke, D R, and Wolkowicz, H. Fixed-point
+    algorithms for inverse problems in science and engineering, Springer,
+    2011.
     """
 
     a = float(a)
@@ -310,6 +337,7 @@ def proximal_quadratic_perturbation(prox_factory, a, u=None):
         raise TypeError('`u` must be `None` or a `LinearSpaceElement` '
                         'instance, got {!r}.'.format(u))
 
+    @cache_arguments
     def quadratic_perturbation_prox_factory(sigma):
         """Create proximal for the quadratic perturbation with a given sigma.
 
@@ -362,13 +390,11 @@ def proximal_composition(proximal, operator, mu):
     :math:`\\mu`
 
     .. math::
-
         L^*(L(x)) = \\mu * x
 
     and a convex function :math:`F`, the following identity holds
 
     .. math::
-
         \mathrm{prox}_{\\sigma F \circ L}(x) = x + \\frac{1}{\\mu}
         L^* \left( \mathrm{prox}_{\\mu \\sigma F}(Lx) - Lx \\right)
 
@@ -379,7 +405,15 @@ def proximal_composition(proximal, operator, mu):
     The function cannot verify that the operator is unitary, the user needs
     to verify this.
 
-    For reference on the identity used, see [CP2011c]_.
+    For reference on the identity used, see [CP2011c].
+
+    References
+    ----------
+    [CP2011c] Combettes, P L, and Pesquet, J-C. *Proximal splitting
+    methods in signal processing.* In:  Bauschke, H H, Burachik, R S,
+    Combettes, P L, Elser, V, Luke, D R, and Wolkowicz, H. Fixed-point
+    algorithms for inverse problems in science and engineering, Springer,
+    2011.
     """
 
     def proximal_composition_factory(sigma):
@@ -427,7 +461,6 @@ def proximal_const_func(space):
     the identity operator
 
     .. math::
-
         \mathrm{prox}_{\\sigma G}(x) = x
 
     Note that it is independent of :math:`\\sigma`.
@@ -486,7 +519,6 @@ def proximal_box_constraint(space, lower=None, upper=None):
     defined as
 
     .. math::
-
         I_{P}(x) = \\begin{cases}
         0 & \\text{if } x \\in P, \\\\
         \\infty & \\text{if } x \\not \\in P
@@ -496,7 +528,6 @@ def proximal_box_constraint(space, lower=None, upper=None):
     :math:`\\sigma I_{P}` is given by the projection onto the interval
 
     .. math::
-
          \mathrm{prox}_{\\sigma I_{P}}(x) = \\begin{cases}
          a & \\text{if } x < a, \\\\
          x & \\text{if } x \\in [a,b], \\\\
@@ -580,7 +611,7 @@ def proximal_nonnegativity(space):
     return proximal_box_constraint(space, lower=0)
 
 
-def proximal_cconj_l2(space, lam=1, g=None):
+def proximal_convex_conj_l2(space, lam=1, g=None):
     """Proximal operator factory of the convex conj of the l2-norm/distance.
 
     Function for the proximal operator of the convex conjugate of the
@@ -608,18 +639,16 @@ def proximal_cconj_l2(space, lam=1, g=None):
     Notes
     -----
     Most problems are forumlated for the squared norm/distance, in that case
-    use the `proximal_cconj_l2_squared` instead.
+    use the `proximal_convex_conj_l2_squared` instead.
 
     The :math:`L_2`-norm/distance :math:`F` is given by is given by
 
     .. math::
-
         F(x) = \\lambda \|x - g\|_2
 
     The convex conjugate :math:`F^*` of :math:`F` is given by
 
     .. math::
-
         F^*(y) = \\begin{cases}
         0 & \\text{if } \|y-g\|_2 \leq \\lambda, \\\\
         \\infty & \\text{else.}
@@ -630,7 +659,6 @@ def proximal_cconj_l2(space, lam=1, g=None):
     satisfying :math:`\|y-g\|_2 \leq \\lambda`, i.e., by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(y) = \\begin{cases}
         \\lambda \\frac{y - g}{\|y - g\|}
         & \\text{if } \|y-g\|_2 > \\lambda, \\\\
@@ -642,10 +670,10 @@ def proximal_cconj_l2(space, lam=1, g=None):
     See Also
     --------
     proximal_l2 : proximal without convex conjugate
-    proximal_cconj_l2_squared : proximal for squared norm/distance
+    proximal_convex_conj_l2_squared : proximal for squared norm/distance
     """
     prox_l2 = proximal_l2(space, lam=lam, g=g)
-    return proximal_cconj(prox_l2)
+    return proximal_convex_conj(prox_l2)
 
 
 def proximal_l2(space, lam=1, g=None):
@@ -679,14 +707,12 @@ def proximal_l2(space, lam=1, g=None):
     The :math:`L_2`-norm/distance :math:`F` is given by
 
     .. math::
-
         F(x) = \\lambda \|x - g\|_2
 
     For a step size :math:`\\sigma`, the proximal operator of :math:`\\sigma F`
     is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F}(y) = \\begin{cases}
         \\frac{1 - c}{\|y-g\|} \\cdot y  + c \cdot g
         & \\text{if } c < g, \\\\
@@ -698,7 +724,7 @@ def proximal_l2(space, lam=1, g=None):
     See Also
     --------
     proximal_l2_squared : proximal for squared norm/distance
-    proximal_cconj_l2 : proximal for convex conjugate
+    proximal_convex_conj_l2 : proximal for convex conjugate
     """
     lam = float(lam)
 
@@ -753,7 +779,7 @@ def proximal_l2(space, lam=1, g=None):
     return ProximalL2
 
 
-def proximal_cconj_l2_squared(space, lam=1, g=None):
+def proximal_convex_conj_l2_squared(space, lam=1, g=None):
     """Proximal operator factory of the convex conj of the squared l2-norm/dist
 
     Function for the proximal operator of the convex conjugate of the
@@ -783,13 +809,11 @@ def proximal_cconj_l2_squared(space, lam=1, g=None):
     The squared :math:`L_2`-norm/distance :math:`F` is given by
 
     .. math::
-
         F(x) =  \\lambda \|x - g\|_2^2.
 
     The convex conjugate :math:`F^*` of :math:`F` is given by
 
     .. math::
-
         F^*(y) = \\frac{1}{4\\lambda} \left( \|
         y\|_2^2 + \langle y, g \\rangle \\right)
 
@@ -797,13 +821,12 @@ def proximal_cconj_l2_squared(space, lam=1, g=None):
     :math:`\\sigma F^*` is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(y) = \\frac{y - \\sigma g}{1 +
         \\sigma/(2 \\lambda)}
 
     See Also
     --------
-    proximal_cconj_l2 : proximal without square
+    proximal_convex_conj_l2 : proximal without square
     proximal_l2_squared : proximal without convex conjugate
     """
     lam = float(lam)
@@ -811,7 +834,7 @@ def proximal_cconj_l2_squared(space, lam=1, g=None):
     if g is not None and g not in space:
         raise TypeError('{!r} is not an element of {!r}'.format(g, space))
 
-    class ProximalCConjL2Squared(Operator):
+    class ProximalConvexConjL2Squared(Operator):
 
         """Proximal operator of the convex conj of the squared l2-norm/dist."""
 
@@ -838,7 +861,7 @@ def proximal_cconj_l2_squared(space, lam=1, g=None):
                 out.lincomb(1.0 / (1 + 0.5 * sig / lam), x,
                             -sig / (1 + 0.5 * sig / lam), g)
 
-    return ProximalCConjL2Squared
+    return ProximalConvexConjL2Squared
 
 
 def proximal_l2_squared(space, lam=1, g=None):
@@ -871,28 +894,26 @@ def proximal_l2_squared(space, lam=1, g=None):
     The squared :math:`L_2`-norm/distance :math:`F` is given by
 
     .. math::
-
         F(x) =  \\lambda \|x - g\|_2^2.
 
     For a step size :math:`\\sigma`, the proximal operator of :math:`\\sigma F`
     is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F}(x) = \\frac{x + 2 \\sigma \\lambda g}
         {1 + 2 \\sigma \\lambda}.
 
     See Also
     --------
     proximal_l2 : proximal without square
-    proximal_cconj_l2_squared : proximal for convex conjugate
+    proximal_convex_conj_l2_squared : proximal for convex conjugate
     """
     # TODO: optimize
-    prox_cc_l2_squared = proximal_cconj_l2_squared(space, lam=lam, g=g)
-    return proximal_cconj(prox_cc_l2_squared)
+    prox_cc_l2_squared = proximal_convex_conj_l2_squared(space, lam=lam, g=g)
+    return proximal_convex_conj(prox_cc_l2_squared)
 
 
-def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
+def proximal_convex_conj_l1(space, lam=1, g=None, isotropic=False):
     """Proximal operator factory of the convex conj of the l1-norm/distance.
 
     Function for the proximal operator of the convex conjugate of the
@@ -925,14 +946,12 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
     The :math:`L_1`-norm/distance :math:`F` is the functional
 
     .. math::
-
         F(x) = \\lambda \|x - g\|_1.
 
     The convex conjugate :math:`F^*` of :math:`F` is given by the indicator
     function of the set :math:`Q_\\lambda`
 
     .. math::
-
         F^*(y) = I_{Q_\\lambda} \left(
         \left| \\frac{y}{\\lambda} \\right| +
         \left\\langle \\frac{y}{\\lambda}, g \\right\\rangle
@@ -945,7 +964,6 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
     :math:`\\sigma F^*` is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(y) = \\frac{\\lambda (y - \\sigma g)}{
         \\max(\\lambda, |y - \\sigma g|)}
 
@@ -953,13 +971,11 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
     case the ``isotropic`` parameter can be used, giving
 
     .. math::
-
         F(x) = \\lambda \| \|x - g\|_2 \|_1
 
     In this case, the dual is
 
     .. math::
-
         F^*(y) = \\lambda I_{Q_\\lambda} \left(
         \left|\left| \\frac{y}{\\lambda} \\right|\\right|_2 +
         \left\langle \\frac{y}{\\lambda}, g \\right\\rangle
@@ -969,7 +985,6 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
     :math:`\\sigma F^*` is given by
 
     .. math::
-
         \mathrm{prox}_{\\sigma F^*}(y) = \\frac{\\lambda (y - \\sigma g)}{
         \\max(\\lambda, \|y - \\sigma g\|_2)}
 
@@ -993,7 +1008,7 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
         raise TypeError('`isotropic` given with non-powerspace `space`({})'
                         ''.format(space))
 
-    class ProximalCConjL1(Operator):
+    class ProximalConvexConjL1(Operator):
 
         """Proximal operator of the convex conj of the l1-norm/distance."""
 
@@ -1052,7 +1067,7 @@ def proximal_cconj_l1(space, lam=1, g=None, isotropic=False):
                 # Pointwise division
                 diff.divide(out, out=out)
 
-    return ProximalCConjL1
+    return ProximalConvexConjL1
 
 
 def proximal_l1(space, lam=1, g=None, isotropic=False):
@@ -1088,14 +1103,12 @@ def proximal_l1(space, lam=1, g=None, isotropic=False):
     The :math:`L_1`-norm/distance :math:`F` is the functional
 
     .. math::
-
         F(x) = \\lambda \|x - g\|_1.
 
     For a step size :math:`\\sigma`, the proximal operator of :math:`\\sigma F`
     is
 
     .. math::
-
         \mathrm{prox}_{\\sigma F}(y) = \\begin{cases}
         y - \\sigma \\lambda
         & \\text{if } y > g + \\sigma \\lambda, \\\\
@@ -1110,22 +1123,27 @@ def proximal_l1(space, lam=1, g=None, isotropic=False):
     the ``isotropic`` parameter can be used, giving
 
     .. math::
-
         F(x) = \\lambda \| \|x - g\|_2 \|_1
 
     The proximal can be calculated using the Moreau equality (also known as
-    Moreau decomposition or Moreau identity). See for example [BC2011]_.
+    Moreau decomposition or Moreau identity). See for example [BC2011].
 
     See Also
     --------
-    proximal_cconj_l1 : proximal for convex conjugate
+    proximal_convex_conj_l1 : proximal for convex conjugate
+
+    References
+    ----------
+    [BC2011] Bauschke, H H, and Combettes, P L. *Convex analysis and
+    monotone operator theory in Hilbert spaces*. Springer, 2011.
     """
     # TODO: optimize
-    prox_cc_l1 = proximal_cconj_l1(space, lam=lam, g=g, isotropic=isotropic)
-    return proximal_cconj(prox_cc_l1)
+    prox_cc_l1 = proximal_convex_conj_l1(space, lam=lam, g=g,
+                                         isotropic=isotropic)
+    return proximal_convex_conj(prox_cc_l1)
 
 
-def proximal_cconj_kl(space, lam=1, g=None):
+def proximal_convex_conj_kl(space, lam=1, g=None):
     """Proximal operator factory of the convex conjugate of the KL divergence.
 
     Function returning the proximal operator of the convex conjugate of the
@@ -1153,14 +1171,13 @@ def proximal_cconj_kl(space, lam=1, g=None):
 
     See Also
     --------
-    proximal_cconj_kl_cross_entropy : proximal for releated functional
+    proximal_convex_conj_kl_cross_entropy : proximal for releated functional
 
     Notes
     -----
     The functional is given by the expression
 
     .. math::
-
         F(x) = \\sum_i (x_i - g_i + g_i \\ln(g_i) - g_i \\ln(pos(x_i))) +
         I_{x \\geq 0}(x)
 
@@ -1175,7 +1192,6 @@ def proximal_cconj_kl(space, lam=1, g=None):
     The convex conjugate :math:`F^*` of :math:`F` is
 
     .. math::
-
         F^*(p) = \\sum_i (-g_i \\ln(pos({1_X}_i - p_i))) +
         I_{1_X - p \geq 0}(p)
 
@@ -1185,7 +1201,6 @@ def proximal_cconj_kl(space, lam=1, g=None):
     The proximal operator of the convex conjugate of F is
 
     .. math::
-
         \mathrm{prox}_{\\sigma (\\lambda F)^*}(x) =
         \\frac{\\lambda 1_X + x - \\sqrt{(x -  \\lambda 1_X)^2 +
         4 \\lambda \\sigma g}}{2}
@@ -1214,7 +1229,7 @@ def proximal_cconj_kl(space, lam=1, g=None):
     if g is not None and g not in space:
         raise TypeError('{} is not an element of {}'.format(g, space))
 
-    class ProximalCConjKL(Operator):
+    class ProximalConvexConjKL(Operator):
 
         """Proximal operator of the convex conjugate of the KL divergence."""
 
@@ -1259,10 +1274,10 @@ def proximal_cconj_kl(space, lam=1, g=None):
             # out = 1/2 * out
             out /= 2
 
-    return ProximalCConjKL
+    return ProximalConvexConjKL
 
 
-def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
+def proximal_convex_conj_kl_cross_entropy(space, lam=1, g=None):
     """Proximal factory of the convex conjugate of cross entropy KL divergence.
 
     Function returning the proximal facotry of the convex conjugate of the
@@ -1291,14 +1306,13 @@ def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
 
     See Also
     --------
-    proximal_cconj_kl : proximal for related functional
+    proximal_convex_conj_kl : proximal for related functional
 
     Notes
     -----
     The functional is given by the expression
 
     .. math::
-
         F(x) = \\sum_i (x_i \\ln(pos(x_i)) - x_i \\ln(g_i) + g_i - x_i) +
         I_{x \\geq 0}(x)
 
@@ -1313,7 +1327,6 @@ def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
     The convex conjugate :math:`F^*` of :math:`F` is
 
     .. math::
-
         F^*(p) = \\sum_i g_i (exp(p_i) - 1)
 
     where :math:`p` is the variable dual to :math:`x`.
@@ -1321,7 +1334,6 @@ def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
     The proximal operator of the convex conjugate of :math:`F` is
 
     .. math::
-
         \mathrm{prox}_{\\sigma (\\lambda F)^*}(x) = x - \\lambda
         W(\\frac{\\sigma}{\\lambda} g e^{x/\\lambda})
 
@@ -1352,7 +1364,7 @@ def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
     if g is not None and g not in space:
         raise TypeError('{} is not an element of {}'.format(g, space))
 
-    class ProximalCConjKLCrossEntropy(Operator):
+    class ProximalConvexConjKLCrossEntropy(Operator):
 
         """Proximal operator of conjugate of cross entropy KL divergence."""
 
@@ -1380,7 +1392,7 @@ def proximal_cconj_kl_cross_entropy(space, lam=1, g=None):
                             -lam, scipy.special.lambertw(
                                 (self.sigma / lam) * g * np.exp(x / lam)))
 
-    return ProximalCConjKLCrossEntropy
+    return ProximalConvexConjKLCrossEntropy
 
 
 if __name__ == '__main__':

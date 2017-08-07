@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Utilities for normalization of user input."""
 
@@ -58,7 +49,7 @@ def normalized_scalar_param_list(param, length, param_conv=None,
     ----------
     param :
         Input parameter to turn into a list.
-    length : positive int
+    length : nonnegative int
         Desired length of the output list.
     param_conv : callable, optional
         Conversion applied to each list element. ``None`` means no conversion.
@@ -115,8 +106,9 @@ def normalized_scalar_param_list(param, length, param_conv=None,
     [False, False, True]
     """
     length, length_in = int(length), length
-    if length <= 0:
-        raise ValueError('`length` must be positive, got {}'.format(length_in))
+    if length < 0:
+        raise ValueError('`length` must be nonnegative, got {}'
+                         ''.format(length_in))
 
     try:
         # TODO: always use this when numpy >= 1.10 can be assumed

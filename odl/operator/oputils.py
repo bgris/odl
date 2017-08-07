@@ -1,26 +1,17 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Convenience functions for operators."""
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
 from future import standard_library
-from future.utils import raise_from
+from future.utils import raise_from, native
 standard_library.install_aliases()
 
 import numpy as np
@@ -30,7 +21,7 @@ from odl.space import ProductSpace
 from odl.util import as_flat_array
 
 __all__ = ('matrix_representation', 'power_method_opnorm', 'as_scipy_operator',
-           'as_proximal_lang_operator')
+           'as_scipy_functional', 'as_proximal_lang_operator')
 
 
 def matrix_representation(op):
@@ -169,7 +160,6 @@ def power_method_opnorm(op, xstart=None, maxiter=100, rtol=1e-05, atol=1e-08,
     such that
 
     .. math::
-
         ||A(x)|| \leq ||A|| ||x||
 
     for all :math:`x` in the domain of :math:`A`.
@@ -314,7 +304,7 @@ def as_scipy_operator(op):
         else:
             return arr.asarray()
 
-    shape = (op.range.size, op.domain.size)
+    shape = (native(op.range.size), native(op.domain.size))
 
     def matvec(v):
         return as_flat_array(op(v))
@@ -329,11 +319,85 @@ def as_scipy_operator(op):
                                               dtype=dtype)
 
 
+def as_scipy_functional(func, return_gradient=False):
+    """Wrap ``op`` as a function operating on linear arrays.
+
+    This is intended to be used with the `scipy solvers
+    <https://docs.scipy.org/doc/scipy/reference/optimize.html>`_.
+
+    Parameters
+    ----------
+    func : `Functional`.
+        A functional that should be wrapped
+    return_gradient : bool, optional
+        ``True`` if the gradient of the functional should also be returned,
+        ``False`` otherwise.
+
+    Returns
+    -------
+    function : ``callable``
+        The wrapped functional.
+    gradient : ``callable``, optional
+        The wrapped gradient. Only returned if ``return_gradient`` is true.
+
+    Examples
+    --------
+    Wrap functional and solve simple problem
+    (here toy problem ``min_x ||x||^2``):
+
+    >>> func = odl.solvers.L2NormSquared(odl.rn(3))
+    >>> scipy_func = odl.as_scipy_functional(func)
+    >>> from scipy.optimize import minimize
+    >>> result = minimize(scipy_func, x0=[0, 1, 0])
+    >>> np.allclose(result.x, [0, 0, 0])
+    True
+
+    The gradient (jacobian) can also be provided:
+
+    >>> func = odl.solvers.L2NormSquared(odl.rn(3))
+    >>> scipy_func, scipy_grad = odl.as_scipy_functional(func, True)
+    >>> from scipy.optimize import minimize
+    >>> result = minimize(scipy_func, x0=[0, 1, 0], jac=scipy_grad)
+    >>> np.allclose(result.x, [0, 0, 0])
+    True
+
+    Notes
+    -----
+    If the data representation of ``op``'s domain is of type `NumpyFn` this
+    incurs no significant overhead. If the space type is ``CudaFn`` or some
+    other nonlocal type, the overhead is significant.
+    """
+    def as_shaped_array(arr):
+        if hasattr(func.domain, 'order'):
+            return np.asarray(arr).reshape(func.domain.order)
+        else:
+            return np.asarray(arr)
+
+    def as_flat_array(vec):
+        if hasattr(vec, 'order'):
+            return np.asarray(vec).ravel(vec.order)
+        else:
+            return np.asarray(vec)
+
+    def func_call(arr):
+        return func(as_shaped_array(arr))
+
+    if return_gradient:
+        def func_gradient_call(arr):
+            return as_flat_array(func.gradient(as_shaped_array(arr)))
+
+        return func_call, func_gradient_call
+    else:
+        return func_call
+
+
 def as_proximal_lang_operator(op, norm_bound=None):
     """Wrap ``op`` as a ``proximal.BlackBox``.
 
     This is intended to be used with the `ProxImaL language solvers.
     <https://github.com/comp-imaging/proximal>`_
+
+    For documentation on the proximal language (ProxImaL) see [Hei+2016].
 
     Parameters
     ----------
@@ -357,9 +421,9 @@ def as_proximal_lang_operator(op, norm_bound=None):
 
     References
     ----------
-    For documentation on the proximal language (ProxImaL) see [Hei+2016]_.
+    [Hei+2016] Heide, F et al. *ProxImaL: Efficient Image Optimization using
+    Proximal Algorithms*. ACM Transactions on Graphics (TOG), 2016.
     """
-
     # TODO: use out parameter once "as editable array" is added
 
     def forward(inp, out):

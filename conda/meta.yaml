@@ -1,12 +1,13 @@
 package:
     name: odl
-    version: "0.5.4"
+    version: "0.6.1"
 
 source:
     git_url: https://github.com/odlgroup/odl
     git_rev: master  # for testing, put any branch here
-    # git_rev: v0.5.3  # release
+    # git_rev: v0.6.0  # release
     # git_rev: a542c12d23da7fa5b92b360a51ea14e4804c58f6  # intermediate bugfix revision
+    # path: ..  # for builds from local source (no download)
 
 build:
     number: 0
@@ -18,13 +19,13 @@ requirements:
         - setuptools
         - nomkl # [not win]
         - future >=0.14
-        - numpy >=1.9
+        - numpy >=1.9,<1.13
         - scipy >=0.14
     run:
         - python
         - future >=0.14
         - nomkl # [not win]
-        - numpy >=1.9
+        - numpy >=1.9,<1.13
         - scipy >=0.14
         - matplotlib
         - pytest >=3.0.3
@@ -37,7 +38,7 @@ test:
 
 about:
     home: https://github.com/odlgroup/odl
-    license: GPLv3+
+    license: MPL-2.0
     license_file: LICENSE
     summary: "Operator Discretization Library - a versatile Python framework for rapid prototyping in Inverse Problems and related fields"
 

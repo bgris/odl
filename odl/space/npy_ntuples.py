@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """CPU implementations of ``n``-dimensional Cartesian spaces."""
 
@@ -31,7 +22,6 @@ import numpy as np
 import scipy.linalg as linalg
 from scipy.sparse.base import isspmatrix
 
-from odl.operator import Operator
 from odl.set import RealNumbers, ComplexNumbers
 from odl.space.base_ntuples import (
     NtuplesBase, NtuplesBaseVector, FnBase, FnBaseVector)
@@ -44,12 +34,15 @@ from odl.util.ufuncs import NumpyNtuplesUfuncs
 
 
 __all__ = ('NumpyNtuples', 'NumpyNtuplesVector', 'NumpyFn', 'NumpyFnVector',
-           'MatVecOperator',
            'npy_weighted_dist', 'npy_weighted_norm', 'npy_weighted_inner')
 
 
 _BLAS_DTYPES = (np.dtype('float32'), np.dtype('float64'),
                 np.dtype('complex64'), np.dtype('complex128'))
+
+# Define thresholds for when different implementations should be used
+THRESHOLD_SMALL = 100
+THRESHOLD_MEDIUM = 50000
 
 
 class NumpyNtuples(NtuplesBase):
@@ -190,17 +183,6 @@ class NumpyNtuplesVector(NtuplesBaseVector):
 
     def __init__(self, space, data):
         """Initialize a new instance."""
-        if not isinstance(space, NumpyNtuples):
-            raise TypeError('{!r} not an `NumpyNtuples` instance'
-                            ''.format(space))
-
-        if not isinstance(data, np.ndarray):
-            raise TypeError('`data` {!r} not a `numpy.ndarray` instance'
-                            ''.format(data))
-
-        if data.dtype != space.dtype:
-            raise TypeError('`data` {!r} not of dtype {!r}'
-                            ''.format(data, space.dtype))
         self.__data = data
 
         NtuplesBaseVector.__init__(self, space)
@@ -502,57 +484,60 @@ def _blas_is_applicable(*args):
                 for x in args))
 
 
-def _lincomb(a, x1, b, x2, out, dtype):
+def _lincomb_impl(a, x1, b, x2, out, dtype):
     """Raw linear combination depending on data type."""
+    # Convert to native since BLAS needs it
+    size = native(x1.size)
 
     # Shortcut for small problems
-    if x1.size < 100:  # small array optimization
+    if size <= THRESHOLD_SMALL:  # small array optimization
         out.data[:] = a * x1.data + b * x2.data
         return
 
-    # Use blas for larger problems
-    def fallback_axpy(x1, x2, n, a):
-        """Fallback axpy implementation avoiding copy."""
-        if a != 0:
-            x2 /= a
-            x2 += x1
-            x2 *= a
-        return x2
-
-    def fallback_scal(a, x, n):
-        """Fallback scal implementation."""
-        x *= a
-        return x
-
-    def fallback_copy(x1, x2, n):
-        """Fallback copy implementation."""
-        x2[...] = x1[...]
-        return x2
-
-    if _blas_is_applicable(x1, x2, out):
+    # If data is very big, use BLAS if possible
+    if size > THRESHOLD_MEDIUM and _blas_is_applicable(x1, x2, out):
         axpy, scal, copy = linalg.blas.get_blas_funcs(
             ['axpy', 'scal', 'copy'], arrays=(x1.data, x2.data, out.data))
     else:
+        # Use fallbacks otherwise
+        def fallback_axpy(x1, x2, n, a):
+            """Fallback axpy implementation avoiding copy."""
+            if a != 0:
+                x2 /= a
+                x2 += x1
+                x2 *= a
+            return x2
+
+        def fallback_scal(a, x, n):
+            """Fallback scal implementation."""
+            x *= a
+            return x
+
+        def fallback_copy(x1, x2, n):
+            """Fallback copy implementation."""
+            x2[...] = x1[...]
+            return x2
+
         axpy, scal, copy = (fallback_axpy, fallback_scal, fallback_copy)
 
     if x1 is x2 and b != 0:
         # x1 is aligned with x2 -> out = (a+b)*x1
-        _lincomb(a + b, x1, 0, x1, out, dtype)
+        _lincomb_impl(a + b, x1, 0, x1, out, dtype)
     elif out is x1 and out is x2:
         # All the vectors are aligned -> out = (a+b)*out
-        scal(a + b, out.data, native(out.size))
+        scal(a + b, out.data, size)
     elif out is x1:
         # out is aligned with x1 -> out = a*out + b*x2
         if a != 1:
-            scal(a, out.data, native(out.size))
+            scal(a, out.data, size)
         if b != 0:
-            axpy(x2.data, out.data, native(out.size), b)
+            axpy(x2.data, out.data, size, b)
     elif out is x2:
         # out is aligned with x2 -> out = a*x1 + b*out
         if b != 1:
-            scal(b, out.data, native(out.size))
+            scal(b, out.data, size)
         if a != 0:
-            axpy(x1.data, out.data, native(out.size), a)
+            axpy(x1.data, out.data, size, a)
     else:
         # We have exhausted all alignment options, so x1 != x2 != out
         # We now optimize for various values of a and b
@@ -560,23 +545,23 @@ def _lincomb(a, x1, b, x2, out, dtype):
             if a == 0:  # Zero assignment -> out = 0
                 out.data[:] = 0
             else:  # Scaled copy -> out = a*x1
-                copy(x1.data, out.data, native(out.size))
+                copy(x1.data, out.data, size)
                 if a != 1:
-                    scal(a, out.data, native(out.size))
+                    scal(a, out.data, size)
         else:
             if a == 0:  # Scaled copy -> out = b*x2
-                copy(x2.data, out.data, native(out.size))
+                copy(x2.data, out.data, size)
                 if b != 1:
-                    scal(b, out.data, native(out.size))
+                    scal(b, out.data, size)
 
             elif a == 1:  # No scaling in x1 -> out = x1 + b*x2
-                copy(x1.data, out.data, native(out.size))
-                axpy(x2.data, out.data, native(out.size), b)
+                copy(x1.data, out.data, size)
+                axpy(x2.data, out.data, size, b)
             else:  # Generic case -> out = a*x1 + b*x2
-                copy(x2.data, out.data, native(out.size))
+                copy(x2.data, out.data, size)
                 if b != 1:
-                    scal(b, out.data, native(out.size))
-                axpy(x1.data, out.data, native(out.size), a)
+                    scal(b, out.data, size)
+                axpy(x1.data, out.data, size, a)
 
 
 class NumpyFn(FnBase, NumpyNtuples):
@@ -822,7 +807,7 @@ class NumpyFn(FnBase, NumpyNtuples):
         >>> out
         cn(3).element([(10-2j), (17-1j), (18.5+1.5j)])
         """
-        _lincomb(a, x1, b, x2, out, self.dtype)
+        _lincomb_impl(a, x1, b, x2, out, self.dtype)
 
     def _dist(self, x1, x2):
         """Calculate the distance between two vectors.
@@ -1125,10 +1110,6 @@ class NumpyFnVector(FnBaseVector, NumpyNtuplesVector):
 
     def __init__(self, space, data):
         """Initialize a new instance."""
-        if not isinstance(space, NumpyFn):
-            raise TypeError('{!r} not an `NumpyFn` instance'
-                            ''.format(space))
-
         FnBaseVector.__init__(self, space)
         NumpyNtuplesVector.__init__(self, space, data)
 
@@ -1296,140 +1277,6 @@ class NumpyFnVector(FnBaseVector, NumpyNtuplesVector):
         return self
 
 
-class MatVecOperator(Operator):
-
-    """Matrix multiply operator :math:`\mathbb{F}^n -> \mathbb{F}^m`.
-
-    This operator uses a matrix to represent an operator, and get its adjoint
-    and inverse by doing computations on the matrix. This is in general a
-    rather slow approach, and users are recommended to use other alternatives
-    if available.
-    """
-
-    def __init__(self, matrix, domain=None, range=None):
-        """Initialize a new instance.
-
-        Parameters
-        ----------
-        matrix : `array-like` or  `scipy.sparse.spmatrix`
-            Matrix representing the linear operator. Its shape must be
-            ``(m, n)``, where ``n`` is the size of ``domain`` and ``m`` the
-            size of ``range``. Its dtype must be castable to the range
-            ``dtype``.
-        domain : `NumpyFn`, optional
-            Space on whose elements the matrix acts. If not provided,
-            the domain is inferred from the matrix ``dtype`` and
-            ``shape``. If provided, its dtype must be castable to the
-            range dtype.
-        range : `NumpyFn`, optional
-            Space to which the matrix maps. If not provided,
-            the domain is inferred from the matrix ``dtype`` and
-            ``shape``.
-        """
-        # TODO: fix dead link `scipy.sparse.spmatrix`
-        if isspmatrix(matrix):
-            self.__matrix = matrix
-        else:
-            self.__matrix = np.asarray(matrix)
-
-        if self.matrix.ndim != 2:
-            raise ValueError('matrix {} has {} axes instead of 2'
-                             ''.format(matrix, self.matrix.ndim))
-
-        # Infer domain and range from matrix if necessary
-        if domain is None:
-            domain = NumpyFn(self.matrix.shape[1], dtype=self.matrix.dtype)
-        elif not isinstance(domain, NumpyFn):
-            raise TypeError('`domain` {!r} is not an `NumpyFn` instance'
-                            ''.format(domain))
-
-        if range is None:
-            range = NumpyFn(self.matrix.shape[0], dtype=self.matrix.dtype)
-        elif not isinstance(range, NumpyFn):
-            raise TypeError('`range` {!r} is not an `NumpyFn` instance'
-                            ''.format(range))
-
-        # Check compatibility of matrix with domain and range
-        if not np.can_cast(domain.dtype, range.dtype):
-            raise TypeError('domain data type {!r} cannot be safely cast to '
-                            'range data type {!r}'
-                            ''.format(domain.dtype, range.dtype))
-
-        if self.matrix.shape != (range.size, domain.size):
-            raise ValueError('matrix shape {} does not match the required '
-                             'shape {} of a matrix {} --> {}'
-                             ''.format(self.matrix.shape,
-                                       (range.size, domain.size),
-                                       domain, range))
-        if not np.can_cast(self.matrix.dtype, range.dtype):
-            raise TypeError('matrix data type {!r} cannot be safely cast to '
-                            'range data type {!r}.'
-                            ''.format(matrix.dtype, range.dtype))
-
-        super().__init__(domain, range, linear=True)
-
-    @property
-    def matrix(self):
-        """Matrix representing this operator."""
-        return self.__matrix
-
-    @property
-    def matrix_issparse(self):
-        """Whether the representing matrix is sparse or not."""
-        return isspmatrix(self.matrix)
-
-    @property
-    def adjoint(self):
-        """Adjoint operator represented by the adjoint matrix.
-
-        Returns
-        -------
-        adjoint : `MatVecOperator`
-        """
-        if self.domain.field != self.range.field:
-            raise NotImplementedError('adjoint not defined since fields '
-                                      'of domain and range differ ({} != {})'
-                                      ''.format(self.domain.field,
-                                                self.range.field))
-        return MatVecOperator(self.matrix.conj().T,
-                              domain=self.range, range=self.domain)
-
-    @property
-    def inverse(self):
-        """Inverse operator represented by the inverse matrix.
-
-        Taking the inverse causes sparse matrices to become dense and is
-        generally very heavy computationally since the matrix is inverted
-        numerically (an O(n^3) operation). It is recommended to instead
-        use one of the solvers available in the ``odl.solvers`` package.
-
-        Returns
-        -------
-        inverse : `MatVecOperator`
-        """
-        if self.matrix_issparse:
-            dense_matrix = self.matrix.toarray()
-        else:
-            dense_matrix = self.matrix
-
-        return MatVecOperator(np.linalg.inv(dense_matrix),
-                              domain=self.range, range=self.domain)
-
-    def _call(self, x, out=None):
-        """Raw apply method on input, writing to given output."""
-        if out is None:
-            return self.range.element(self.matrix.dot(x.data))
-        else:
-            if self.matrix_issparse:
-                # Unfortunately, there is no native in-place dot product for
-                # sparse matrices
-                out.data[:] = self.matrix.dot(x.data)
-            else:
-                self.matrix.dot(x.data, out=out.data)
-
-    # TODO: repr and str
-
-
 def _weighting(weights, exponent, dist_using_inner=False):
     """Return a weighting whose type is inferred from the arguments."""
     if np.isscalar(weights):
@@ -1581,15 +1428,19 @@ def _pnorm_diagweight(x, p, w):
 
 def _inner_default(x1, x2):
     """Default Euclidean inner product implementation."""
-    if _blas_is_applicable(x1, x2):
-        dotc = linalg.blas.get_blas_funcs('dotc', dtype=x1.dtype)
-        dot = partial(dotc, n=native(x1.size))
-    elif is_real_dtype(x1.dtype):
-        dot = np.dot  # still much faster than vdot
-    else:
-        dot = np.vdot  # slowest alternative
+    size = x1.size
+
     # x2 as first argument because we want linearity in x1
-    return dot(x2.data, x1.data)
+
+    if size > THRESHOLD_MEDIUM and _blas_is_applicable(x1, x2):
+        dotc = linalg.blas.get_blas_funcs('dotc', dtype=x1.dtype)
+        dot = dotc(x2.data, x1.data, n=native(size))
+    elif is_real_dtype(x1.dtype):
+        dot = np.dot(x2.data, x1.data)  # still much faster than vdot
+    else:
+        dot = np.vdot(x2.data, x1.data)  # slowest alternative
+
+    return dot
 
 
 class NumpyFnMatrixWeighting(MatrixWeighting):

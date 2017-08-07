@@ -1,38 +1,21 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
-# External module imports
+from __future__ import division
 import pytest
 import numpy as np
 
-# Internal
 import odl
 from odl.discr.lp_discr import DiscreteLp
 from odl.space.base_ntuples import FnBase
 from odl.util.testutils import (almost_equal, all_equal, all_almost_equal,
                                 noise_elements, simple_fixture)
 
-# Simply modify exp_params to modify the fixture
 exponent = simple_fixture('exponent', [2.0, 1.0, float('inf'), 0.5, 1.5])
 
 
@@ -69,6 +52,26 @@ def test_init(exponent):
     rn_wrong_size = odl.rn(20)
     with pytest.raises(ValueError):
         odl.DiscreteLp(space, part, rn_wrong_size)
+
+
+def test_empty():
+    """Check if empty spaces behave as expected and all methods work."""
+    discr = odl.uniform_discr([], [], ())
+
+    assert discr.interp == 'nearest'
+    assert discr.axis_labels == ()
+    assert discr.order == 'C'
+    assert discr.exponent == 2.0
+    assert discr.tangent_bundle == odl.ProductSpace(field=odl.RealNumbers())
+    assert discr.complex_space == odl.uniform_discr([], [], (), dtype=complex)
+    hash(discr)
+    repr(discr)
+
+    elem = discr.element()
+    assert np.array_equal(elem.asarray(), [])
+    assert np.array_equal(elem.real, [])
+    assert np.array_equal(elem.imag, [])
+    assert np.array_equal(elem.conj(), [])
 
 
 def test_factory(exponent, fn_impl):

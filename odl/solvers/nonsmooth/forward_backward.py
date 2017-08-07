@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Optimization methods based on a forward-backward splitting scheme."""
 
@@ -87,7 +78,6 @@ def forward_backward_pd(x, f, g, L, h, tau, sigma, niter,
     The mathematical problem to solve is
 
      .. math::
-
         \min_x f(x) + \sum_{i=0}^n (g_i \Box l_i)(L_i x) + h(x),
 
     where :math:`f`, :math:`g_i`, :math:`l_i` and :math:`h` are functionals and
@@ -95,7 +85,6 @@ def forward_backward_pd(x, f, g, L, h, tau, sigma, niter,
     is defined by
 
      .. math::
-
         (g \Box l)(x) = \inf_y g(y) + l(x - y).
 
     The exact conditions on the involved functionals are as follows: :math:`f`
@@ -104,8 +93,8 @@ def forward_backward_pd(x, f, g, L, h, tau, sigma, niter,
     gradient, :math:`\\eta > 0`.
 
     The optional operators :math:`\\nabla l_i^*` need to be
-    :math:`\\nu_i`-Lipschitz continuous. Note that in the reference
-    [BC2015]_, the condition is formulated as :math:`l_i` being proper, lower
+    :math:`\\nu_i`-Lipschitz continuous. Note that in the paper, the condition
+    is formulated as :math:`l_i` being proper, lower
     semicontinuous, and :math:`\\nu_i^{-1}`-strongly convex, which implies that
     :math:`l_i^*` have :math:`\\nu_i`-Lipschitz continuous gradients.
 
@@ -120,13 +109,16 @@ def forward_backward_pd(x, f, g, L, h, tau, sigma, niter,
     :math:`L_i` need to satisfy
 
     .. math::
-
        2 \min \{ \\frac{1}{\\tau}, \\frac{1}{\sigma_1}, \\ldots,
        \\frac{1}{\sigma_m} \} \cdot \min\{ \\eta, \\nu_1, \\ldots, \\nu_m  \}
        \cdot \\sqrt{1 - \\tau \\sum_{i=1}^n \\sigma_i ||L_i||^2} > 1,
 
     where, if the simpler problem is considered, all :math:`\\nu_i` can be
     considered to be :math:`\\infty`.
+
+    For reference on the forward-backward primal-dual algorithm, see [BC2015].
+
+    For more on proximal operators and algorithms see [PB2014].
 
     See Also
     --------
@@ -139,12 +131,12 @@ def forward_backward_pd(x, f, g, L, h, tau, sigma, niter,
 
     References
     ----------
-    For reference on the forward-backward primal-dual algorithm, see [BC2015]_.
+    [BC2015] Bot, R I, and Csetnek, E R. *On the convergence rate of
+    a forward-backward type primal-dual splitting algorithm for convex
+    optimization problems*. Optimization, 64.1 (2015), pp 5--23.
 
-    For more on convex analysis including convex conjugates and
-    resolvent operators see [Roc1970]_.
-
-    For more on proximal operators and algorithms see [PB2014]_.
+    [PB2014] Parikh, N, and Boyd, S. *Proximal Algorithms*.
+    Foundations and Trends in Optimization, 1 (2014), pp 127-239.
     """
 
     # Problem size

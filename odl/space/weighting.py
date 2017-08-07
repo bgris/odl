@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Weightings for finite-dimensional spaces."""
 
@@ -636,12 +627,11 @@ class ArrayWeighting(Weighting):
     @property
     def repr_part(self):
         """String usable in a space's ``__repr__`` method."""
-        part = 'weighting={}'.format(array1d_repr(self.array, nprint=10))
-        if self.exponent != 2.0:
-            part += ', exponent={}'.format(self.exponent)
-        if self.dist_using_inner:
-            part += ', dist_using_inner=True'
-        return part
+        optargs = [('weighting', array1d_repr(self.array, nprint=10), ''),
+                   ('exponent', self.exponent, 2.0),
+                   ('dist_using_inner', self.dist_using_inner, False)]
+        return signature_string([], optargs, sep=[',\n', ', ', ',\n'],
+                                mod=[[], ['!s', '', '']])
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -654,7 +644,9 @@ class ArrayWeighting(Weighting):
         return '{}(\n{}\n)'.format(self.__class__.__name__,
                                    indent_rows(inner_str))
 
-    __str__ = __repr__
+    def __str__(self):
+        """Return ``str(self)``."""
+        return repr(self)
 
 
 class ConstWeighting(Weighting):
@@ -752,7 +744,9 @@ class ConstWeighting(Weighting):
         return '{}({})'.format(self.__class__.__name__,
                                signature_string(posargs, optargs))
 
-    __str__ = __repr__
+    def __str__(self):
+        """Return ``str(self)``."""
+        return repr(self)
 
 
 class NoWeighting(ConstWeighting):
@@ -795,7 +789,9 @@ class NoWeighting(ConstWeighting):
         return '{}({})'.format(self.__class__.__name__,
                                signature_string(posargs, optargs))
 
-    __str__ = __repr__
+    def __str__(self):
+        """Return ``str(self)``."""
+        return repr(self)
 
 
 class CustomInner(Weighting):
@@ -908,7 +904,7 @@ class CustomNorm(Weighting):
 
     def inner(self, x1, x2):
         """Inner product is not defined for custom distance."""
-        raise NotImplementedError
+        raise NotImplementedError('`inner` not defined for custom norm')
 
     @property
     def norm(self):
@@ -986,11 +982,11 @@ class CustomDist(Weighting):
 
     def inner(self, x1, x2):
         """Inner product is not defined for custom distance."""
-        raise NotImplementedError
+        raise NotImplementedError('`inner` not defined for custom distance')
 
     def norm(self, x):
         """Norm is not defined for custom distance."""
-        raise NotImplementedError
+        raise NotImplementedError('`norm` not defined for custom distance')
 
     def __eq__(self, other):
         """Return ``self == other``.

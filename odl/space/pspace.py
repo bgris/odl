@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Cartesian products of `LinearSpace` instances."""
 
@@ -27,11 +18,11 @@ from numbers import Integral
 from itertools import product
 import numpy as np
 
-from odl.set import LinearSpace, LinearSpaceElement
+from odl.set import LinearSpace, LinearSpaceElement, RealNumbers
 from odl.space.weighting import (
     Weighting, ArrayWeighting, ConstWeighting, NoWeighting,
     CustomInner, CustomNorm, CustomDist)
-from odl.util import is_real_dtype
+from odl.util import is_real_dtype, signature_string, indent_rows
 from odl.util.ufuncs import ProductSpaceUfuncs
 
 
@@ -153,18 +144,15 @@ class ProductSpace(LinearSpace):
 
             Cannot be combined with: ``dist``
 
-        Returns
-        -------
-        prodspace : `ProductSpace`
-
-        See Also
-        --------
-        ProductSpaceArrayWeighting
-        ProductSpaceConstWeighting
-
         Examples
         --------
+        Product of two rn spaces
+
         >>> r2x3 = ProductSpace(odl.rn(2), odl.rn(3))
+
+        Powerspace of rn space
+
+        >>> r2x2x2 = ProductSpace(odl.rn(2), 3)
 
         Notes
         -----
@@ -184,32 +172,33 @@ class ProductSpace(LinearSpace):
 
         **Inner product:**
 
-            :math:`\langle x, y \\rangle =
-            \\sum_{i=1}^d \langle x_i, y_i \\rangle_i`
+        .. math::
+            \langle x, y \\rangle = \\sum_{i=1}^d \langle x_i, y_i \\rangle_i
 
         **Norm:**
 
         - :math:`p < \infty`:
 
-            :math:`\lVert x\\rVert =
-            \left( \sum_{i=1}^d \lVert x_i \\rVert_i^p \\right)^{1/p}`
+        .. math::
+            \lVert x\\rVert =
+            \left( \sum_{i=1}^d \lVert x_i \\rVert_i^p \\right)^{1/p}
 
         - :math:`p = \infty`:
 
-            :math:`\lVert x\\rVert =
-            \max_i \lVert x_i \\rVert_i`
+        .. math::
+            \lVert x\\rVert = \max_i \lVert x_i \\rVert_i
 
         **Distance:**
 
         - :math:`p < \infty`:
 
-            :math:`d(x, y) =
-            \left( \sum_{i=1}^d d_i(x_i, y_i)^p \\right)^{1/p}`
+        .. math::
+            d(x, y) = \left( \sum_{i=1}^d d_i(x_i, y_i)^p \\right)^{1/p}
 
         - :math:`p = \infty`:
 
-            :math:`d(x, y) =
-            \max_i d_i(x_i, y_i)`
+        .. math::
+            d(x, y) = \max_i d_i(x_i, y_i)
 
         To implement own versions of these functions, you can use
         the following snippet to gather the vector of norms (analogously
@@ -219,6 +208,10 @@ class ProductSpace(LinearSpace):
                 (xi.norm() for xi in x),
                 dtype=np.float64, count=len(x))
 
+        See Also
+        --------
+        ProductSpaceArrayWeighting
+        ProductSpaceConstWeighting
         """
         field = kwargs.pop('field', None)
         dist = kwargs.pop('dist', None)
@@ -262,7 +255,8 @@ class ProductSpace(LinearSpace):
         if field is None:
             if self.size == 0:
                 raise ValueError('no spaces provided, cannot deduce field')
-            field = self.spaces[0].field
+            else:
+                field = self.spaces[0].field
 
         # Cache for efficiency
         self.__is_power_space = all(spc == self.spaces[0]
@@ -584,14 +578,33 @@ class ProductSpace(LinearSpace):
 
     def __repr__(self):
         """Return ``repr(self)``."""
+        weight_str = self.weighting.repr_part
         if self.size == 0:
-            return '{}(field={})'.format(self.__class__.__name__, self.field)
+            posargs = []
+            optargs = [('field', self.field, None)]
+            oneline = True
         elif self.is_power_space:
-            return '{}({!r}, {})'.format(self.__class__.__name__,
-                                         self.spaces[0], self.size)
+            posargs = [self.spaces[0], self.size]
+            optargs = []
+            oneline = True
         else:
-            inner_str = ', '.join(repr(space) for space in self.spaces)
+            posargs = self.spaces
+            optargs = []
+            argstr = ', '.join(repr(s) for s in self.spaces)
+            oneline = (len(argstr + weight_str) <= 40 and
+                       '\n' not in argstr + weight_str)
+
+        if oneline:
+            inner_str = signature_string(posargs, optargs, sep=', ', mod='!r')
+            if weight_str:
+                inner_str = ', '.join([inner_str, weight_str])
             return '{}({})'.format(self.__class__.__name__, inner_str)
+        else:
+            inner_str = signature_string(posargs, optargs, sep=',\n', mod='!r')
+            if weight_str:
+                inner_str = ',\n'.join([inner_str, weight_str])
+            return '{}(\n{}\n)'.format(self.__class__.__name__,
+                                       indent_rows(inner_str))
 
     @property
     def element_type(self):
@@ -816,22 +829,38 @@ class ProductSpaceElement(LinearSpaceElement):
         title : string, optional
             Title of the figures
 
-        indices : index expression, optional
-            Indices can refer to parts of a `ProductSpaceElement` and slices
-            in the parts in the following way:
+        indices : int, slice, tuple or list, optional
+            Display parts of ``self`` in the way described in the following.
 
-            Single index (``indices=0``)
-            => display that part
+            A single list of integers selects the corresponding parts
+            of this vector.
 
-            Single slice (``indices=slice(None)``), or
-            index list (``indices=[0, 1, 3]``)
-            => display those parts
+            For other tuples or lists, the first entry indexes the parts of
+            this vector, and the remaining entries (if any) are used to
+            slice into the parts. Handling those remaining indices is
+            up to the ``show`` methods of the parts to be displayed.
 
-            Any tuple, for example:
-            Created by `numpy.s_` ``indices=np.s_[0, :, :]`` or
-            Using a raw tuple ``indices=([0, 3], slice(None))``
-            => take the first elements to select the parts and
-            pass the rest on to the underlying show methods.
+            The types of the first entry trigger the following behaviors:
+
+                - ``int``: take the part corresponding to this index
+                - ``slice``: take a subset of the parts
+                - ``None``: equivalent to ``slice(None)``, i.e., everything
+
+            Typical use cases are displaying of selected parts, which can
+            be achieved with a list, e.g., ``indices=[0, 2]`` for parts
+            0 and 2, and plotting of all parts sliced in a certain way,
+            e.g., ``indices=[None, 20, None]`` for showing all parts
+            sliced with indices ``[20, None]``.
+
+            A single ``int``, ``slice``, ``list`` or ``None`` object
+            indexes the parts only, i.e., is treated roughly as
+            ``(indices, Ellipsis)``. In particular, for ``None``, all
+            parts are shown with default slicing.
+
+        in_figs : sequence of `matplotlib.figure.Figure`, optional
+            Update these figures instead of creating new ones. Typically
+            the return value of an earlier call to ``show`` is used
+            for this parameter.
 
         kwargs
             Additional arguments passed on to the ``show`` methods of
@@ -839,8 +868,9 @@ class ProductSpaceElement(LinearSpaceElement):
 
         Returns
         -------
-        fig : list of `matplotlib.figure.Figure`
-            The resulting figures. It is also shown to the user.
+        figs : tuple of `matplotlib.figure.Figure`
+            The resulting figures. In an interactive shell, they are
+            automatically displayed.
 
         See Also
         --------
@@ -856,30 +886,50 @@ class ProductSpaceElement(LinearSpaceElement):
 
         if indices is None:
             if len(self) < 5:
-                indices = list(np.arange(self.size))
+                indices = list(range(self.size))
             else:
                 indices = list(np.linspace(0, self.size - 1, 4, dtype=int))
         else:
-            if isinstance(indices, tuple):
+            if (isinstance(indices, tuple) or
+                    (isinstance(indices, list) and
+                     not all(isinstance(idx, Integral) for idx in indices))):
+                # Tuples or lists containing non-integers index by axis.
+                # We use the first index for the current pspace and pass
+                # on the rest.
                 indices, kwargs['indices'] = indices[0], indices[1:]
+
+            # Support `indices=[None, 0, None]` like syntax (`indices` is
+            # the first entry as of now in that case)
+            if indices is None:
+                indices = slice(None)
 
             if isinstance(indices, slice):
                 indices = list(range(*indices.indices(self.size)))
             elif isinstance(indices, Integral):
                 indices = [indices]
-
-            # else try with indices as is
+            else:
+                # Use `indices` as-is
+                pass
 
         in_figs = kwargs.pop('fig', None)
         in_figs = [None] * len(indices) if in_figs is None else in_figs
 
         figs = []
-        for i, part, fig in zip(indices, self[indices], in_figs):
-            fig = part.show(title='{}. Part {}'.format(title, i), fig=fig,
-                            **kwargs)
-            figs += [fig]
+        parts = self[indices]
+        if len(parts) == 0:
+            return ()
+        elif len(parts) == 1:
+            # Don't extend the title if there is only one plot
+            fig = parts[0].show(title=title, fig=in_figs[0], **kwargs)
+            figs.append(fig)
+        else:
+            # Extend titles by indexed part to make them distinguishable
+            for i, part, fig in zip(indices, parts, in_figs):
+                fig = part.show(title='{}. Part {}'.format(title, i), fig=fig,
+                                **kwargs)
+                figs.append(fig)
 
-        return figs
+        return tuple(figs)
 
 
 # --- Add arithmetic operators that broadcast ---
@@ -972,7 +1022,6 @@ class ProductSpaceArrayWeighting(ArrayWeighting):
           :math:`w` is defined as
 
           .. math::
-
               \\langle x, y \\rangle_w = \\langle w \odot x, y \\rangle
 
           with component-wise multiplication :math:`w \odot x`. For other
@@ -980,20 +1029,17 @@ class ProductSpaceArrayWeighting(ArrayWeighting):
           of exponent ``inf``, the weighted norm is
 
           .. math::
-
               \|x\|_{w,\infty} = \|w \odot x\|_\infty,
 
           otherwise it is
 
           .. math::
-
               \|x\|_{w,p} = \|w^{1/p} \odot x\|_p.
 
         - Note that this definition does **not** fulfill the limit property
           in :math:`p`, i.e.,
 
           .. math::
-
               \|x\|_{w,p} \\not\\to \|x\|_{w,\infty}
               \quad\\text{for } p \\to \infty
 
@@ -1096,27 +1142,23 @@ class ProductSpaceConstWeighting(ConstWeighting):
           :math:`c` is defined as
 
           .. math::
-
             \\langle x, y \\rangle_c = c\, \\langle x, y \\rangle.
 
           For other exponents, only ``norm`` and ```dist`` are defined.
           In the case of exponent ``inf``, the weighted norm is
 
           .. math::
-
               \|x\|_{c,\infty} = c\, \|x\|_\infty,
 
           otherwise it is
 
           .. math::
-
               \|x\|_{c,p} = c^{1/p} \, \|x\|_p.
 
         - Note that this definition does **not** fulfill the limit property
           in :math:`p`, i.e.,
 
           .. math::
-
               \|x\|_{c,p} \\not\\to \|x\|_{c,\infty}
               \quad \\text{for } p \\to \infty
 
@@ -1150,7 +1192,7 @@ class ProductSpaceConstWeighting(ConstWeighting):
 
         inners = np.fromiter(
             (x1i.inner(x2i) for x1i, x2i in zip(x1, x2)),
-            dtype=complex, count=len(x1))
+            dtype=x1[0].space.dtype, count=len(x1))
 
         inner = self.const * np.sum(inners)
         return x1.space.field.element(inner)

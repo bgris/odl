@@ -168,10 +168,14 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
 
         # Definition S[j] = Norm(forward_operators[j] - data[j])
-        S=[]
+        """S=[]
+        print(30)
         for j in range(self.nb_data):
+            print(301)
             S.append(self.Norm*(self.forward_op[j] - self.data[j]))
-        self.S=S
+            print(302)
+        print(31)
+        self.S=S"""
 
         dim=self.image_domain.ndim
         # FFT setting for data matching term, 1 means 100% padding
@@ -179,6 +183,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         padded_ft_fit_op = padded_ft_op(self.image_domain, padded_size)
         vectorial_ft_fit_op = DiagonalOperator(*([padded_ft_fit_op] * dim))
         self.vectorial_ft_fit_op=vectorial_ft_fit_op
+
         # Compute the FT of kernel in fitting term
         discretized_kernel = fitting_kernel(self.image_domain, self.kernel)
         ft_kernel_fitting = vectorial_ft_fit_op(discretized_kernel)
@@ -206,8 +211,9 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         dim=self.image_domain.ndim
         energy=0
         for j in range(self.nb_data):
-            #energy+=self.Norm(self.forward_op[j](image_data[j]) -  self.data[j])
-            energy+=self.S[j](image_list[j])
+
+            energy+=self.Norm(self.forward_op[j](image_list[j]) -  self.data[j])
+            #energy+=self.S[j](image_list[j])
         attach=energy
 
         a=0
@@ -374,7 +380,9 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                         G[k]+= (functional.inv_N * grad_op(temp)).copy()
 
                 for j in range(functional.nb_data):
-                    conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
+
+                    conv=functional.ConvolveIntegrate((functional.Norm*(functional.forward_op[j] -  functional.data[j])).gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
+                    #conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
                     for k in range(functional.k_j_list[j]):
                         h[k]-=conv[0][k].copy()
                         eta[k]+=conv[1][k].copy()

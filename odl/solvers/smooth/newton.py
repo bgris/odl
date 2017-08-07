@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """(Quasi-)Newton schemes to find zeros of functionals."""
 
@@ -145,31 +136,35 @@ def newtons_method(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
     This is a general and optimized implementation of Newton's method
     for solving the problem:
 
-        :math:`\min f(x)`
+    .. math::
+        \min f(x)
 
     for a differentiable function
     :math:`f: \mathcal{X}\\to \mathbb{R}` on a Hilbert space
     :math:`\mathcal{X}`. It does so by finding a zero of the gradient
 
-        :math:`\\nabla f: \mathcal{X} \\to \mathcal{X}`.
+    .. math::
+        \\nabla f: \mathcal{X} \\to \mathcal{X}.
 
     of finding a root of a function.
 
     The algorithm is well-known and there is a vast literature about it.
-    Among others, the method is described in [BV2004]_, Sections 9.5
+    Among others, the method is described in [BV2004], Sections 9.5
     and 10.2 (`book available online
     <http://stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf>`_),
-    [GNS2009]_,  Section 2.7 for solving nonlinear equations and Section
+    [GNS2009],  Section 2.7 for solving nonlinear equations and Section
     11.3 for its use in minimization, and wikipedia on `Newton's_method
     <https://en.wikipedia.org/wiki/Newton's_method>`_.
 
     The algorithm works by iteratively solving
 
-        :math:`\partial f(x_k)p_k = -f(x_k)`
+    .. math::
+        \partial f(x_k)p_k = -f(x_k)
 
     and then updating as
 
-        :math:`x_{k+1} = x_k + \\alpha x_k`,
+    .. math::
+        x_{k+1} = x_k + \\alpha x_k,
 
     where :math:`\\alpha` is a suitable step length (see the
     references). In this implementation the system of equations are
@@ -194,6 +189,14 @@ def newtons_method(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
         for computing the search direction.
     callback : callable, optional
         Object executing code per iteration, e.g. plotting each iterate
+
+    References
+    ----------
+    [BV2004] Boyd, S, and Vandenberghe, L. *Convex optimization*.
+    Cambridge university press, 2004.
+
+    [GNS2009] Griva, I, Nash, S G, and Sofer, A. *Linear and nonlinear
+    optimization*. Siam, 2009.
     """
     # TODO: update doc
     grad = f.gradient
@@ -221,8 +224,13 @@ def newtons_method(f, x, line_search=1.0, maxiter=1000, tol=1e-16,
 
         # Solving A*x = b for x, in this case f''(x)*p = -f'(x)
         # TODO: Let the user provide/choose method for how to solve this?
-        conjugate_gradient(hessian, search_direction,
-                           -deriv_in_point, cg_iter)
+        try:
+            hessian_inverse = hessian.inverse
+        except NotImplementedError:
+            conjugate_gradient(hessian, search_direction,
+                               -deriv_in_point, cg_iter)
+        else:
+            hessian_inverse(-deriv_in_point, out=search_direction)
 
         # Computing step length
         dir_deriv = search_direction.inner(deriv_in_point)
@@ -250,20 +258,22 @@ def bfgs_method(f, x, line_search=1.0, maxiter=1000, tol=1e-15, num_store=None,
     method with BFGS update for solving a general unconstrained
     optimization problem
 
-        :math:`\min f(x)`
+    .. math::
+        \min f(x)
 
     for a differentiable function
     :math:`f: \mathcal{X}\\to \mathbb{R}` on a Hilbert space
     :math:`\mathcal{X}`. It does so by finding a zero of the gradient
 
-        :math:`\\nabla f: \mathcal{X} \\to \mathcal{X}`.
+    .. math::
+        \\nabla f: \mathcal{X} \\to \mathcal{X}.
 
     The QN method is an approximate Newton method, where the Hessian
     is approximated and gradually updated in each step. This
     implementation uses the rank-one BFGS update schema where the
     inverse of the Hessian is recalculated in each iteration.
 
-    The algorithm is described in [GNS2009]_, Section 12.3 and in the
+    The algorithm is described in [GNS2009], Section 12.3 and in the
     `BFGS Wikipedia article
     <https://en.wikipedia.org/wiki/Broyden%E2%80%93Fletcher%E2%80%93\
 Goldfarb%E2%80%93Shanno_algorithm>`_
@@ -291,6 +301,11 @@ Goldfarb%E2%80%93Shanno_algorithm>`_
         Default: Identity on ``f.domain``
     callback : callable, optional
         Object executing code per iteration, e.g. plotting each iterate.
+
+    References
+    ----------
+    [GNS2009] Griva, I, Nash, S G, and Sofer, A. *Linear and nonlinear
+    optimization*. Siam, 2009.
     """
     grad = f.gradient
     if x not in grad.domain:
@@ -352,21 +367,23 @@ def broydens_method(f, x, line_search=1.0, impl='first', maxiter=1000,
 
     Notes
     -----
-    This is a general and optimized implementation of Broyden's  method,
+    This is a general and optimized implementation of Broyden's method,
     a quasi-Newton method for solving a general unconstrained optimization
     problem
 
-        :math:`\min f(x)`
+    .. math::
+        \min f(x)
 
     for a differentiable function
     :math:`f: \mathcal{X}\\to \mathbb{R}` on a Hilbert space
     :math:`\mathcal{X}`. It does so by finding a zero of the gradient
 
-        :math:`\\nabla f: \mathcal{X} \\to \mathcal{X}`
+    .. math::
+        \\nabla f: \mathcal{X} \\to \mathcal{X}
 
     using a Newton-type update scheme with approximate Hessian.
 
-    The algorithm is described in [Bro1965]_ and [Kva1991]_, and in a
+    The algorithm is described in [Bro1965] and [Kva1991], and in a
     `Wikipedia article
     <https://en.wikipedia.org/wiki/Broyden's_method>`_.
 
@@ -393,6 +410,15 @@ def broydens_method(f, x, line_search=1.0, impl='first', maxiter=1000,
         Default: Identity on ``f.domain``
     callback : callable, optional
         Object executing code per iteration, e.g. plotting each iterate.
+
+    References
+    ----------
+    [Bro1965] Broyden, C G. *A class of methods for solving nonlinear
+    simultaneous equations*. Mathematics of computation, 33 (1965),
+    pp 577--593.
+
+    [Kva1991] Kvaalen, E. *A faster Broyden method*. BIT Numerical
+    Mathematics 31 (1991), pp 369--372.
     """
     grad = f.gradient
     if x not in grad.domain:

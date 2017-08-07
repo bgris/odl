@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Operators and functions for linearized deformation."""
 
@@ -108,7 +99,6 @@ class LinDeformFixedTempl(Operator):
     with fixed template maps :math:`V` into :math:`X`:
 
     .. math::
-
         W_I : V \\to X, \quad W_I(v) := I(\cdot + v(\cdot)),
 
     i.e., :math:`W_I(v)(x) = I(x + v(x))`.
@@ -117,7 +107,6 @@ class LinDeformFixedTempl(Operator):
     an operator that maps :math:`V` into :math:`X`:
 
     .. math::
-
         W_I'(v) : V \\to X, \quad W_I'(v)(u) =
         \\big< \\nabla I(\cdot + v(\cdot)), u \\big>_{\mathbb{R}^d},
 
@@ -128,7 +117,6 @@ class LinDeformFixedTempl(Operator):
     is also an operator that maps :math:`X` into :math:`V`:
 
     .. math::
-
         W_I'(v)^* : X \\to V, \quad W_I'(v)^*(J) =
         J \, \\nabla I(\cdot + v(\cdot)),
 
@@ -274,7 +262,6 @@ class LinDeformFixedDisp(Operator):
     displacement field :math:`v \\in V` maps :math:`X` into :math:`X`:
 
     .. math::
-
         W_v : X \\to X, \quad W_v(I) := I(\cdot + v(\cdot)),
 
     i.e., :math:`W_v(I)(x) = I(x + v(x))`.
@@ -284,7 +271,6 @@ class LinDeformFixedDisp(Operator):
     though, one can approximate the adjoint by
 
     .. math::
-
         W_v^*(I) \\approx \exp(-\mathrm{div}\, v) \, I(\cdot - v(\cdot)),
 
     i.e., :math:`W_v^*(I)(x) \\approx \exp(-\mathrm{div}\,v(x))\, I(x - v(x))`.

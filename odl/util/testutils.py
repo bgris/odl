@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Utilities for internal use."""
 
@@ -27,7 +18,10 @@ from itertools import zip_longest
 import numpy as np
 import sys
 import os
+import warnings
 from time import time
+from pkg_resources import parse_version
+from odl.util.utility import run_from_ipython
 
 
 __all__ = ('almost_equal', 'all_equal', 'all_almost_equal', 'never_skip',
@@ -310,6 +304,13 @@ def noise_array(space):
         Array with white noise such that ``space.element``'s can be created
         from it.
 
+    Examples
+    --------
+    Create single noise array:
+
+    >>> space = odl.rn(3)
+    >>> array = noise_array(space)
+
     See Also
     --------
     noise_element
@@ -358,6 +359,13 @@ def noise_element(space):
     -------
     noise_element : ``space`` element
 
+    Examples
+    --------
+    Create single noise element:
+
+    >>> space = odl.rn(3)
+    >>> vector = noise_element(space)
+
     See Also
     --------
     noise_array
@@ -375,7 +383,7 @@ def noise_elements(space, n=1):
     floating point dtypes and uniformly spaced values between -10 and 10 in
     the case of integer dtypes.
 
-    The returned elements wrap the arrays.
+    The returned elements have the same values as the arrays.
 
     For product spaces the method is called recursively for all sub-spaces.
 
@@ -399,6 +407,17 @@ def noise_elements(space, n=1):
         A single array if ``n == 1``, otherwise a tuple of arrays.
     elements : ``space`` element or tuple of ``space`` elements
         A single element if ``n == 1``, otherwise a tuple of elements.
+
+    Examples
+    --------
+    Create single noise element:
+
+    >>> space = odl.rn(3)
+    >>> arr, vector = noise_elements(space)
+
+    Create multiple noise elements:
+
+    >>> [arr1, arr2], [vector1, vector2] = noise_elements(space, n=2)
 
     See Also
     --------
@@ -653,6 +672,19 @@ def run_doctests(skip_if=False):
 
     import odl
     import numpy as np
+
+    if run_from_ipython():
+        try:
+            import spyder
+        except ImportError:
+            pass
+        else:
+            if parse_version(spyder.__version__) < parse_version('3.1.4'):
+                warnings.warn('A bug with IPython and Spyder < 3.1.4 '
+                              'sometimes cause doctests to fail to run. '
+                              'Please upgrade Spyder or use another '
+                              'interpreter if the doctests do not work.',
+                              RuntimeWarning)
 
     testmod(optionflags=optionflags,
             extraglobs={'odl': odl, 'np': np})

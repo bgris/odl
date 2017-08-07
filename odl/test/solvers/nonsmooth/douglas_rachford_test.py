@@ -1,27 +1,14 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test for the Douglas-Rachford solver."""
 
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
+from __future__ import division
 import pytest
 import odl
 from odl.solvers import douglas_rachford_pd
@@ -104,6 +91,36 @@ def test_primal_dual_l1():
     # Solve with f term dominating
     x = space.zero()
     douglas_rachford_pd(x, f, g, L, tau=3.0, sigma=[1.0], niter=10)
+
+    assert all_almost_equal(x, data_1, places=2)
+
+
+def test_primal_dual_no_operator():
+    """Verify that the correct value is returned when there is no operator.
+
+    Solves the optimization problem
+
+        min_x ||x - data_1||_1
+
+    which has optimum value data_1.
+    """
+
+    # Define the space
+    space = odl.rn(5)
+
+    # Operator
+    L = []
+
+    # Data
+    data_1 = odl.util.testutils.noise_element(space)
+
+    # Proximals
+    f = odl.solvers.L1Norm(space).translated(data_1)
+    g = []
+
+    # Solve with f term dominating
+    x = space.zero()
+    douglas_rachford_pd(x, f, g, L, tau=3.0, sigma=[], niter=10)
 
     assert all_almost_equal(x, data_1, places=2)
 

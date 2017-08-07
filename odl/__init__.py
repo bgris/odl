@@ -1,22 +1,12 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-"""ODL (Operator Discretization Library)
+"""ODL (Operator Discretization Library).
 
 ODL is a Python library for fast prototyping focusing on (but not
 restricted to) inverse problems.
@@ -24,9 +14,10 @@ restricted to) inverse problems.
 
 from __future__ import absolute_import
 
-__version__ = '0.5.4.dev0'
+__version__ = '0.6.1.dev0'
 __all__ = ('diagnostics', 'discr', 'operator', 'set', 'space', 'solvers',
-           'tomo', 'trafos', 'util', 'phantom', 'deform', 'ufunc_ops')
+           'tomo', 'trafos', 'util', 'phantom', 'deform', 'ufunc_ops',
+           'datasets', 'contrib')
 
 # Propagate names defined in __all__ of all submodules into the top-level
 # module
@@ -51,6 +42,10 @@ from . import util
 from . import phantom
 from . import deform
 from . import ufunc_ops
+
+from . import datasets
+from . import contrib
+
 
 from .util import test
 __all__ += ('test',)

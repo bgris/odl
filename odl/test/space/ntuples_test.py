@@ -1,34 +1,17 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-
-# External module imports
+from __future__ import division
 import numpy as np
 import pytest
 import operator
-import scipy as sp
+import scipy
 
-# ODL imports
 import odl
 from odl import NumpyNtuples, NumpyFn, NumpyFnVector
 from odl.operator.operator import Operator
@@ -37,19 +20,19 @@ from odl.space.npy_ntuples import (
     NumpyFnConstWeighting, NumpyFnArrayWeighting, NumpyFnMatrixWeighting,
     NumpyFnNoWeighting, NumpyFnCustomInner, NumpyFnCustomNorm,
     NumpyFnCustomDist,
-    npy_weighted_inner, npy_weighted_norm, npy_weighted_dist,
-    MatVecOperator)
+    npy_weighted_inner, npy_weighted_norm, npy_weighted_dist)
 from odl.util.testutils import (almost_equal, all_almost_equal, all_equal,
                                 noise_array, noise_element,
                                 noise_elements, simple_fixture)
 from odl.util.ufuncs import UFUNCS, REDUCTIONS
 
-# Check for python3
 from sys import version_info
 PYTHON2 = version_info < (3, 0)
 
 
-# Helpers to generate data
+# --- Helper functions --- #
+
+
 def _pos_array(fn):
     """Create an array with positive real entries as weight in `fn`."""
     return np.abs(noise_array(fn)) + 0.1
@@ -74,17 +57,19 @@ def _dense_matrix(fn):
 
 def _sparse_matrix(fn):
     """Create a sparse positive definite Hermitian matrix for `fn`."""
-    return sp.sparse.coo_matrix(_dense_matrix(fn))
+    return scipy.sparse.coo_matrix(_dense_matrix(fn))
 
 
-# Pytest fixtures
+# --- pytest fixtures --- #
+
 
 fn = simple_fixture('fn', [odl.rn(10, np.float64), odl.rn(10, np.float32),
                            odl.cn(10, np.complex128), odl.cn(10, np.complex64),
                            odl.rn(100)])
 exponent = simple_fixture('exponent', [2.0, 1.0, float('inf'), 0.5, 1.5])
 
-# ---- Ntuples, Rn and Cn ---- #
+
+# ---- Tests of Ntuples, Rn and Cn ---- #
 
 
 def test_init():
@@ -222,18 +207,6 @@ def test_vector_class_init(fn):
     arr = noise_array(fn)
 
     NumpyFnVector(fn, arr)
-    # Space has to be an actual space
-    for non_space in [1, complex, np.array([1, 2])]:
-        with pytest.raises(TypeError):
-            NumpyFnVector(non_space, arr)
-
-    # Data has to be a numpy array
-    with pytest.raises(TypeError):
-        NumpyFnVector(fn, list(arr))
-
-    # Data has to be a numpy array or correct dtype
-    with pytest.raises(TypeError):
-        NumpyFnVector(fn, arr.astype(int))
 
 
 def _test_lincomb(fn, a, b):
@@ -371,7 +344,7 @@ def test_unary_ops(fn):
         assert all_almost_equal([x, y], [x_arr, y_arr])
 
 
-def test_scalar_operator(fn, arithmetic_op):
+def test_binary_operator_scalar(fn, arithmetic_op):
     """Verify binary operations with scalars.
 
     Verifies that the statement y=op(x, scalar) gives equivalent results
@@ -402,7 +375,7 @@ def test_scalar_operator(fn, arithmetic_op):
         assert all_almost_equal([x, y], [x_arr, y_arr])
 
 
-def test_binary_operator(fn, arithmetic_op):
+def test_binary_operator_vector(fn, arithmetic_op):
     """Verify binary operations with vectors.
 
     Verifies that the statement z=op(x, y) gives equivalent results to NumPy.
@@ -426,6 +399,40 @@ def test_binary_operator(fn, arithmetic_op):
     z = arithmetic_op(x, x)
 
     assert all_almost_equal([x, y, z], [x_arr, y_arr, z_arr])
+
+
+def test_binary_operator_array(fn, arithmetic_op):
+    """Verify binary operations with vectors and arrays.
+
+    Verifies that the statement z=op(x, y) gives equivalent results to NumPy.
+    """
+    [x_arr, y_arr], [x, y] = noise_elements(fn, 2)
+
+    # non-aliased left
+    y_arr_cpy = y_arr.copy()
+    z_arr = arithmetic_op(x_arr, y_arr_cpy)
+    z = arithmetic_op(x, y_arr)
+
+    assert isinstance(z, type(x))
+    assert z.space == x.space
+    assert all_almost_equal([x, y_arr, z], [x_arr, y_arr_cpy, z_arr])
+
+    # non-aliased right
+    y_arr_cpy = y_arr.copy()
+    z_arr = arithmetic_op(y_arr_cpy, x_arr)
+    z = arithmetic_op(y_arr, x)
+
+    if arithmetic_op in [operator.iadd, operator.isub, operator.imul,
+                         operator.itruediv]:
+        # In place should still be numpy array
+        assert isinstance(z, np.ndarray)
+        assert all_almost_equal([x, y_arr, z],
+                                [x_arr, y_arr_cpy, z_arr])
+    else:
+        assert isinstance(z, type(x))
+        assert z.space == x.space
+        assert all_almost_equal([x, y_arr, z],
+                                [x_arr, y_arr_cpy, z_arr])
 
 
 def test_assign(fn):
@@ -776,208 +783,6 @@ def test_conj(fn):
     assert all_equal(y, xarr.conj())
 
 
-# ---- MatVecOperator ---- #
-
-
-def test_matvec_init(fn):
-    # Square matrices, sparse and dense
-    sparse_mat = _sparse_matrix(fn)
-    dense_mat = _dense_matrix(fn)
-
-    MatVecOperator(sparse_mat, fn, fn)
-    MatVecOperator(dense_mat, fn, fn)
-
-    # Test defaults
-    op_float = MatVecOperator([[1.0, 2],
-                               [-1, 0.5]])
-
-    assert isinstance(op_float.domain, NumpyFn)
-    assert op_float.domain.is_rn
-    assert isinstance(op_float.range, NumpyFn)
-    assert op_float.domain.is_rn
-
-    op_complex = MatVecOperator([[1.0, 2 + 1j],
-                                 [-1 - 1j, 0.5]])
-
-    assert isinstance(op_complex.domain, NumpyFn)
-    assert op_complex.domain.is_cn
-    assert isinstance(op_complex.range, NumpyFn)
-    assert op_complex.domain.is_cn
-
-    op_int = MatVecOperator([[1, 2],
-                             [-1, 0]])
-
-    assert isinstance(op_int.domain, NumpyFn)
-    assert op_int.domain.dtype == int
-    assert isinstance(op_int.range, NumpyFn)
-    assert op_int.domain.dtype == int
-
-    # Rectangular
-    rect_mat = 2 * np.eye(2, 3)
-    r2 = odl.rn(2)
-    r3 = odl.rn(3)
-
-    MatVecOperator(rect_mat, r3, r2)
-
-    with pytest.raises(ValueError):
-        MatVecOperator(rect_mat, r2, r2)
-
-    with pytest.raises(ValueError):
-        MatVecOperator(rect_mat, r3, r3)
-
-    with pytest.raises(ValueError):
-        MatVecOperator(rect_mat, r2, r3)
-
-    # Rn to Cn okay
-    MatVecOperator(rect_mat, r3, odl.cn(2))
-
-    # Cn to Rn not okay (no safe cast)
-    with pytest.raises(TypeError):
-        MatVecOperator(rect_mat, odl.cn(3), r2)
-
-    # Complex matrix between real spaces not okay
-    rect_complex_mat = rect_mat + 1j
-    with pytest.raises(TypeError):
-        MatVecOperator(rect_complex_mat, r3, r2)
-
-    # Init with array-like structure (including numpy.matrix)
-    MatVecOperator(rect_mat.tolist(), r3, r2)
-    MatVecOperator(np.asmatrix(rect_mat), r3, r2)
-
-
-def test_matvec_simple_properties():
-    # Matrix - always ndarray in for dense input, scipy.sparse.spmatrix else
-    rect_mat = 2 * np.eye(2, 3)
-    r2 = odl.rn(2)
-    r3 = odl.rn(3)
-
-    op = MatVecOperator(rect_mat, r3, r2)
-    assert isinstance(op.matrix, np.ndarray)
-
-    op = MatVecOperator(np.asmatrix(rect_mat), r3, r2)
-    assert isinstance(op.matrix, np.ndarray)
-
-    op = MatVecOperator(rect_mat.tolist(), r3, r2)
-    assert isinstance(op.matrix, np.ndarray)
-    assert not op.matrix_issparse
-
-    sparse_mat = _sparse_matrix(odl.rn(5))
-    op = MatVecOperator(sparse_mat, odl.rn(5), odl.rn(5))
-    assert isinstance(op.matrix, sp.sparse.spmatrix)
-    assert op.matrix_issparse
-
-
-def test_matvec_adjoint(fn):
-    # Square cases
-    sparse_mat = _sparse_matrix(fn)
-    dense_mat = _dense_matrix(fn)
-
-    op_sparse = MatVecOperator(sparse_mat, fn, fn)
-    op_dense = MatVecOperator(dense_mat, fn, fn)
-
-    # Just test if it runs, nothing interesting to test here
-    op_sparse.adjoint
-    op_dense.adjoint
-
-    # Rectangular case
-    rect_mat = 2 * np.eye(2, 3)
-    r2, r3 = odl.rn(2), odl.rn(3)
-    c2 = odl.cn(2)
-
-    op = MatVecOperator(rect_mat, r3, r2)
-    op_adj = op.adjoint
-    assert op_adj.domain == op.range
-    assert op_adj.range == op.domain
-    assert np.array_equal(op_adj.matrix, op.matrix.conj().T)
-    assert np.array_equal(op_adj.adjoint.matrix, op.matrix)
-
-    # The operator Rn -> Cn has no adjoint
-    op_noadj = MatVecOperator(rect_mat, r3, c2)
-    with pytest.raises(NotImplementedError):
-        op_noadj.adjoint
-
-
-def test_matvec_inverse(fn):
-    # Sparse case
-    sparse_mat = _sparse_matrix(fn)
-    op_sparse = MatVecOperator(sparse_mat, fn, fn)
-
-    op_sparse_inv = op_sparse.inverse
-    assert op_sparse_inv.domain == op_sparse.range
-    assert op_sparse_inv.range == op_sparse.domain
-    assert all_almost_equal(op_sparse_inv.matrix,
-                            np.linalg.inv(op_sparse.matrix.todense()))
-    assert all_almost_equal(op_sparse_inv.inverse.matrix,
-                            op_sparse.matrix.todense())
-
-    # Test application
-    x = noise_element(fn)
-    assert all_almost_equal(x, op_sparse.inverse(op_sparse(x)))
-
-    # Dense case
-    dense_mat = _dense_matrix(fn)
-    op_dense = MatVecOperator(dense_mat, fn, fn)
-    op_dense_inv = op_dense.inverse
-    assert op_dense_inv.domain == op_dense.range
-    assert op_dense_inv.range == op_dense.domain
-    assert all_almost_equal(op_dense_inv.matrix,
-                            np.linalg.inv(op_dense.matrix))
-    assert all_almost_equal(op_dense_inv.inverse.matrix,
-                            op_dense.matrix)
-
-    # Test application
-    x = noise_element(fn)
-    assert all_almost_equal(x, op_dense.inverse(op_dense(x)))
-
-
-def test_matvec_call(fn):
-    # Square cases
-    sparse_mat = _sparse_matrix(fn)
-    dense_mat = _dense_matrix(fn)
-    xarr, x = noise_elements(fn)
-
-    op_sparse = MatVecOperator(sparse_mat, fn, fn)
-    op_dense = MatVecOperator(dense_mat, fn, fn)
-
-    yarr_sparse = sparse_mat.dot(xarr)
-    yarr_dense = dense_mat.dot(xarr)
-
-    # Out-of-place
-    y = op_sparse(x)
-    assert all_almost_equal(y, yarr_sparse)
-
-    y = op_dense(x)
-    assert all_almost_equal(y, yarr_dense)
-
-    # In-place
-    y = fn.element()
-    op_sparse(x, out=y)
-    assert all_almost_equal(y, yarr_sparse)
-
-    y = fn.element()
-    op_dense(x, out=y)
-    assert all_almost_equal(y, yarr_dense)
-
-    # Rectangular case
-    rect_mat = 2 * np.eye(2, 3)
-    r2, r3 = odl.rn(2), odl.rn(3)
-
-    op = MatVecOperator(rect_mat, r3, r2)
-    xarr = np.arange(3, dtype=float)
-    x = r3.element(xarr)
-
-    yarr = rect_mat.dot(xarr)
-
-    # Out-of-place
-    y = op(x)
-    assert all_almost_equal(y, yarr)
-
-    # In-place
-    y = r2.element()
-    op(x, out=y)
-    assert all_almost_equal(y, yarr)
-
-
 # --- Weighting tests --- #
 
 
@@ -1006,7 +811,7 @@ def test_matrix_matrix():
     w_sparse = NumpyFnMatrixWeighting(sparse_mat)
     w_dense = NumpyFnMatrixWeighting(dense_mat)
 
-    assert isinstance(w_sparse.matrix, sp.sparse.spmatrix)
+    assert isinstance(w_sparse.matrix, scipy.sparse.spmatrix)
     assert isinstance(w_dense.matrix, np.ndarray)
 
 
@@ -1088,20 +893,20 @@ def test_matrix_equiv():
     assert not w_dense.equiv(w_different_dense)
 
     # Test shortcuts
-    sparse_eye = sp.sparse.eye(5)
+    sparse_eye = scipy.sparse.eye(5)
     w_eye = NumpyFnMatrixWeighting(sparse_eye)
     w_dense_eye = NumpyFnMatrixWeighting(sparse_eye.todense())
     w_eye_vec = NumpyFnArrayWeighting(np.ones(5))
 
     w_eye_wrong_exp = NumpyFnMatrixWeighting(sparse_eye, exponent=1)
 
-    sparse_smaller_eye = sp.sparse.eye(4)
+    sparse_smaller_eye = scipy.sparse.eye(4)
     w_smaller_eye = NumpyFnMatrixWeighting(sparse_smaller_eye)
 
-    sparse_shifted_eye = sp.sparse.eye(5, k=1)
+    sparse_shifted_eye = scipy.sparse.eye(5, k=1)
     w_shifted_eye = NumpyFnMatrixWeighting(sparse_shifted_eye)
 
-    sparse_almost_eye = sp.sparse.dia_matrix((np.ones(4), [0]), (5, 5))
+    sparse_almost_eye = scipy.sparse.dia_matrix((np.ones(4), [0]), (5, 5))
     w_almost_eye = NumpyFnMatrixWeighting(sparse_almost_eye)
 
     assert w_eye.equiv(w_dense_eye)
@@ -1167,7 +972,7 @@ def test_matrix_norm(fn, exponent):
         true_norm_dense = np.linalg.norm(dense_mat.dot(xarr), ord=exponent)
     else:  # ||x||_{A,p} = ||A^{1/p} x||_p
         # Calculate matrix power
-        eigval, eigvec = sp.linalg.eigh(dense_mat)
+        eigval, eigvec = scipy.linalg.eigh(dense_mat)
         eigval **= 1.0 / exponent
         mat_pow = (eigval * eigvec).dot(eigvec.conj().T)
         true_norm_dense = np.linalg.norm(np.dot(mat_pow, xarr), ord=exponent)
@@ -1215,7 +1020,7 @@ def test_matrix_dist(fn, exponent):
                                          ord=exponent)
     else:  # d(x, y)_{A,p} = ||A^{1/p} (x-y)||_p
         # Calculate matrix power
-        eigval, eigvec = sp.linalg.eigh(dense_mat)
+        eigval, eigvec = scipy.linalg.eigh(dense_mat)
         eigval **= 1.0 / exponent
         mat_pow = (eigval * eigvec).dot(eigvec.conj().T)
         true_dist_dense = np.linalg.norm(np.dot(mat_pow, xarr - yarr),
@@ -1449,8 +1254,8 @@ def test_constant_equals():
     w_other_const = NumpyFnConstWeighting(constant + 1)
     w_other_exp = NumpyFnConstWeighting(constant, exponent=1)
 
-    const_sparse_mat = sp.sparse.dia_matrix(([constant] * n, [0]),
-                                            shape=(n, n))
+    const_sparse_mat = scipy.sparse.dia_matrix(([constant] * n, [0]),
+                                               shape=(n, n))
     const_dense_mat = constant * np.eye(n)
     w_matrix_sp = NumpyFnMatrixWeighting(const_sparse_mat)
     w_matrix_de = NumpyFnMatrixWeighting(const_dense_mat)
@@ -1474,8 +1279,8 @@ def test_constant_equiv():
     w_const = NumpyFnConstWeighting(constant)
     w_const2 = NumpyFnConstWeighting(constant)
 
-    const_sparse_mat = sp.sparse.dia_matrix(([constant] * n, [0]),
-                                            shape=(n, n))
+    const_sparse_mat = scipy.sparse.dia_matrix(([constant] * n, [0]),
+                                               shape=(n, n))
     const_dense_mat = constant * np.eye(n)
     w_matrix_sp = NumpyFnMatrixWeighting(const_sparse_mat)
     w_matrix_de = NumpyFnMatrixWeighting(const_dense_mat)

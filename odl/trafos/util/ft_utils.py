@@ -1,19 +1,10 @@
-# Copyright 2014, 2015 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Utility functions for Fourier transforms on regularly sampled data."""
 
@@ -395,7 +386,7 @@ def _interp_kernel_ft(norm_freqs, interp):
     if interp_ == 'nearest':
         pass
     elif interp_ == 'linear':
-        ker_ft **= 2
+        ker_ft *= ker_ft
     else:
         raise ValueError("`interp` '{}' not understood".format(interp))
 
@@ -430,7 +421,7 @@ def dft_postprocess_data(arr, real_grid, recip_grid, shift, axes,
         for 'shift=True'  : xi_bar[k] = -pi + pi * (2*k) / N
         for 'shift=False' : xi_bar[k] = -pi + pi * (2*k+1) / N
 
-    See [Pre+2007]_, Section 13.9 "Computing Fourier Integrals Using
+    See [Pre+2007], Section 13.9 "Computing Fourier Integrals Using
     the FFT" for a similar approach.
 
     Parameters
@@ -465,6 +456,12 @@ def dft_postprocess_data(arr, real_grid, recip_grid, shift, axes,
     out : `numpy.ndarray`
         Result of the post-processing. If ``out`` was given, the returned
         object is a reference to it.
+
+    References
+    ----------
+    [Pre+2007] Press, W H, Teukolsky, S A, Vetterling, W T, and Flannery, B P.
+    *Numerical Recipes in C - The Art of Scientific Computing* (Volume 3).
+    Cambridge University Press, 2007.
     """
     arr = np.asarray(arr)
     if is_real_floating_dtype(arr.dtype):
@@ -545,10 +542,13 @@ def dft_postprocess_data(arr, real_grid, recip_grid, shift, axes,
         freqs = np.linspace(fmin, fmax, num=len_dft)
         stride = real_grid.stride[ax]
 
+        interp_kernel = _interp_kernel_ft(freqs, intp)
+        interp_kernel *= stride
+
         if op == 'multiply':
-            onedim_arr *= stride * _interp_kernel_ft(freqs, intp)
+            onedim_arr *= interp_kernel
         else:
-            onedim_arr /= stride * _interp_kernel_ft(freqs, intp)
+            onedim_arr /= interp_kernel
 
         onedim_arrs.append(onedim_arr.astype(out.dtype, copy=False))
 
@@ -602,13 +602,13 @@ def reciprocal_space(space, axes=None, halfcomplex=False, shift=True,
     if not isinstance(space, DiscreteLp):
         raise TypeError('`space` {!r} is not a `DiscreteLp` instance'
                         ''.format(space))
-    if not space.is_uniform:
-        raise ValueError('`space` is not uniformly discretized')
-
     if axes is None:
         axes = tuple(range(space.ndim))
-
     axes = normalized_axes_tuple(axes, space.ndim)
+
+    if not all(space.is_uniform_byaxis[axis] for axis in axes):
+        raise ValueError('`space` is not uniformly discretized in the '
+                         '`axes` of the transform')
 
     if halfcomplex and space.field != RealNumbers():
         raise ValueError('`halfcomplex` option can only be used with real '

@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Numerical helper functions for convenience or speed."""
 
@@ -253,7 +244,7 @@ def fast_1d_tensor_mult(ndarr, onedim_arrs, axes=None, out=None):
         axes[axes < 0] += out.ndim
         axes = list(axes)
 
-    if np.any(np.array(axes) >= out.ndim) or np.any(np.array(axes) < 0):
+    if not all(0 <= ai < out.ndim for ai in axes):
         raise ValueError('`axes` {} out of bounds for {} dimensions'
                          ''.format(axes_in, out.ndim))
 
@@ -278,8 +269,7 @@ def fast_1d_tensor_mult(ndarr, onedim_arrs, axes=None, out=None):
 
         # Get the axis to spare for the final multiplication, the one
         # with the largest stride.
-        axis_order = np.argsort(out.strides)
-        last_ax = axis_order[-1]
+        last_ax = np.argmax(out.strides)
         last_arr = alist[axes.index(last_ax)]
 
         # Build the semi-big array and multiply
@@ -289,14 +279,14 @@ def fast_1d_tensor_mult(ndarr, onedim_arrs, axes=None, out=None):
                 continue
 
             slc = [None] * out.ndim
-            slc[ax] = np.s_[:]
+            slc[ax] = slice(None)
             factor = factor * arr[slc]
 
         out *= factor
 
         # Finally multiply by the remaining 1d array
         slc = [None] * out.ndim
-        slc[last_ax] = np.s_[:]
+        slc[last_ax] = slice(None)
         out *= last_arr[slc]
 
     return out

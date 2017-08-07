@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Phantoms given by simple geometric objects such as cubes or spheres."""
 
@@ -24,7 +15,8 @@ standard_library.install_aliases()
 
 import numpy as np
 
-__all__ = ('cuboid', 'defrise', 'ellipsoid_phantom', 'indicate_proj_axis')
+__all__ = ('cuboid', 'defrise', 'ellipsoid_phantom', 'indicate_proj_axis',
+           'smooth_cuboid', 'tgv_phantom')
 
 
 def cuboid(space, min_pt=None, max_pt=None):
@@ -190,8 +182,9 @@ def indicate_proj_axis(space, scale_structures=0.5):
 
     Parameters
     ----------
-    space : `DiscretizedSpace`
-        Discretized space in which the phantom is supposed to be created
+    space : `DiscreteLp`
+        Space in which the phantom is supposed to be created, must be
+        2- or 3-dimensional.
     scale_structures : positive float in (0, 1], optional
         Scales objects (cube, cuboids)
 
@@ -202,9 +195,25 @@ def indicate_proj_axis(space, scale_structures=0.5):
 
     Examples
     --------
-    >>> space = odl.uniform_discr([0] * 3, [1] * 3, [8, 8, 8])
-    >>> phan = indicate_proj_axis(space).asarray()
-    >>> print(np.sum(phan, 0))
+    Phantom in 2D space:
+
+    >>> np.set_printoptions(edgeitems=4)  # make numpy print whole arrays
+    >>> space = odl.uniform_discr([0, 0], [1, 1], shape=(8, 8))
+    >>> phantom = indicate_proj_axis(space).asarray()
+    >>> print(phantom)
+    [[ 0.  0.  0.  0.  0.  0.  0.  0.]
+     [ 0.  0.  0.  1.  1.  0.  0.  0.]
+     [ 0.  0.  0.  1.  1.  0.  0.  0.]
+     [ 0.  0.  0.  0.  0.  0.  0.  0.]
+     [ 0.  0.  0.  0.  0.  0.  0.  0.]
+     [ 0.  0.  0.  0.  1.  0.  0.  0.]
+     [ 0.  0.  0.  1.  0.  0.  0.  0.]
+     [ 0.  0.  0.  0.  0.  0.  0.  0.]]
+
+    >>> space = odl.uniform_discr([0, 0, 0], [1, 1, 1], shape=(8, 8, 8))
+    >>> phantom = indicate_proj_axis(space).asarray()
+    >>> np.set_printoptions(edgeitems=4)  # make numpy print whole arrays
+    >>> print(np.sum(phantom, 0))
     [[ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  0.  0.  0.  0.  0.]
@@ -213,7 +222,7 @@ def indicate_proj_axis(space, scale_structures=0.5):
      [ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  0.  0.  0.  0.  0.]]
-    >>> print(np.sum(phan, 1))
+    >>> print(np.sum(phantom, 1))
     [[ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  2.  2.  0.  0.  0.]
      [ 0.  0.  0.  2.  2.  0.  0.  0.]
@@ -222,7 +231,7 @@ def indicate_proj_axis(space, scale_structures=0.5):
      [ 0.  0.  0.  1.  1.  0.  0.  0.]
      [ 0.  0.  0.  1.  1.  0.  0.  0.]
      [ 0.  0.  0.  0.  0.  0.  0.  0.]]
-    >>> print(np.sum(phan, 2))
+    >>> print(np.sum(phantom, 2))
     [[ 0.  0.  0.  0.  0.  0.  0.  0.]
      [ 0.  0.  0.  2.  2.  0.  0.  0.]
      [ 0.  0.  0.  2.  2.  0.  0.  0.]
@@ -236,7 +245,7 @@ def indicate_proj_axis(space, scale_structures=0.5):
         raise ValueError('`scale_structures` ({}) is not in (0, 1]'
                          ''.format(scale_structures))
 
-    assert space.ndim == 3
+    assert space.ndim in (2, 3)
 
     shape = space.shape
     phan = np.zeros(shape)
@@ -245,25 +254,36 @@ def indicate_proj_axis(space, scale_structures=0.5):
     dx = np.floor(scale_structures * 0.25 * shape)
     dx[dx == 0] = 1
 
-    # cube of size 2 * dx
-    x0 = (cen - 3 * dx)[0]
-    x, y, z = cen - 1 * dx
-    phan[int(x0):int(x), int(y):int(-y), int(z):int(-z)] = 1
+    # cube of size 2 * dx, offset in x axis, symmetric in others
+    ix0 = int((cen - 3 * dx)[0])
+    if space.ndim == 2:
+        ix, iy = (cen - 1 * dx).astype(int)
+        phan[ix0:ix, iy:-iy] = 1
+    elif space.ndim == 3:
+        ix, iy, iz = (cen - 1 * dx).astype(int)
+        phan[ix0:ix, iy:-iy, iz:-iz] = 1
 
-    # 1st cuboid of size (dx[0], dx[1], 2 * dx[2])
-    x0 = (cen + 1 * dx)[1]
-    x1 = (cen + 2 * dx)[1]
-    y0 = cen[1]
-    z = (cen - dx)[2]
-    phan[int(x0):int(x1), int(y0):int(-y), int(z):int(-z)] = 1
+    # 1st cuboid of size (dx[0], dx[1], 2 * dx[2]), offset in x and y axes,
+    # symmetric in z axis
+    ix0 = int((cen + 1 * dx)[1])
+    ix1 = int((cen + 2 * dx)[1])
+    iy0 = int(cen[1])
+    if space.ndim == 2:
+        phan[ix0:ix1, iy0:-iy] = 1
+    elif space.ndim == 3:
+        iz = int((cen - dx)[2])
+        phan[ix0:ix1, iy0:-iy, iz:-iz] = 1
 
     # 2nd cuboid of (dx[0], dx[1], 2 * dx[2]) touching the first diagonally
-    # at a long edge
-    x0 = (cen + 2 * dx)[1]
-    x1 = (cen + 3 * dx)[1]
-    y1 = cen[1]
-    z = (cen - dx)[2]
-    phan[int(x0):int(x1), int(y):int(y1), int(z):int(-z)] = 1
+    # at a long edge; offset in x and y axes, symmetric in z axis
+    ix0 = int((cen + 2 * dx)[1])
+    ix1 = int((cen + 3 * dx)[1])
+    iy1 = int(cen[1])
+    if space.ndim == 2:
+        phan[ix0:ix1, iy:iy1] = 1
+    elif space.ndim == 3:
+        iz = int((cen - dx)[2])
+        phan[ix0:ix1, iy:iy1, iz:-iz] = 1
 
     return space.element(phan)
 
@@ -275,6 +295,7 @@ def _getshapes_2d(center, max_radius, shape):
     index_radius = max_radius / 2.0 * np.array(shape)
 
     min_idx = np.floor(index_mean - index_radius).astype(int)
+    min_idx = np.maximum(min_idx, 0)  # avoid negative indices
     max_idx = np.ceil(index_mean + index_radius).astype(int)
     idx = [slice(minx, maxx) for minx, maxx in zip(min_idx, max_idx)]
     shapes = [(idx[0], slice(None)),
@@ -374,10 +395,10 @@ def _ellipse_phantom_2d(space, ellipses):
             # Parentheses to get best order for broadcasting
             radius = squared_dist[0] + squared_dist[1]
 
-        # Find the pixels within the ellipse
+        # Find the points within the ellipse
         inside = radius <= 1
 
-        # Add the ellipse intensity to those pixels
+        # Add the ellipse intensity to those points
         p[idx][inside] += intensity
 
     return space.element(p)
@@ -390,12 +411,14 @@ def _getshapes_3d(center, max_radius, shape):
     index_radius = max_radius / 2.0 * np.array(shape)
 
     min_idx = np.floor(index_mean - index_radius).astype(int)
+    min_idx = np.maximum(min_idx, 0)  # avoid negative indices
     max_idx = np.ceil(index_mean + index_radius).astype(int)
     idx = [slice(minx, maxx) for minx, maxx in zip(min_idx, max_idx)]
     shapes = [(idx[0], slice(None), slice(None)),
               (slice(None), idx[1], slice(None)),
               (slice(None), slice(None), idx[2])]
     return idx, shapes
+
 
 
 def _ellipsoid_phantom_3d(space, ellipsoids):
@@ -418,6 +441,7 @@ def _ellipsoid_phantom_3d(space, ellipsoids):
     -------
     phantom : ``space`` element
         3D ellipsoid phantom in ``space``.
+
 
     See Also
     --------
@@ -509,17 +533,19 @@ def _ellipsoid_phantom_3d(space, ellipsoids):
             # Parentheses to get best order for broadcasting
             radius = squared_dist[0] + (squared_dist[1] + squared_dist[2])
 
-        # Find the pixels within the ellipse
+        # Find the points within the ellipse
         inside = radius <= 1
 
-        # Add the ellipse intensity to those pixels
+        # Add the ellipse intensity to those points
         p[idx][inside] += intensity
 
     return space.element(p)
 
 
+
 def ellipsoid_phantom(space, ellipsoids):
     """Return a phantom given by ellipsoids.
+
 
     Parameters
     ----------
@@ -592,44 +618,203 @@ def ellipsoid_phantom(space, ellipsoids):
         raise ValueError('dimension not 2 or 3, no phantom available')
 
 
+def smooth_cuboid(space, min_pt=None, max_pt=None, axis=0):
+    """Cuboid with smooth variations.
+
+    Parameters
+    ----------
+    space : `DiscreteLp`
+        Discretized space in which the phantom is supposed to be created.
+    min_pt : array-like of shape ``(space.ndim,)``, optional
+        Lower left corner of the cuboid. If ``None`` is given, a quarter
+        of the extent from ``space.min_pt`` towards the inside is chosen.
+    max_pt : array-like of shape ``(space.ndim,)``, optional
+        Upper right corner of the cuboid. If ``None`` is given, ``min_pt``
+        plus half the extent is chosen.
+    axis : int or sequence of int
+        Dimension(s) along which the smooth variation should happen.
+
+    Returns
+    -------
+    phantom : ``space``-element
+        The generated cuboid phantom in ``space``. Values have range [0, 1].
+    """
+    dom_min_pt = space.domain.min()
+    dom_max_pt = space.domain.max()
+
+    if min_pt is None:
+        min_pt = dom_min_pt * 0.75 + dom_max_pt * 0.25
+    if max_pt is None:
+        max_pt = dom_min_pt * 0.25 + dom_max_pt * 0.75
+
+    min_pt = np.atleast_1d(min_pt)
+    max_pt = np.atleast_1d(max_pt)
+
+    axis = np.array(axis, dtype=int, ndmin=1)
+
+    if min_pt.shape != (space.ndim,):
+        raise ValueError('shape of `min_pt` must be {}, got {}'
+                         ''.format((space.ndim,), min_pt.shape))
+    if max_pt.shape != (space.ndim,):
+        raise ValueError('shape of `max_pt` must be {}, got {}'
+                         ''.format((space.ndim,), max_pt.shape))
+
+    sign = 0
+    for i, coord in enumerate(space.meshgrid):
+        sign = sign | (coord < min_pt[i]) | (coord > max_pt[i])
+
+    values = 0
+    for i in axis:
+        coord = space.meshgrid[i]
+        extent = (dom_max_pt[i] - dom_min_pt[i])
+        values = values + 2 * (coord - dom_min_pt[i]) / extent - 1
+
+    # Properly scale using sign
+    sign = (3 * sign - 2) / axis.size
+
+    # Fit in [0, 1]
+    values = values * sign
+    values = (values - np.min(values)) / (np.max(values) - np.min(values))
+
+    return space.element(values)
+
+
+def tgv_phantom(space, edge_smoothing=0.2):
+    """Piecewise affine phantom.
+
+    This phantom is taken from [Bre+2010] and includes both linearly varying
+    regions and sharp discontinuities. It is designed to work well with
+    Total Generalized Variation (TGV) type regularization.
+
+    Parameters
+    ----------
+    space : `DiscreteLp`, 2 dimensional
+        Discretized space in which the phantom is supposed to be created.
+        Needs to be two-dimensional.
+    edge_smoothness : nonnegative float, optional
+        Smoothing of the edges of the phantom, given as smoothing width in
+        units of minimum pixel size.
+
+    Returns
+    -------
+    phantom : ``space``-element
+        The generated phantom in ``space``. Values have range [0, 1].
+
+    Notes
+    -----
+    The original phantom is given by a specific image. In this implementation,
+    we extracted the underlying parameters and the phantom thus works with
+    spaces of any shape. Due to this, small variations may occur when compared
+    to the original phantom.
+
+    References
+    ----------
+    [Bre+2010] K. Bredies, K. Kunisch, and T. Pock.
+    *Total Generalized Variation*. SIAM Journal on Imaging Sciences,
+    3(3):492–526, Jan. 2010
+    """
+    if space.ndim != 2:
+        raise ValueError('`space.ndim` must be 2, got {}'
+                         ''.format(space.ndim))
+
+    edge_smoothing, edge_smoothing_in = float(edge_smoothing), edge_smoothing
+    if edge_smoothing < 0:
+        raise ValueError('`edge_smoothing` must be >= 0, got {}'
+                         ''.format(edge_smoothing_in))
+
+    y, x = space.meshgrid
+
+    # Use a smooth sigmoid to get some anti-aliasing across edges.
+    scale = edge_smoothing / np.min(space.shape)
+
+    def sigmoid(val):
+        if edge_smoothing != 0:
+            val = val / scale
+            return 1 / (1 + np.exp(-val))
+        else:
+            return (val > 0).astype(val.dtype)
+
+    # Normalize to [0, 1]
+    x = (x - np.min(x)) / (np.max(x) - np.min(x))
+    y = (y - np.min(y)) / (np.max(y) - np.min(y))
+
+    # Background
+    values = -(x + y) / 2
+
+    # Square-ish region
+    indicator = np.ones(space.shape)
+    indicator *= sigmoid(-(0.015199034981905914 * x - y + 0.13896260554885403))
+    indicator *= sigmoid((0.3333333333333323 * y - x + 0.598958333333334))
+    indicator *= sigmoid((-2.4193548387096726 * y - x + 2.684979838709672))
+
+    values += indicator * 2 * (x + y - 1)
+
+    # Ellipse part
+    x_c = x - 0.71606842360499456
+    y_c = y - 0.18357884949910641
+
+    width = 0.55677657235995637
+    height = 0.37279391542283741
+    phi = 0.62911754900697558
+
+    x_c_rot = (np.cos(phi) * x_c - np.sin(phi) * y_c) / width
+    y_c_rot = (np.sin(phi) * x_c + np.cos(phi) * y_c) / height
+
+    indicator = sigmoid(np.sqrt(x_c_rot ** 2 + y_c_rot ** 2) - 1)
+
+    values = indicator * values + 1.5 * (1 - indicator) * (-x - 2 * y + 0.6)
+
+    # Normalize values
+    values = (values - np.min(values)) / (np.max(values) - np.min(values))
+
+    return space.element(values)
+
+
 if __name__ == '__main__':
     # Show the phantoms
     import odl
 
     # cuboid 1D
-    discr = odl.uniform_discr(-1, 1, 300)
-    cuboid(discr).show('cuboid 1d')
+    space = odl.uniform_discr(-1, 1, 300)
+    cuboid(space).show('cuboid 1d')
 
     # cuboid 2D
-    discr = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
-    cuboid(discr).show('cuboid 2d')
+    space = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
+    cuboid(space).show('cuboid 2d')
+
+    # smooth cuboid
+    smooth_cuboid(space).show('smooth_cuboid x 2d')
+    smooth_cuboid(space, axis=[0, 1]).show('smooth_cuboid x-y 2d')
+
+    # TGV phantom
+    tgv_phantom(space).show('tgv_phantom')
 
     # cuboid 3D
-    discr = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
-    cuboid(discr).show('cuboid 3d')
+    space = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
+    cuboid(space).show('cuboid 3d')
 
     # Indicate proj axis 3D
-    indicate_proj_axis(discr).show('indicate_proj_axis 3d')
+    indicate_proj_axis(space).show('indicate_proj_axis 3d')
 
     # ellipsoid phantom 2D
-    discr = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
+    space = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
     ellipses = [[1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
                 [1.0, 0.6, 0.6, 0.0, 0.0, 0.0]]
-    ellipsoid_phantom(discr, ellipses).show('ellipse phantom 2d')
+    ellipsoid_phantom(space, ellipses).show('ellipse phantom 2d')
 
     # ellipsoid phantom 3D
-    discr = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
+    space = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
     ellipsoids = [[1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                   [1.0, 0.6, 0.6, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]
-    ellipsoid_phantom(discr, ellipsoids).show('ellipse phantom 3d')
+    ellipsoid_phantom(space, ellipsoids).show('ellipse phantom 3d')
 
     # Defrise phantom 2D
-    discr = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
-    defrise(discr).show('defrise 2D')
+    space = odl.uniform_discr([-1, -1], [1, 1], [300, 300])
+    defrise(space).show('defrise 2D')
 
     # Defrise phantom 2D
-    discr = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
-    defrise(discr).show('defrise 3D', coords=[0, None, None])
+    space = odl.uniform_discr([-1, -1, -1], [1, 1, 1], [300, 300, 300])
+    defrise(space).show('defrise 3D', coords=[0, None, None])
 
     # Run also the doctests
     # pylint: disable=wrong-import-position

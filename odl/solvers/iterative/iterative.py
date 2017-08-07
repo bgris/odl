@@ -1,19 +1,10 @@
-# Copyright 2014-2017 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Simple iterative type optimization schemes."""
 
@@ -33,7 +24,7 @@ __all__ = ('landweber', 'conjugate_gradient', 'conjugate_gradient_normal',
 # TODO: update all docs
 
 
-def landweber(op, x, rhs, niter=1, omega=1, projection=None, callback=None):
+def landweber(op, x, rhs, niter, omega=1, projection=None, callback=None):
     """Optimized implementation of Landweber's method.
 
     Solves the inverse problem::
@@ -51,7 +42,7 @@ def landweber(op, x, rhs, niter=1, omega=1, projection=None, callback=None):
         updated in each iteration step.
     rhs : ``op.range`` element
         Right-hand side of the equation defining the inverse problem.
-    niter : int, optional
+    niter : int
         Number of iterations.
     omega : positive float, optional
         Relaxation parameter in the iteration.
@@ -67,13 +58,14 @@ def landweber(op, x, rhs, niter=1, omega=1, projection=None, callback=None):
     This method calculates an approximate least-squares solution of
     the inverse problem of the first kind
 
-        :math:`\mathcal{A} (x) = y`,
+    .. math::
+        \mathcal{A} (x) = y,
 
     for a given :math:`y\\in \mathcal{Y}`, i.e. an approximate
     solution :math:`x^*` to
 
-        :math:`\min_{x\\in \mathcal{X}}
-        \\lVert \mathcal{A}(x) - y \\rVert_{\mathcal{Y}}^2`
+    .. math::
+        \min_{x\\in \mathcal{X}} \| \mathcal{A}(x) - y \|_{\mathcal{Y}}^2
 
     for a (Frechet-) differentiable operator
     :math:`\mathcal{A}: \mathcal{X} \\to \mathcal{Y}` between Hilbert
@@ -81,8 +73,9 @@ def landweber(op, x, rhs, niter=1, omega=1, projection=None, callback=None):
     starts from an initial guess :math:`x_0` and uses the
     iteration
 
-    :math:`x_{k+1} = x_k -
-    \omega \ \partial \mathcal{A}(x)^* (\mathcal{A}(x_k) - y)`,
+    .. math::
+        x_{k+1} = x_k -
+                  \omega \ \partial \mathcal{A}(x)^* (\mathcal{A}(x_k) - y),
 
     where :math:`\partial \mathcal{A}(x)` is the Frechet derivativ
     of :math:`\mathcal{A}` at :math:`x` and :math:`\omega` is a
@@ -124,7 +117,7 @@ def landweber(op, x, rhs, niter=1, omega=1, projection=None, callback=None):
             callback(x)
 
 
-def conjugate_gradient(op, x, rhs, niter=1, callback=None):
+def conjugate_gradient(op, x, rhs, niter, callback=None):
     """Optimized implementation of CG for self-adjoint operators.
 
     This method solves the inverse problem (of the first kind)::
@@ -152,7 +145,7 @@ def conjugate_gradient(op, x, rhs, niter=1, callback=None):
         updated in each iteration step.
     rhs : ``op.range`` element
         Right-hand side of the equation defining the inverse problem.
-    niter : int, optional
+    niter : int
         Number of iterations.
     callback : callable, optional
         Object executing code per iteration, e.g. plotting each iterate.
@@ -208,13 +201,13 @@ def conjugate_gradient(op, x, rhs, niter=1, callback=None):
 def conjugate_gradient_normal(op, x, rhs, niter=1, callback=None):
     """Optimized implementation of CG for the normal equation.
 
-    This method solves the normal equations::
+    This method solves the inverse problem (of the first kind) ::
 
-        A.adjoint(A(x)) = A.adjoint(y)
+        A(x) == rhs
 
-    to the inverse problem (of the first kind)::
+    with a linear `Operator` ``A`` by looking at the normal equation ::
 
-        A(x) = y
+        A.adjoint(A(x)) == A.adjoint(rhs)
 
     It uses a minimum amount of memory copies by applying re-usable
     temporaries and in-place evaluation.
@@ -237,7 +230,7 @@ Conjugate_gradient_on_the_normal_equations>`_.
         updated in each iteration step.
     rhs : ``op.range`` element
         Right-hand side of the equation defining the inverse problem
-    niter : int, optional
+    niter : int
         Number of iterations.
     callback : callable, optional
         Object executing code per iteration, e.g. plotting each iterate.
@@ -310,7 +303,7 @@ def exp_zero_seq(base):
         yield value
 
 
-def gauss_newton(op, x, rhs, niter=1, zero_seq=exp_zero_seq(2.0),
+def gauss_newton(op, x, rhs, niter, zero_seq=exp_zero_seq(2.0),
                  callback=None):
     """Optimized implementation of a Gauss-Newton method.
 
@@ -342,7 +335,7 @@ def gauss_newton(op, x, rhs, niter=1, zero_seq=exp_zero_seq(2.0),
         updated in each iteration step.
     rhs : ``op.range`` element
         Right-hand side of the equation defining the inverse problem
-    niter : int, optional
+    niter : int
         Maximum number of iterations.
     zero_seq : iterable, optional
         Zero sequence whose values are used for the regularization of
@@ -392,7 +385,7 @@ def gauss_newton(op, x, rhs, niter=1, zero_seq=exp_zero_seq(2.0),
             callback(x)
 
 
-def kaczmarz(ops, x, rhs, niter=1, omega=1, projection=None,
+def kaczmarz(ops, x, rhs, niter, omega=1, projection=None,
              callback=None):
     """Optimized implementation of Kaczmarz's method.
 
@@ -414,7 +407,7 @@ def kaczmarz(ops, x, rhs, niter=1, omega=1, projection=None,
         updated in each iteration step.
     rhs : sequence of ``ops[i].range`` elements
         Right-hand side of the equation defining the inverse problem.
-    niter : int, optional
+    niter : int
         Number of iterations.
     omega : positive float or sequence of positive floats, optional
         Relaxation parameter in the iteration. If a single float is given the

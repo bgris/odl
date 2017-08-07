@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test configuration file."""
 
@@ -27,16 +18,13 @@ import os
 
 import odl
 from odl.trafos.backends import PYFFTW_AVAILABLE, PYWT_AVAILABLE
-from odl.util import dtype_repr, OptionalArgDecorator
+from odl.util import dtype_repr
 
 try:
     from pytest import fixture
 except ImportError:
-    # Make trivial decorator
-    class fixture(OptionalArgDecorator):
-        @staticmethod
-        def _wrapper(f, *a, **kw):
-            return f
+    # Make fixture the identity decorator (default of OptionalArgDecorator)
+    from odl.util import OptionalArgDecorator as fixture
 
 
 # --- Add numpy and ODL to all doctests ---
@@ -66,7 +54,21 @@ def pytest_addoption(parser):
 
 this_dir = os.path.dirname(__file__)
 odl_root = os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir))
-collect_ignore = [os.path.join(odl_root, 'setup.py')]
+collect_ignore = [os.path.join(odl_root, 'setup.py'),
+                  os.path.join(odl_root, 'odl', 'contrib')]
+
+
+# Add example directories to `collect_ignore`
+def find_example_dirs():
+    dirs = []
+    for dirpath, dirnames, _ in os.walk(odl_root):
+        if 'examples' in dirnames:
+            dirs.append(os.path.join(dirpath, 'examples'))
+    return dirs
+
+
+collect_ignore.extend(find_example_dirs())
+
 
 if not PYFFTW_AVAILABLE:
     collect_ignore.append(
@@ -81,8 +83,14 @@ if not PYWT_AVAILABLE:
         os.path.join(odl_root, 'odl', 'trafos', 'wavelet.py'))
 
 
+# Remove duplicates
+collect_ignore = list(set(collect_ignore))
+collect_ignore = [os.path.normcase(ignored) for ignored in collect_ignore]
+
+
 def pytest_ignore_collect(path, config):
-    return os.path.normcase(str(path)) in collect_ignore
+    normalized = os.path.normcase(str(path))
+    return any(normalized.startswith(ignored) for ignored in collect_ignore)
 
 
 # --- Reusable fixtures ---

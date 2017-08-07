@@ -1,67 +1,38 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Test for the Functional class."""
 
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
-
-# External
+from __future__ import division
 import numpy as np
 import pytest
 
-# Internal
 import odl
 from odl.operator import OpTypeError
-from odl.util.testutils import all_almost_equal, almost_equal, noise_element
+from odl.util.testutils import (all_almost_equal, almost_equal, noise_element,
+                                simple_fixture)
 from odl.solvers.functional.default_functionals import (
     KullbackLeiblerConvexConj)
 
 
 # TODO: maybe add tests for if translations etc. belongs to the wrong space.
-# These tests doesn't work as intended now, since casting is possible between
+# These tests don't work as intended now, since casting is possible between
 # spaces with the same number of discretization points.
 
 
 # --- pytest fixtures --- #
 
 
-scalar_params = [0.01, 2.7, 10, -2, -0.2, -7.1, 0]
-scalar_ids = [' scalar={} '.format(s) for s in scalar_params]
-
-
-@pytest.fixture(scope='module', params=scalar_params, ids=scalar_ids)
-def scalar(request):
-    return request.param
-
+scalar = simple_fixture('scalar', [0.01, 2.7, 10, -2, -0.2, -7.1, 0])
+sigma = simple_fixture('sigma', [0.001, 2.7, np.array(0.5), 10])
 
 space_params = ['r10', 'uniform_discr']
 space_ids = [' space = {} '.format(p) for p in space_params]
-
-
-sigma_params = [0.001, 2.7, np.array(0.5), 10]
-sigma_ids = [' sigma={} '.format(s) for s in sigma_params]
-
-
-@pytest.fixture(scope='module', params=sigma_params, ids=sigma_ids)
-def sigma(request):
-    return request.param
 
 
 @pytest.fixture(scope="module", ids=space_ids, params=space_params)
@@ -447,8 +418,8 @@ def test_translation_of_functional(space):
 
     # Test for conjugate functional
     # The helper function below is tested explicitly further down in this file
-    expected_result = odl.solvers.FunctionalLinearPerturb(
-        test_functional.convex_conj, translation)(x)
+    expected_result = odl.solvers.FunctionalQuadraticPerturb(
+        test_functional.convex_conj, linear_term=translation)(x)
     assert all_almost_equal(translated_functional.convex_conj(x),
                             expected_result, places=places)
 
@@ -525,52 +496,69 @@ def test_multiplication_with_vector(space):
     assert all_almost_equal(y_other_times_func(x), expected_result,
                             places=places)
 
+# Fixtures for test_functional_quadratic_perturb
+linear_term = simple_fixture('linear_term', [False, True])
+quadratic_coeff = simple_fixture('quadratic_coeff', [0.0, 2.13])
 
-def test_functional_linear_perturb(space):
-    """Test for the functional f(.) + <y, .>."""
+
+def test_functional_quadratic_perturb(space, linear_term, quadratic_coeff):
+    """Test for the functional f(.) + a | . |^2 + <y, .>."""
     # Less strict checking for single precision
     places = 3 if space.dtype == np.float32 else 5
 
-    # The translation; an element in the domain
-    linear_term = noise_element(space)
-
-    # Creating the functional ||x||_2^2 and add the linear perturbation
     orig_func = odl.solvers.L2NormSquared(space)
-    functional = odl.solvers.FunctionalLinearPerturb(orig_func, linear_term)
+
+    if linear_term:
+        linear_term_arg = None
+        linear_term = space.zero()
+    else:
+        linear_term_arg = linear_term = noise_element(space)
+
+    # Creating the functional ||x||_2^2 and add the quadratic perturbation
+    functional = odl.solvers.FunctionalQuadraticPerturb(
+        orig_func,
+        quadratic_coeff=quadratic_coeff,
+        linear_term=linear_term_arg)
 
     # Create an element in the space, in which to evaluate
     x = noise_element(space)
 
     # Test for evaluation of the functional
-    assert all_almost_equal(functional(x), x.norm()**2 + x.inner(linear_term),
+    assert all_almost_equal(functional(x),
+                            (orig_func(x) +
+                             quadratic_coeff * x.inner(x) +
+                             x.inner(linear_term)),
                             places=places)
 
     # Test for the gradient
-    assert all_almost_equal(functional.gradient(x), 2.0 * x + linear_term,
+    assert all_almost_equal(functional.gradient(x),
+                            (orig_func.gradient(x) +
+                             2.0 * quadratic_coeff * x +
+                             linear_term),
                             places=places)
 
-    # Test for derivative in direction p
-    p = noise_element(space)
-    assert all_almost_equal(functional.derivative(x)(p),
-                            p.inner(2 * x + linear_term),
-                            places=places)
-
-    # Test for the proximal operator
+    # Test for the proximal operator if it exists
     sigma = 1.2
-    # Explicit computation gives (x - sigma * translation)/(2 * sigma + 1)
-    expected_result = (x - sigma * linear_term) / (2.0 * sigma + 1.0)
-    assert all_almost_equal(functional.proximal(sigma)(x), expected_result,
+    # Explicit computation gives
+    c = 1 / np.sqrt(2 * sigma * quadratic_coeff + 1)
+    prox = orig_func.proximal(sigma * c ** 2)
+    expected_result = prox((x - sigma * linear_term) * c ** 2)
+    assert all_almost_equal(functional.proximal(sigma)(x),
+                            expected_result,
                             places=places)
 
     # Test convex conjugate functional
-    assert almost_equal(functional.convex_conj(x),
-                        orig_func.convex_conj.translated(linear_term)(x),
-                        places=places)
+    if quadratic_coeff == 0:
+        expected = orig_func.convex_conj.translated(linear_term)(x)
+        assert almost_equal(functional.convex_conj(x),
+                            expected,
+                            places=places)
 
     # Test proximal of the convex conjugate
+    cconj_prox = odl.solvers.proximal_convex_conj(functional.proximal)
     assert all_almost_equal(
         functional.convex_conj.proximal(sigma)(x),
-        orig_func.convex_conj.translated(linear_term).proximal(sigma)(x),
+        cconj_prox(sigma)(x),
         places=places)
 
 

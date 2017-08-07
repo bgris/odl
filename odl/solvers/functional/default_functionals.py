@@ -1,19 +1,10 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Default functionals defined on any space similar to R^n or L^2."""
 
@@ -34,9 +25,10 @@ from odl.operator import (Operator, ConstantOperator, ZeroOperator,
 from odl.solvers.functional.functional import (
     Functional, FunctionalDefaultConvexConjugate)
 from odl.solvers.nonsmooth.proximal_operators import (
-    proximal_l1, proximal_cconj_l1, proximal_l2, proximal_cconj_l2,
+    proximal_l1, proximal_convex_conj_l1, proximal_l2, proximal_convex_conj_l2,
     proximal_l2_squared, proximal_const_func, proximal_box_constraint,
-    proximal_cconj, proximal_cconj_kl, proximal_cconj_kl_cross_entropy,
+    proximal_convex_conj, proximal_convex_conj_kl,
+    proximal_convex_conj_kl_cross_entropy,
     combine_proximals)
 from odl.util import conj_exponent
 
@@ -62,14 +54,12 @@ class LpNorm(Functional):
     :math:`\| \cdot \|_p`-norm is defined as
 
     .. math::
-
         \| x \|_p = \\left(\\sum_{i=1}^n |x_i|^p \\right)^{1/p}.
 
     If the functional is defined on an :math:`L_2`-like space, the
     :math:`\| \cdot \|_p`-norm is defined as
 
     .. math::
-
         \| x \|_p = \\left(\\int_\Omega |x(t)|^p dt. \\right)^{1/p}
     """
 
@@ -204,7 +194,6 @@ class GroupL1Norm(Functional):
     :math:`\| \\cdot \|_{\\times, p}` is defined as
 
     .. math::
-
         \|F\|_{\\times, p} =
         \\sum_{i = 1}^n \\left(\\sum_{j=1}^m |F_{i,j}|^p\\right)^{1/p}
 
@@ -212,7 +201,6 @@ class GroupL1Norm(Functional):
     the group :math:`L_1`-norm is defined as
 
     .. math::
-
         \| F \|_{\\times, p} =
         \\int_{\Omega} \\left(\\sum_{j = 1}^m |F_j(x)|^p\\right)^{1/p}
         \mathrm{d}x.
@@ -406,13 +394,13 @@ class IndicatorGroupL1UnitBall(Functional):
 
         See Also
         --------
-        proximal_cconj_l1 : `proximal factory` for the L1-norms convex
+        proximal_convex_conj_l1 : `proximal factory` for the L1-norms convex
                             conjugate.
         """
         if self.pointwise_norm.exponent == np.inf:
-            return proximal_cconj_l1(space=self.domain)
+            return proximal_convex_conj_l1(space=self.domain)
         elif self.pointwise_norm.exponent == 2:
-            return proximal_cconj_l1(space=self.domain, isotropic=True)
+            return proximal_convex_conj_l1(space=self.domain, isotropic=True)
         else:
             raise NotImplementedError('`proximal` only implemented for p = 1 '
                                       'or 2')
@@ -447,7 +435,6 @@ class IndicatorLpUnitBall(Functional):
     This functional is defined as
 
         .. math::
-
             f(x) = \\left\{ \\begin{array}{ll}
             0 & \\text{if } ||x||_{L_p} \\leq 1, \\\\
             \\infty & \\text{else,}
@@ -457,13 +444,11 @@ class IndicatorLpUnitBall(Functional):
     of :math:`p` is defined as
 
         .. math::
-
             \| x \|_{L_p} = \\left( \\int_{\Omega} |x|^p dx \\right)^{1/p},
 
     and for :math:`p = \\infty` it is defined as
 
         .. math::
-
             ||x||_{\\infty} = \max_x (|x|).
 
     The functional also allows noninteger and nonpositive values of the
@@ -506,9 +491,17 @@ class IndicatorLpUnitBall(Functional):
         The convex conjugate functional of an ``Lp`` norm, ``p < infty`` is the
         indicator function on the unit ball defined by the corresponding dual
         norm ``q``, given by ``1/p + 1/q = 1`` and where ``q = infty`` if
-        ``p = 1`` [Roc1970]_. By the Fenchel-Moreau theorem, the convex
+        ``p = 1`` [Roc1970]. By the Fenchel-Moreau theorem, the convex
         conjugate functional of indicator function on the unit ball in ``Lq``
-        is the corresponding Lp-norm [BC2011]_.
+        is the corresponding Lp-norm [BC2011].
+
+        References
+        ----------
+        [Roc1970] Rockafellar, R. T. *Convex analysis*. Princeton
+        University Press, 1970.
+
+        [BC2011] Bauschke, H H, and Combettes, P L. *Convex analysis and
+        monotone operator theory in Hilbert spaces*. Springer, 2011.
         """
         if self.exponent == np.inf:
             return L1Norm(self.domain)
@@ -523,15 +516,15 @@ class IndicatorLpUnitBall(Functional):
 
         See Also
         --------
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj_l1 :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj_l1 :
             `proximal factory` for convex conjuagte of L1-norm.
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj_l2 :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj_l2 :
             `proximal factory` for convex conjuagte of L2-norm.
         """
         if self.exponent == np.inf:
-            return proximal_cconj_l1(space=self.domain)
+            return proximal_convex_conj_l1(space=self.domain)
         elif self.exponent == 2:
-            return proximal_cconj_l2(space=self.domain)
+            return proximal_convex_conj_l2(space=self.domain)
         else:
             raise NotImplementedError('`gradient` only implemented for p=2 or '
                                       'p=inf')
@@ -554,14 +547,12 @@ class L1Norm(LpNorm):
     :math:`\| \cdot \|_1`-norm is defined as
 
     .. math::
-
         \| x \|_1 = \\sum_{i=1}^n |x_i|.
 
     If the functional is defined on an :math:`L_2`-like space, the
     :math:`\| \cdot \|_1`-norm is defined as
 
     .. math::
-
         \| x \|_1 = \\int_\Omega |x(t)| dt.
     """
 
@@ -594,14 +585,12 @@ class L2Norm(LpNorm):
     :math:`\| \cdot \|_2`-norm is defined as
 
     .. math::
-
         \| x \|_2 = \\sqrt{ \\sum_{i=1}^n |x_i|^2 }.
 
     If the functional is defined on an :math:`L_2`-like space, the
     :math:`\| \cdot \|_2`-norm is defined as
 
     .. math::
-
         \| x \|_2 = \\sqrt{ \\int_\Omega |x(t)|^2 dt. }
     """
 
@@ -634,14 +623,12 @@ class L2NormSquared(Functional):
     :math:`\| \cdot \|_2^2`-functional is defined as
 
     .. math::
-
         \| x \|_2^2 = \\sum_{i=1}^n |x_i|^2.
 
     If the functional is defined on an :math:`L_2`-like space, the
     :math:`\| \cdot \|_2^2`-functional is defined as
 
     .. math::
-
         \| x \|_2^2 = \\int_\Omega |x(t)|^2 dt.
     """
 
@@ -740,7 +727,6 @@ class ConstantFunctional(Functional):
         This functional is defined as
 
          .. math::
-
             f^*(x) = \\left\{ \\begin{array}{ll}
             -constant & \\text{if } x = 0, \\\\
             \\infty & \\text{else}
@@ -838,7 +824,6 @@ class IndicatorBox(Functional):
     :math:`b` is defined as:
 
     .. math::
-
         F(x) = \\begin{cases}
             0 & \\text{if } a \\leq x \\leq b \\text{ everywhere}, \\\\
             \\infty & \\text{else}
@@ -910,7 +895,6 @@ class IndicatorNonnegativity(IndicatorBox):
     The nonnegativity indicator :math:`F`  is defined as:
 
     .. math::
-
         F(x) = \\begin{cases}
             0 & \\text{if } 0 \\leq x \\text{ everywhere}, \\\\
             \\infty & \\text{else}
@@ -994,7 +978,12 @@ class IndicatorZero(Functional):
         Notes
         -----
         By the Fenchel-Moreau theorem the convex conjugate is the constant
-        functional [BC2011]_ with the constant value of -`constant`.
+        functional [BC2011] with the constant value of -`constant`.
+
+        References
+        ----------
+        [BC2011] Bauschke, H H, and Combettes, P L. *Convex analysis and
+        monotone operator theory in Hilbert spaces*. Springer, 2011.
         """
         return ConstantFunctional(self.domain, -self.constant)
 
@@ -1028,18 +1017,19 @@ class KullbackLeibler(Functional):
 
     Notes
     -----
-    The functional :math:`F` with prior :math:`g>0` is given by:
+    The functional :math:`F` with prior :math:`g>=0` is given by:
 
     .. math::
         F(x)
         =
         \\begin{cases}
-            \\sum_{i} \left( x_i - g_i + g_i \log \left( \\frac{g_i}{ x_i }
+            \\sum_{i} \left( x_i - g_i + g_i \log \left( \\frac{g_i}{x_i}
             \\right) \\right) & \\text{if } x_i > 0 \\forall i
             \\\\
             +\\infty & \\text{else.}
         \\end{cases}
 
+    Note that we use the common definition 0 log(0) := 0.
     KL based objectives are common in MLEM optimization problems and are often
     used as data-matching term when data noise governed by a multivariate
     Poisson probability distribution is significant.
@@ -1071,8 +1061,29 @@ class KullbackLeibler(Functional):
         space : `DiscreteLp` or `FnBase`
             Domain of the functional.
         prior : ``space`` `element-like`, optional
-            Data term, positive.
+            Depending on the context, the prior, target or data
+            distribution. It is assumed to be nonnegative.
             Default: if None it is take as the one-element.
+
+        Examples
+        --------
+
+        Test that KullbackLeibler(x,x) = 0
+
+        >>> space = odl.rn(3)
+        >>> prior = 3 * space.one()
+        >>> func = odl.solvers.KullbackLeibler(space, prior=prior)
+        >>> func(prior)
+        0.0
+
+
+        Test that zeros in the prior are handled correctly
+
+        >>> prior = space.zero()
+        >>> func = odl.solvers.KullbackLeibler(space, prior=prior)
+        >>> x = space.one()
+        >>> func(x)
+        3.0
         """
         super().__init__(space=space, linear=False, grad_lipschitz=np.nan)
 
@@ -1097,7 +1108,8 @@ class KullbackLeibler(Functional):
         if self.prior is None:
             tmp = ((x - 1 - np.log(x)).inner(self.domain.one()))
         else:
-            tmp = ((x - self.prior + self.prior * np.log(self.prior / x))
+            tmp = ((x - self.prior +
+                   scipy.special.xlogy(self.prior, self.prior / x))
                    .inner(self.domain.one()))
         if np.isnan(tmp):
             # In this case, some element was less than or equal to zero
@@ -1107,7 +1119,10 @@ class KullbackLeibler(Functional):
 
     @property
     def gradient(self):
-        """Gradient operator of the functional.
+        """The gradient of `KullbackLeibler` with ``prior`` :math:`g` is given as
+
+        .. math::
+            \\nabla F(x) = 1 - \frac{g}{x}.
 
         The gradient is not defined in points where one or more components
         are non-positive.
@@ -1141,13 +1156,13 @@ class KullbackLeibler(Functional):
 
         See Also
         --------
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj_kl :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj_kl :
             `proximal factory` for convex conjugate of KL.
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj :
             Proximal of the convex conjugate of a functional.
         """
-        return proximal_cconj(proximal_cconj_kl(space=self.domain,
-                                                g=self.prior))
+        return proximal_convex_conj(proximal_convex_conj_kl(space=self.domain,
+                                                            g=self.prior))
 
     @property
     def convex_conj(self):
@@ -1166,7 +1181,7 @@ class KullbackLeiblerConvexConj(Functional):
 
     Notes
     -----
-    The functional :math:`F^*` with prior :math:`g>0` is given by:
+    The functional :math:`F^*` with prior :math:`g>=0` is given by:
 
     .. math::
         F^*(x)
@@ -1191,7 +1206,8 @@ class KullbackLeiblerConvexConj(Functional):
         space : `DiscreteLp` or `FnBase`
             Domain of the functional.
         prior : ``space`` `element-like`, optional
-            Data term, positive.
+            Depending on the context, the prior, target or data
+            distribution. It is assumed to be nonnegative.
             Default: if None it is take as the one-element.
         """
         super().__init__(space=space, linear=False, grad_lipschitz=np.nan)
@@ -1217,7 +1233,8 @@ class KullbackLeiblerConvexConj(Functional):
         if self.prior is None:
             tmp = -1.0 * (np.log(1 - x)).inner(self.domain.one())
         else:
-            tmp = (-self.prior * np.log(1 - x)).inner(self.domain.one())
+            tmp = (-scipy.special.xlogy(self.prior,
+                                        1 - x)).inner(self.domain.one())
         if np.isnan(tmp):
             # In this case, some element was larger than or equal to one
             return np.inf
@@ -1261,12 +1278,12 @@ class KullbackLeiblerConvexConj(Functional):
 
         See Also
         --------
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj_kl :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj_kl :
             `proximal factory` for convex conjugate of KL.
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj :
             Proximal of the convex conjugate of a functional.
         """
-        return proximal_cconj_kl(space=self.domain, g=self.prior)
+        return proximal_convex_conj_kl(space=self.domain, g=self.prior)
 
     @property
     def convex_conj(self):
@@ -1330,7 +1347,8 @@ class KullbackLeiblerCrossEntropy(Functional):
         space : `DiscreteLp` or `FnBase`
             Domain of the functional.
         prior : ``space`` `element-like`, optional
-            Data term, positive.
+            Depending on the context, the prior, target or data
+            distribution. It is assumed to be nonnegative.
             Default: if None it is take as the one-element.
         """
         super().__init__(space=space, linear=False, grad_lipschitz=np.nan)
@@ -1411,12 +1429,12 @@ class KullbackLeiblerCrossEntropy(Functional):
         See Also
         --------
         odl.solvers.nonsmooth.proximal_operators.\
-proximal_cconj_kl_cross_entropy :
+proximal_convex_conj_kl_cross_entropy :
             `proximal factory` for convex conjugate of the KL cross entropy.
-        odl.solvers.nonsmooth.proximal_operators.proximal_cconj :
+        odl.solvers.nonsmooth.proximal_operators.proximal_convex_conj :
             Proximal of the convex conjugate of a functional.
         """
-        return proximal_cconj(proximal_cconj_kl_cross_entropy(
+        return proximal_convex_conj(proximal_convex_conj_kl_cross_entropy(
             space=self.domain, g=self.prior))
 
     @property
@@ -1453,7 +1471,8 @@ class KullbackLeiblerCrossEntropyConvexConj(Functional):
         space : `DiscreteLp` or `FnBase`
             Domain of the functional.
         prior : ``space`` `element-like`, optional
-            Data term, positive.
+            Depending on the context, the prior, target or data
+            distribution. It is assumed to be nonnegative.
             Default: if None it is take as the one-element.
         """
         super().__init__(space=space, linear=False, grad_lipschitz=np.nan)
@@ -1509,10 +1528,11 @@ class KullbackLeiblerCrossEntropyConvexConj(Functional):
         See Also
         --------
         odl.solvers.nonsmooth.proximal_operators.\
-proximal_cconj_kl_cross_entropy :
+proximal_convex_conj_kl_cross_entropy :
             `proximal factory` for convex conjugate of the KL cross entropy.
         """
-        return proximal_cconj_kl_cross_entropy(space=self.domain, g=self.prior)
+        return proximal_convex_conj_kl_cross_entropy(space=self.domain,
+                                                     g=self.prior)
 
     @property
     def convex_conj(self):
@@ -1598,7 +1618,7 @@ class SeparableSum(Functional):
         domain = ProductSpace(*domains)
         linear = all(func.is_linear for func in functionals)
 
-        self.__functionals = functionals
+        self.__functionals = tuple(functionals)
 
         super().__init__(space=domain, linear=linear)
 
@@ -1610,6 +1630,42 @@ class SeparableSum(Functional):
     def functionals(self):
         """The summands of the functional."""
         return self.__functionals
+
+    def __getitem__(self, indices):
+        """Return ``self[index]``.
+
+        Parameters
+        ----------
+        indices : index expression
+            Object determining which parts of the sum to extract.
+
+        Returns
+        -------
+        subfunctional : `Functional` or `SeparableSum`
+            Functional corresponding to the given indices.
+
+        Examples
+        --------
+        >>> space = odl.rn(3)
+        >>> l1 = odl.solvers.L1Norm(space)
+        >>> l2 = odl.solvers.L2Norm(space)
+        >>> f_sum = odl.solvers.SeparableSum(l1, l2, 2*l2)
+
+        Extract single sub-functional via integer index:
+
+        >>> f_sum[0]
+        L1Norm(rn(3))
+
+        Extract subset of functionals:
+
+        >>> f_sum[:2]
+        SeparableSum(L1Norm(rn(3)), L2Norm(rn(3)))
+        """
+        result = self.functionals[indices]
+        if isinstance(result, tuple):
+            return SeparableSum(*result)
+        else:
+            return result
 
     @property
     def gradient(self):
@@ -1818,13 +1874,13 @@ class NuclearNorm(Functional):
     :math:`\mathbb{R}^{\min(n, m)}`.
 
     For a detailed description of its properties, e.g, its proximal, convex
-    conjugate and more, see [Du+2016]_.
+    conjugate and more, see [Du+2016].
 
     References
     ----------
-    J. Duran, M. Moeller, C. Sbert, and D. Cremers. Collaborative Total
-    Variation: A General Framework for Vectorial TV Models, SIAM Journal of
-    Imaging Sciences 9(1): 116--151, 2016.
+    [Du+2016] J. Duran, M. Moeller, C. Sbert, and D. Cremers.
+    *Collaborative Total Variation: A General Framework for Vectorial TV
+    Models* SIAM Journal of Imaging Sciences 9(1): 116--151, 2016.
     """
 
     def __init__(self, space, outer_exp=1, singular_vector_exp=2):
@@ -2051,13 +2107,13 @@ class IndicatorNuclearNormUnitBall(Functional):
     norm, that is, 0 if the nuclear norm is less than 1, and infinity else.
 
     For a detailed description of its properties, e.g, its proximal, convex
-    conjugate and more, see [Du+2016]_.
+    conjugate and more, see [Du+2016].
 
     References
     ----------
-    J. Duran, M. Moeller, C. Sbert, and D. Cremers. Collaborative Total
-    Variation: A General Framework for Vectorial TV Models, SIAM Journal of
-    Imaging Sciences 9(1): 116--151, 2016.
+    [Du+2016] J. Duran, M. Moeller, C. Sbert, and D. Cremers.
+    *Collaborative Total Variation: A General Framework for Vectorial TV
+    Models* SIAM Journal of Imaging Sciences 9(1): 116--151, 2016.
     """
 
     def __init__(self, space, outer_exp=1, singular_vector_exp=2):
@@ -2101,13 +2157,13 @@ class IndicatorNuclearNormUnitBall(Functional):
     def proximal(self):
         """The proximal operator."""
         # Implement proximal via duality
-        return proximal_cconj(self.convex_conj.proximal)
+        return proximal_convex_conj(self.convex_conj.proximal)
 
     @property
     def convex_conj(self):
-        """Convex conjugate of the unit ball indicator of the  nuclear norm.
+        """Convex conjugate of the unit ball indicator of the nuclear norm.
 
-        The convex conjugate is the dual nuclear norm  where the dual norm is
+        The convex conjugate is the dual nuclear norm where the dual norm is
         obtained by taking the conjugate exponent of both the outer and
         singular vector exponents.
         """
@@ -2145,15 +2201,15 @@ class MoreauEnvelope(Functional):
     :math:`\\sigma` is defined by
 
     .. math::
-        \mathrm{env}_{\\sigma  f}(x) =
+        \mathrm{env}_{\\sigma f}(x) =
         \\inf_{y \\in \\mathcal{X}}
         \\left\{ \\frac{1}{2 \\sigma} \| x - y \|_2^2 + f(y) \\right\}
 
     The gradient of the envelope is given by
 
     .. math::
-        [\\nabla \mathrm{env}_{\\sigma  f}](x) =
-        \\frac{1}{\\sigma} (x - \mathrm{prox}_{\\sigma  f}(x))
+        [\\nabla \mathrm{env}_{\\sigma f}](x) =
+        \\frac{1}{\\sigma} (x - \mathrm{prox}_{\\sigma f}(x))
 
     Example: if :math:`f = \| \cdot \|_1`, then
 

@@ -1,19 +1,10 @@
-﻿# Copyright 2014-2016 The ODL development group
+﻿# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Default operators defined on any (reasonable) space."""
 
@@ -24,6 +15,7 @@ standard_library.install_aliases()
 from builtins import super
 
 from copy import copy
+import numpy as np
 
 from odl.operator.operator import Operator
 from odl.space import ProductSpace
@@ -119,6 +111,28 @@ class ScalingOperator(Operator):
             return self
         else:
             return ScalingOperator(self.domain, self.scalar.conjugate())
+
+    def norm(self, estimate=False, **kwargs):
+        """Return the operator norm of this operator.
+
+        Parameters
+        ----------
+        estimate, kwargs : bool
+            Ignored. Present to conform with base-class interface.
+
+        Returns
+        -------
+        norm : float
+            The operator norm, absolute value of `scalar`.
+
+        Examples
+        --------
+        >>> spc = odl.rn(3)
+        >>> scaling = odl.ScalingOperator(spc, 3.0)
+        >>> scaling.norm(True)
+        3.0
+        """
+        return np.abs(self.scalar)
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -307,17 +321,24 @@ class MultiplyOperator(Operator):
         >>> op.adjoint(x)
         rn(3).element([1.0, 4.0, 9.0])
 
-        Multiply by a scalar:
+        Multiply scalars with a fixed vector:
 
         >>> op2 = MultiplyOperator(x, domain=r3.field)
         >>> op2.adjoint(x)
         14.0
+
+        Multiply vectors with a fixed scalar:
+
+        >>> op2 = MultiplyOperator(3.0, domain=r3, range=r3)
+        >>> op2.adjoint(x)
+        rn(3).element([3.0, 6.0, 9.0])
         """
         if self.__domain_is_field:
             return InnerProductOperator(self.multiplicand)
         else:
             # TODO: complex case
-            return MultiplyOperator(self.multiplicand)
+            return MultiplyOperator(self.multiplicand,
+                                    domain=self.range, range=self.domain)
 
     def __repr__(self):
         """Return ``repr(self)``."""
@@ -580,7 +601,6 @@ class NormOperator(Operator):
         spaces, in which case it is given by
 
         .. math::
-
             (D \|\cdot\|)(y)(x) = \langle y / \|y\|, x \\rangle
 
         Examples
@@ -678,7 +698,6 @@ class DistOperator(Operator):
         spaces, in which case it is given by
 
         .. math::
-
             (D d(\cdot, y))(z)(x) = \\langle (y-z) / d(y, z), x \\rangle
 
         Examples

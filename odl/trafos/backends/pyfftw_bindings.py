@@ -1,19 +1,10 @@
-# Copyright 2014, 2015 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
 """Bindings to the ``pyFFTW`` back-end for Fourier transforms.
 
@@ -30,15 +21,20 @@ from builtins import range
 from future.utils import raise_from
 
 from multiprocessing import cpu_count
+from pkg_resources import parse_version
+import warnings
 import numpy as np
+from odl.util import (
+    is_real_dtype, dtype_repr, complex_dtype, normalized_axes_tuple)
 try:
     import pyfftw
     PYFFTW_AVAILABLE = True
+    if parse_version(pyfftw.__version__) < parse_version('0.10.4'):
+        warnings.warn('PyFFTW < 0.10.4 is known to cause problems with some '
+                      'ODL functionality, see issue #1002.',
+                      RuntimeWarning)
 except ImportError:
     PYFFTW_AVAILABLE = False
-
-from odl.util import (
-    is_real_dtype, dtype_repr, complex_dtype, normalized_axes_tuple)
 
 
 __all__ = ('pyfftw_call', 'PYFFTW_AVAILABLE')

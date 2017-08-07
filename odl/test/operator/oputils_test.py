@@ -1,38 +1,20 @@
-# Copyright 2014-2016 The ODL development group
+# Copyright 2014-2017 The ODL contributors
 #
 # This file is part of ODL.
 #
-# ODL is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# ODL is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with ODL.  If not, see <http://www.gnu.org/licenses/>.
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at https://mozilla.org/MPL/2.0/.
 
-
-# Imports for common Python 2/3 codebase
-from __future__ import print_function, division, absolute_import
-from future import standard_library
-standard_library.install_aliases()
+from __future__ import division
 from builtins import super
-
-# External module imports
 import pytest
 import numpy as np
 
-# ODL imports
 import odl
 from odl.operator.oputils import matrix_representation, power_method_opnorm
 from odl.space.pspace import ProductSpace
 from odl.operator.pspace_ops import ProductSpaceOperator
-
-from odl.space.npy_ntuples import MatVecOperator
 from odl.util.testutils import almost_equal
 
 
@@ -42,7 +24,7 @@ def test_matrix_representation():
     n = 3
     A = np.random.rand(n, n)
 
-    Aop = MatVecOperator(A)
+    Aop = odl.MatrixOperator(A)
 
     the_matrix = matrix_representation(Aop)
 
@@ -55,12 +37,12 @@ def test_matrix_representation_product_to_lin_space():
     n = 3
     rn = odl.rn(n)
     A = np.random.rand(n, n)
-    Aop = MatVecOperator(A)
+    Aop = odl.MatrixOperator(A)
 
     m = 2
     rm = odl.rn(m)
     B = np.random.rand(n, m)
-    Bop = MatVecOperator(B)
+    Bop = odl.MatrixOperator(B)
 
     dom = ProductSpace(rn, rm)
     ran = ProductSpace(rn, 1)
@@ -79,12 +61,12 @@ def test_matrix_representation_lin_space_to_product():
     n = 3
     rn = odl.rn(n)
     A = np.random.rand(n, n)
-    Aop = MatVecOperator(A)
+    Aop = odl.MatrixOperator(A)
 
     m = 2
     rm = odl.rn(m)
     B = np.random.rand(m, n)
-    Bop = MatVecOperator(B)
+    Bop = odl.MatrixOperator(B)
 
     dom = ProductSpace(rn, 1)
     ran = ProductSpace(rn, rm)
@@ -103,12 +85,12 @@ def test_matrix_representation_product_to_product():
     n = 3
     rn = odl.rn(n)
     A = np.random.rand(n, n)
-    Aop = MatVecOperator(A)
+    Aop = odl.MatrixOperator(A)
 
     m = 2
     rm = odl.rn(m)
     B = np.random.rand(m, m)
-    Bop = MatVecOperator(B)
+    Bop = odl.MatrixOperator(B)
 
     ran_and_dom = ProductSpace(rn, rm)
 
@@ -128,10 +110,10 @@ def test_matrix_representation_product_to_product_two():
     n = 3
     rn = odl.rn(n)
     A = np.random.rand(n, n)
-    Aop = MatVecOperator(A)
+    Aop = odl.MatrixOperator(A)
 
     B = np.random.rand(n, n)
-    Bop = MatVecOperator(B)
+    Bop = odl.MatrixOperator(B)
 
     ran_and_dom = ProductSpace(rn, 2)
 
@@ -205,7 +187,7 @@ def test_power_method_opnorm_symm():
     mat = np.array([[10, -18],
                     [6, -11]], dtype=float)
 
-    op = odl.MatVecOperator(mat)
+    op = odl.MatrixOperator(mat)
     true_opnorm = 2
     opnorm_est = power_method_opnorm(op)
     assert almost_equal(opnorm_est, true_opnorm, places=2)
@@ -224,7 +206,7 @@ def test_power_method_opnorm_nonsymm():
                     [1.90246927, 2.54424763],
                     [5.32935411, 0.04573162]])
 
-    op = odl.MatVecOperator(mat)
+    op = odl.MatrixOperator(mat)
     true_opnorm = 6
 
     # Start vector (1, 1) is close to the wrong eigenvector
@@ -257,14 +239,14 @@ def test_power_method_opnorm_exceptions():
 
     with pytest.raises(ValueError):
         # Input vector in the nullspace
-        op = odl.MatVecOperator([[0., 1.],
+        op = odl.MatrixOperator([[0., 1.],
                                  [0., 0.]])
 
         power_method_opnorm(op, maxiter=2, xstart=op.domain.one())
 
     with pytest.raises(ValueError):
         # Uneven number of iterates for non square operator
-        op = odl.MatVecOperator([[1., 2., 3.],
+        op = odl.MatrixOperator([[1., 2., 3.],
                                  [4., 5., 6.]])
 
         power_method_opnorm(op, maxiter=1, xstart=op.domain.one())
