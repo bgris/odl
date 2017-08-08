@@ -459,7 +459,7 @@ def _donut_2d_nonsmooth(discr):
     return out.ufuncs.minimum(1, out=out)
 
 
-def sphere(discr, smooth=True, taper=20.0):
+def sphere(discr, smooth=True, taper=20.0, radius=None):
     """Return a 'sphere' phantom.
 
     Parameters
@@ -472,6 +472,8 @@ def sphere(discr, smooth=True, taper=20.0):
     taper : `float`, optional
         Tapering parameter for the boundary smoothing. Larger values
         mean faster taper, i.e. sharper boundaries.
+    radius : `float`, optional
+        radius of the sphere
 
     Returns
     -------
@@ -479,7 +481,7 @@ def sphere(discr, smooth=True, taper=20.0):
     """
     if discr.ndim == 3:
         if smooth:
-            return _sphere_3d_smooth(discr, taper)
+            return _sphere_3d_smooth(discr, taper, radius)
         else:
             return _sphere_3d_nonsmooth(discr)
     else:
@@ -487,7 +489,7 @@ def sphere(discr, smooth=True, taper=20.0):
                          ''.format(discr.dim))
 
 
-def _sphere_3d_smooth(discr, taper):
+def _sphere_3d_smooth(discr, taper, radius=None):
     """Return a 3d smooth 'sphere' phantom."""
 
     def logistic(x, c):
@@ -501,13 +503,20 @@ def _sphere_3d_smooth(discr, taper):
         ``(0.1, 0.1, 0.1)``. For other domains, the values are scaled
         accordingly.
         """
-        halfaxes = np.array([0.05, 0.05, 0.05]) * discr.domain.extent / 2
+        #halfaxes = np.array([0.05, 0.05, 0.05]) * discr.domain.extent / 2
         center = np.array([0.0, 0.0, -0.15]) * discr.domain.extent / 2
 
         # Efficiently calculate |z|^2, z = (x - center) / radii
         sq_ndist = np.zeros_like(x[0])
-        for xi, rad, cen in zip(x, halfaxes, center):
-            sq_ndist = sq_ndist + ((xi - cen) / rad) ** 2
+        if radius is None:
+            halfaxes = np.array([0.05, 0.05, 0.05]) * discr.domain.extent / 2
+            for xi, rad, cen in zip(x, halfaxes, center):
+                sq_ndist = sq_ndist + ((xi - cen) / rad) ** 2
+        else:
+            halfaxes = np.array([radius, radius, radius])
+            for xi, rad, cen in zip(x, halfaxes, center):
+                sq_ndist = sq_ndist + ((xi - cen) / rad) ** 2
+
 
         out = np.sqrt(sq_ndist)
         out -= 1
