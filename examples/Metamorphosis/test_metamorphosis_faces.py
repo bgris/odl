@@ -242,18 +242,19 @@ functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
 
 
 
-energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
-                            data_time_points, forward_operators,Norm, kernel,
-                            domain=None)
+#energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
+#                            data_time_points, forward_operators,Norm, kernel,
+#                            domain=None)
 
 #Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 #
 #functional_LDDMM = energy_op + lamb*Reg
 #
 
+grad_op=functional.gradient
 
 #nameinit='/home/barbara/odl/examples/Metamorphosis/Shepp_Logan_fac_greyscale_0_no_noise_directmatching'
-#name0= nameinit + 'Metamorphosis_sigma_2_lam_1_e__15_tau_1_e__2_iter_200'    
+#name0= nameinit + 'Metamorphosis_sigma_2_lam_1_e__15_tau_1_e__2_iter_200'
 
 
 #%% Gradient descent
@@ -283,17 +284,17 @@ for k in range(niter):
         X_temp1[0]= (X[0]- epsV *grad[0]).copy()
         X_temp1[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
         energy_temp1=functional(X_temp1)
-        
+
         X_temp2=X.copy()
         X_temp2[0]= (X[0]- 0.5*epsV *grad[0]).copy()
         X_temp2[1]= (X[1]- epsZ *grad[1]).copy()
         energy_temp2=functional(X_temp2)
-        
+
         X_temp3=X.copy()
         X_temp3[0]= (X[0]- 0.5*epsV *grad[0]).copy()
         X_temp3[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
         energy_temp3=functional(X_temp3)
-        
+
         if (energy_temp3<=energy_temp1 and energy_temp3<=energy_temp2):
             X_temp0=X_temp3.copy()
             energy_temp0=energy_temp3
@@ -308,16 +309,16 @@ for k in range(niter):
                 X_temp0=X_temp2.copy()
                 energy_temp0=energy_temp2
                 epsV*=0.5
-            
+
         if energy_temp0<energy:
             X=X_temp0.copy()
             energy=energy_temp0
             print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
         else:
             print("epsV = {} , epsZ = {}".format(epsV, epsZ))
-        
-    
-    
+
+
+
 #
 
 #%%
@@ -326,7 +327,7 @@ for k in range(niter):
 mini=0
 maxi=1
 nameinit='/home/barbara/odl/examples/Metamorphosis/Faces/OlivettiFaces_smoothing_1_directmatching'
-name0= nameinit + 'Metamorphosis_sigma_10_lam_1_e__10_tau_1_e__2_nbInt_20_iter_200'    
+name0= nameinit + 'Metamorphosis_sigma_10_lam_1_e__10_tau_1_e__2_nbInt_20_iter_200'
 
 
 
