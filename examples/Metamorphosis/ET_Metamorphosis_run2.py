@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Thu Aug 24 13:42:31 2017
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Wed May 17 11:31:20 2017
 
 @author: bgris
@@ -241,6 +249,10 @@ X_init=functional.domain.zero()
 X=X_init.copy()
 #%%
 
+#path radon
+path ='/home/gris/'
+#path Cormack
+path ='/home/bgris/'
 #nameinit='   OlivettiFaces_smoothing_1_directmatching'
 name0= 'ET_Metamorphosis_sigma_3_lam_1_e__3_tau_1_e__3_nbInt_5_iter_300_initialisation_fbp_steped_directions_151_registration_8'
 
@@ -329,19 +341,19 @@ for k in range(niter):
         img.get_data_dtype() == np.dtype(np.float32)
         img.header.get_xyzt_units()
         name = name0 + '_metamorphosis' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
+        img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/temp/',name))
 
         img = nib.Nifti1Image(template_evo[nb_time_point_int], np.eye(4))
         img.get_data_dtype() == np.dtype(np.float32)
         img.header.get_xyzt_units()
         name = name0 + '_template_evo' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
+        img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/temp/',name))
 
         img = nib.Nifti1Image(image_evol[nb_time_point_int], np.eye(4))
         img.get_data_dtype() == np.dtype(np.float32)
         img.header.get_xyzt_units()
         name = name0 + '_image_evo' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
+        img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/temp/',name))
 
 #
 
@@ -394,7 +406,7 @@ for t in range(nb_time_point_int+1):
     img.get_data_dtype() == np.dtype(np.float32)
     img.header.get_xyzt_units()
     name = name0 + '_Metamorphosis_t_' + str(t) + '.nii'
-    img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/',name))
+    img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/',name))
 
     # Save reconstruction
     data = template_evo[t].asarray().copy()
@@ -402,7 +414,7 @@ for t in range(nb_time_point_int+1):
     img.get_data_dtype() == np.dtype(np.float32)
     img.header.get_xyzt_units()
     name = name0 + '_template_evo_t_' + str(t) + '.nii'
-    img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/',name))
+    img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/',name))
 
     # Save reconstruction
     data = image_evol[t].asarray().copy()
@@ -410,7 +422,7 @@ for t in range(nb_time_point_int+1):
     img.get_data_dtype() == np.dtype(np.float32)
     img.header.get_xyzt_units()
     name = name0 + '_image_evo_t_' + str(t) + '.nii'
-    img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/',name))
+    img.to_filename(os.path.join(path+'Results/Metamorphosis/TEM/',name))
 
 
 
@@ -440,153 +452,6 @@ if False:
     img.header.get_xyzt_units()
     name = 'template_ET'  + '.nii'
     img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
-
-
-#%% Gradient descent only on the deformation part
-
-name0 +='relaunched_onle_defo'
-import nibabel as nib
-import os
-
-#attachment_term=functional(X)
-#print(" Initial ,  attachment term : {}".format(attachment_term))
-epsV=0.00002
-epsZ=0.00002
-energy=functional(X)
-print(" Initial ,  energy : {}".format(energy))
-cont=0
-for k in range(niter):
-    #for t in range(nb_time_point_int):
-    #   np.savetxt('vector_fields_list' + str(t),np.asarray(vector_fields_list[t]))
-    if cont==0:
-        grad=grad_op(X)
-        #grad=functional.gradient(X)
-    #X[0]= (X[0]- epsV *grad[0]).copy()
-    #X[1]= (X[1]- epsZ *grad[1]).copy()
-    X_temp0=X.copy()
-    X_temp0[0]= (X[0]- epsV *grad[0]).copy()
-    #X_temp0[1]= (X[1]- epsZ *grad[1]).copy()
-    energy_temp0=functional(X_temp0)
-    if energy_temp0<energy:
-        X=X_temp0.copy()
-        energy=energy_temp0
-        epsV*=1.5
-        #epsZ*=1.5
-        cont=0
-        print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
-        """else:
-        X_temp1=X.copy()
-        X_temp1[0]= (X[0]- epsV *grad[0]).copy()
-        X_temp1[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
-        energy_temp1=functional(X_temp1)
-
-        X_temp2=X.copy()
-        X_temp2[0]= (X[0]- 0.5*epsV *grad[0]).copy()
-        X_temp2[1]= (X[1]- epsZ *grad[1]).copy()
-        energy_temp2=functional(X_temp2)
-
-        X_temp3=X.copy()
-        X_temp3[0]= (X[0]- 0.5*epsV *grad[0]).copy()
-        X_temp3[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
-        energy_temp3=functional(X_temp3)
-
-        if (energy_temp3<=energy_temp1 and energy_temp3<=energy_temp2):
-            X_temp0=X_temp3.copy()
-            energy_temp0=energy_temp3
-            epsZ*=0.5
-            epsV*=0.5
-        else:
-            if (energy_temp1<=energy_temp2 and energy_temp1<=energy_temp3):
-                X_temp0=X_temp1.copy()
-                energy_temp0=energy_temp1
-                epsZ*=0.5
-            else:
-                X_temp0=X_temp2.copy()
-                energy_temp0=energy_temp2
-                epsV*=0.5
-
-        if energy_temp0<energy:
-            X=X_temp0.copy()
-            energy=energy_temp0
-            epsV*=1.2
-            epsZ*=1.2
-            cont=0
-            print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
-
-        else:
-            epsV*=0.5
-            epsZ*=0.5
-            cont=1
-            print("epsV = {} , epsZ = {}".format(epsV, epsZ))
-        """
-    else:
-        epsV*=0.5
-        #epsZ*=0.5
-        cont=1
-        print("epsV = {}".format(epsV))
-
-
-    if(k%5 == 0):
-        image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
-        template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
-        zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
-        image_evol=odl.deform.IntegrateTemplateEvol(template,zeta_transp,0,nb_time_point_int)
-
-        img = nib.Nifti1Image(image_list_data[0], np.eye(4))
-        img.get_data_dtype() == np.dtype(np.float32)
-        img.header.get_xyzt_units()
-        name = name0 + '_metamorphosis' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
-
-        img = nib.Nifti1Image(template_evo[nb_time_point_int], np.eye(4))
-        img.get_data_dtype() == np.dtype(np.float32)
-        img.header.get_xyzt_units()
-        name = name0 + '_template_evo' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
-
-        img = nib.Nifti1Image(image_evol[nb_time_point_int], np.eye(4))
-        img.get_data_dtype() == np.dtype(np.float32)
-        img.header.get_xyzt_units()
-        name = name0 + '_image_evo' + str(k) + '.nii'
-        img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/temp/',name))
-
-#
-
-
-
-#%% fbp
-
-import nibabel as nib
-import os
-lam_fbp=0.8
-fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
-
-reco_fbp=fbp(data_elem)
-A = np.asarray(reco_fbp)
-img = nib.Nifti1Image(A, np.eye(4))
-img.get_data_dtype() == np.dtype(np.float32)
-img.header.get_xyzt_units()
-img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/','reco_fbp_'+ str(lam_fbp) + '.nii'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
