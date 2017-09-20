@@ -10,124 +10,17 @@ import odl
 import numpy as np
 from matplotlib import pylab as plt
 
-
-def snr_fun(signal, noise, impl):
-    """Compute the signal-to-noise ratio.
-    Parameters
-    ----------
-    signal : `array-like`
-        Noiseless data.
-    noise : `array-like`
-        Noise.
-    impl : {'general', 'dB'}
-        Implementation method.
-        'general' means SNR = variance(signal) / variance(noise),
-        'dB' means SNR = 10 * log10 (variance(signal) / variance(noise)).
-    Returns
-    -------
-    snr : `float`
-        Value of signal-to-noise ratio.
-        If the power of noise is zero, then the return is 'inf',
-        otherwise, the computed value.
-    """
-    if np.abs(np.asarray(noise)).sum() != 0:
-        ave1 = np.sum(signal) / signal.size
-        ave2 = np.sum(noise) / noise.size
-        s_power = np.sqrt(np.sum((signal - ave1) * (signal - ave1)))
-        n_power = np.sqrt(np.sum((noise - ave2) * (noise - ave2)))
-        if impl == 'general':
-            return s_power / n_power
-        elif impl == 'dB':
-            return 10.0 * np.log10(s_power / n_power)
-        else:
-            raise ValueError('unknown `impl` {}'.format(impl))
-    else:
-        return float('inf')
-
-
-
-
-def compute_grid_deformation(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-
-    grid_points = initial_grid
-
-    for t in range(nb_time_points):
-        velocity = np.empty_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            velocity[i, ...] = vi.interpolation(grid_points)
-        grid_points += time_step*velocity
-
-    return grid_points
-
-
-def compute_grid_deformation_list(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-    grid_list=[]
-    grid_points=initial_grid.copy()
-    grid_list.append(initial_grid)
-
-    for t in range(nb_time_points):
-        velocity = np.empty_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            velocity[i, ...] = vi.interpolation(grid_points)
-        grid_points += time_step*velocity
-        grid_list.append(grid_points.copy())
-
-    return grid_list
-
-
-# As previously but check if points of the grids are in the
-# Domain and if they are not the velocity is equal to zero
-def compute_grid_deformation_list_bis(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-    grid_list=[]
-    grid_points=initial_grid.T.copy()
-    grid_list.append(initial_grid.T)
-    mini=vector_fields_list[0].space[0].min_pt
-    maxi=vector_fields_list[0].space[0].max_pt
-    for t in range(nb_time_points):
-        print(t)
-        velocity = np.zeros_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            for k in range(len(initial_grid.T)):
-                isindomain=1
-                point=grid_points[k]
-                for u in range(len(mini)):
-                    if (point[u]<mini[u] or point[u]>maxi[u] ):
-                        isindomain=0
-                if (isindomain==1):
-                    velocity[k][i] = vi.interpolation(point)
-
-        grid_points += time_step*velocity
-        grid_list.append(grid_points.copy().T)
-
-    return grid_list
-
-
-def plot_grid(grid, skip):
-    for i in range(0, grid.shape[1], skip):
-        plt.plot(grid[0, i, :], grid[1, i, :], 'r', linewidth=0.5)
-
-    for i in range(0, grid.shape[2], skip):
-        plt.plot(grid[0, :, i], grid[1, :, i], 'r', linewidth=0.5)
-
-
-
-#
 #%%
+
+path='/home/bgris/Downloads/'
 
 #I1name = '/home/bgris/Downloads/pictures/v.png'
 #I0name = '/home/bgris/Downloads/pictures/j.png'
 #I0 = np.rot90(plt.imread(I0name).astype('float'), -1)
 #I1 = np.rot90(plt.imread(I1name).astype('float'), -1)
 #
-
-I0name = '//home/barbara/Téléchargements/code_for_LDDMM---triangles/ss_save.png' # 438 * 438, I0[:,:,1]
-I1name = '//home/barbara/Téléchargements/code_for_LDDMM---triangles/ss_save_1.png' # 438 * 438, I0[:,:,1]
+I0name = path + 'code_for_LDDMM---triangles/ss_save.png' # 438 * 438, I0[:,:,1]
+I1name = path + 'code_for_LDDMM---triangles/ss_save_1.png' # 438 * 438, I0[:,:,1]
 I0 = np.rot90(plt.imread(I0name).astype('float'), -1)[:,:, 1]
 I1 = np.rot90(plt.imread(I1name).astype('float'), -1)[:,:, 1]
 
@@ -144,22 +37,8 @@ ground_truth = rec_space.element(I1)
 # Create the template as the given image
 template = 0.1*rec_space.element(I0)
 
-
-# Implementation method for mass preserving or not,
-# impl chooses 'mp' or 'geom', 'mp' means mass-preserving deformation method,
-# 'geom' means geometric deformation method
-impl1 = 'geom'
-
-# Implementation method for least square data matching term
-impl2 = 'least_square'
-
-# Show intermiddle results
-#callback = CallbackShow(
-#    '{!r} {!r} iterates'.format(impl1, impl2), display_step=5) & \
-#    CallbackPrintIteration()
-
-#ground_truth.show('ground truth')
-#template.show('template')
+template.show('template',clim=[-1,1])
+ground_truth.show('ground truth' , clim=[-1,1])
 
 # The parameter for kernel function
 sigma = 2.0
@@ -206,11 +85,6 @@ noise =1.0 * odl.phantom.noise.white_noise(forward_op.range)
 # Create the noisy projection data
 noise_proj_data = proj_data + noise
 
-# Compute the signal-to-noise ratio in dB
-snr = snr_fun(proj_data, noise_proj_data - proj_data, impl='dB')
-
-# Output the signal-to-noise ratio
-print('snr = {!r}'.format(snr))
 
 # Give the number of time points
 time_itvs = 5
@@ -250,22 +124,22 @@ for k in range(niter):
 
 #
 
-#%%
-lam_fbp=0.5
-fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
-reco_fbp=fbp(data[0])
-#reco_fbp.show()
-#reco_fbp.show(clim=[-0.2,1.2])
-
-plt.figure(5, figsize=(24, 24))
-mini=0
-maxi=1
-plt.imshow(np.rot90(reco_fbp), cmap='bone',
-           vmin=mini,
-           vmax=maxi)
-plt.colorbar()
-namefbp=nameinit + 'fbp.png'
-plt.savefig(namefbp, bbox_inches='tight')
+##%% fbp
+#lam_fbp=0.5
+#fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
+#reco_fbp=fbp(data[0])
+##reco_fbp.show()
+##reco_fbp.show(clim=[-0.2,1.2])
+#
+#plt.figure(5, figsize=(24, 24))
+#mini=0
+#maxi=1
+#plt.imshow(np.rot90(reco_fbp), cmap='bone',
+#           vmin=mini,
+#           vmax=maxi)
+#plt.colorbar()
+#namefbp=nameinit + 'fbp.png'
+#plt.savefig(namefbp, bbox_inches='tight')
 #%% Compute estimated trajectory
 image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
 
@@ -324,7 +198,7 @@ rec_proj_data = forward_op(rec_result)
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(1, figsize=(24, 24))
 #plt.clf()
@@ -384,7 +258,7 @@ plt.imshow(np.rot90(ground_truth), cmap='bone',
 plt.axis('off')
 plt.colorbar()
 plt.title('Ground truth')
-#%%
+##%%
 plt.subplot(3, 3, 7)
 plt.plot(np.asarray(proj_data)[0], 'b', linewidth=1.0)
 plt.plot(np.asarray(noise_proj_data)[0], 'r', linewidth=0.5)
@@ -431,7 +305,7 @@ rec_result = rec_space.element(image_N0[time_itvs])
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(2, figsize=(24, 24))
 #plt.clf()
@@ -511,7 +385,7 @@ rec_result = rec_space.element(image_N0[time_itvs])
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(3, figsize=(24, 24))
 #plt.clf()

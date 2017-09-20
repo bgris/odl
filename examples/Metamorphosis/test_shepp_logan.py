@@ -18,125 +18,9 @@ import odl
 import numpy as np
 from matplotlib import pylab as plt
 
-from DeformationModulesODL.deform import Kernel
-from DeformationModulesODL.deform import DeformationModuleAbstract
-from DeformationModulesODL.deform import SumTranslations
-from DeformationModulesODL.deform import UnconstrainedAffine
-from DeformationModulesODL.deform import LocalScaling
-from DeformationModulesODL.deform import LocalRotation
-from DeformationModulesODL.deform import EllipseMvt
-from DeformationModulesODL.deform import TemporalAttachmentModulesGeom
 
 import scipy
 
-
-def snr_fun(signal, noise, impl):
-    """Compute the signal-to-noise ratio.
-    Parameters
-    ----------
-    signal : `array-like`
-        Noiseless data.
-    noise : `array-like`
-        Noise.
-    impl : {'general', 'dB'}
-        Implementation method.
-        'general' means SNR = variance(signal) / variance(noise),
-        'dB' means SNR = 10 * log10 (variance(signal) / variance(noise)).
-    Returns
-    -------
-    snr : `float`
-        Value of signal-to-noise ratio.
-        If the power of noise is zero, then the return is 'inf',
-        otherwise, the computed value.
-    """
-    if np.abs(np.asarray(noise)).sum() != 0:
-        ave1 = np.sum(signal) / signal.size
-        ave2 = np.sum(noise) / noise.size
-        s_power = np.sqrt(np.sum((signal - ave1) * (signal - ave1)))
-        n_power = np.sqrt(np.sum((noise - ave2) * (noise - ave2)))
-        if impl == 'general':
-            return s_power / n_power
-        elif impl == 'dB':
-            return 10.0 * np.log10(s_power / n_power)
-        else:
-            raise ValueError('unknown `impl` {}'.format(impl))
-    else:
-        return float('inf')
-
-
-
-
-def compute_grid_deformation(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-
-    grid_points = initial_grid
-
-    for t in range(nb_time_points):
-        velocity = np.empty_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            velocity[i, ...] = vi.interpolation(grid_points)
-        grid_points += time_step*velocity
-
-    return grid_points
-
-
-def compute_grid_deformation_list(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-    grid_list=[]
-    grid_points=initial_grid.copy()
-    grid_list.append(initial_grid)
-
-    for t in range(nb_time_points):
-        velocity = np.empty_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            velocity[i, ...] = vi.interpolation(grid_points)
-        grid_points += time_step*velocity
-        grid_list.append(grid_points.copy())
-
-    return grid_list
-
-
-# As previously but check if points of the grids are in the
-# Domain and if they are not the velocity is equal to zero
-def compute_grid_deformation_list_bis(vector_fields_list, time_step, initial_grid):
-    vector_fields_list = vector_fields_list
-    nb_time_points = vector_fields_list.size
-    grid_list=[]
-    grid_points=initial_grid.T.copy()
-    grid_list.append(initial_grid.T)
-    mini=vector_fields_list[0].space[0].min_pt
-    maxi=vector_fields_list[0].space[0].max_pt
-    for t in range(nb_time_points):
-        print(t)
-        velocity = np.zeros_like(grid_points)
-        for i, vi in enumerate(vector_fields_list[t]):
-            for k in range(len(initial_grid.T)):
-                isindomain=1
-                point=grid_points[k]
-                for u in range(len(mini)):
-                    if (point[u]<mini[u] or point[u]>maxi[u] ):
-                        isindomain=0
-                if (isindomain==1):
-                    velocity[k][i] = vi.interpolation(point)
-
-        grid_points += time_step*velocity
-        grid_list.append(grid_points.copy().T)
-
-    return grid_list
-
-
-def plot_grid(grid, skip):
-    for i in range(0, grid.shape[1], skip):
-        plt.plot(grid[0, i, :], grid[1, i, :], 'r', linewidth=0.5)
-
-    for i in range(0, grid.shape[2], skip):
-        plt.plot(grid[0, :, i], grid[1, :, i], 'r', linewidth=0.5)
-
-
-
-#
 #%%
 
 #I1name = '/home/bgris/Downloads/pictures/v.png'
@@ -149,92 +33,16 @@ space = odl.uniform_discr(
     min_pt=[-16, -16], max_pt=[16, 16], shape=[256,256],
     dtype='float32', interp='linear')
 
-
-ellipsoids=[[2.00, .6900, .9200, 0.0000, 0.0000, 0],
-            [-.98, .6624, .8740, 0.0000, -.0184, 0],
-            [-.02, .1100, .3100, 0.2200, 0.0000, -18],
-            [-.02, .1600, .4100, -.2200, 0.0000, 18],
-            [0.01, .2100, .2500, 0.0000, 0.3500, 0],
-            [0.01, .0460, .0460, 0.0000, 0.1000, 0],
-            [0.01, .0460, .0460, 0.0000, -.1000, 0],
-            [0.01, .0460, .0230, -.0800, -.6050, 0],
-            [0.01, .0230, .0230, 0.0000, -.6060, 0],
-            [0.01, .0230, .0460, 0.0600, -.6050, 0]]
-
-val0=-0.7
-val1=0.7
-val2=0.5
-ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
-            [-.98, .6624, .8740, 0.0000, -.0184, 0],
-            [val0, .1100, .3100, 0.2200, 0.0000, -18],
-            [val1, .1600, .4100, -.2200, 0.0000, 18],
-            [val1, .2100, .2500, 0.0000, 0.3500, 0],
-            [val1, .0460, .0460, 0.0000, 0.1000, 0],
-            [val1, .0460, .0460, 0.0000, -.1000, 0],
-            [val2, .0460, .0230, -.0800, -.6050, 0],
-            [val2, .0230, .0230, 0.0000, -.6060, 0],
-            [val2, .0230, .0460, 0.0600, -.6050, 0]]
-
-template=odl.phantom.ellipsoid_phantom(space, ellipsoids)
-
-#template= odl.phantom.shepp_logan(space)
-template= space.element(scipy.ndimage.filters.gaussian_filter(template.asarray(),1))
-#template.show(clim=[1,1.1])
-
-# Change of grey scale value for the target
-val0=-0.7
-val1=0.5
-val2=0.6
-ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
-            [-.98, .6624, .8740, 0.0000, -.0184, 0],
-            [val0, .1100, .3100, 0.2200, 0.0000, -18],
-            [val1, .1600, .4100, -.2200, 0.0000, 18],
-            [val1, .2100, .2500, 0.0000, 0.3500, 0],
-            [val1, .0460, .0460, 0.0000, 0.1000, 0],
-            [val1, .0460, .0460, 0.0000, -.1000, 0],
-            [val2, .0460, .0230, -.0800, -.6050, 0],
-            [val2, .0230, .0230, 0.0000, -.6060, 0],
-            [val2, .0230, .0460, 0.0600, -.6050, 0]]
-
-template0=odl.phantom.ellipsoid_phantom(space, ellipsoids)
-
-#template= odl.phantom.shepp_logan(space)
-template0= space.element(scipy.ndimage.filters.gaussian_filter(template0.asarray(),1))
-#template.show(clim=[1,1.1])
+path='/home/bgris/Downloads/'
 
 
-I1=template0.copy()
-NAffine=2
-kernelaff=Kernel.GaussianKernel(3)
-affine=UnconstrainedAffine.UnconstrainedAffine(space, NAffine, kernelaff)
+template0=space.element(np.loadtxt(path + 'SheppLoganModifiedSource'))
+template= space.element(scipy.ndimage.filters.gaussian_filter(template0.asarray(),1))
+ground_truth0=space.element(np.loadtxt(path + 'SheppLoganModifiedTarget'))
+ground_truth= space.element(scipy.ndimage.filters.gaussian_filter(ground_truth0.asarray(),1))
 
-GD_affine=affine.GDspace.element([[-5,5],[3,4]])
-Cont_affine=-1*affine.Contspace.element([[[0.5,0],[1,-1],[1,1]],[[-1,0.5],[-1,0],[0.5,0]]])
-vect_field_affine=affine.ComputeField(GD_affine,Cont_affine)
-
-I1_0=template.space.element(odl.deform.linearized._linear_deform(I1.copy(),vect_field_affine))
-#I1_0.show(clim=[1,1.1])
-
-#I1=template.space.element((I1_0-1.03)*1.5+ 1.04)
-I1=I1_0.copy()
-#I1.show(clim=[1,1.1])
-
-
-# Implementation method for mass preserving or not,
-# impl chooses 'mp' or 'geom', 'mp' means mass-preserving deformation method,
-# 'geom' means geometric deformation method
-impl1 = 'geom'
-
-# Implementation method for least square data matching term
-impl2 = 'least_square'
-
-# Show intermiddle results
-#callback = CallbackShow(
-#    '{!r} {!r} iterates'.format(impl1, impl2), display_step=5) & \
-#    CallbackPrintIteration()
-
-#ground_truth.show('ground truth')
-#template.show('template')
+template.show(clim=[-1,1])
+ground_truth.show(clim=[-1,1])
 
 # The parameter for kernel function
 sigma = 5
@@ -274,7 +82,6 @@ forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
 #forward_op = odl.IdentityOperator(rec_space)
 
 # Create projection data by calling the op on the phantom
-ground_truth=rec_space.element(I1)
 proj_data = forward_op(ground_truth)
 
 # Add white Gaussion noise onto the noiseless data
@@ -283,11 +90,6 @@ noise =0.25 * odl.phantom.noise.white_noise(forward_op.range)
 # Create the noisy projection data
 noise_proj_data = proj_data + noise
 
-# Compute the signal-to-noise ratio in dB
-snr = snr_fun(proj_data, noise_proj_data - proj_data, impl='general')
-
-# Output the signal-to-noise ratio
-print('snr = {!r}'.format(snr))
 
 # Give the number of time points
 time_itvs = 10
@@ -300,38 +102,12 @@ forward_operators=[forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
 
 
-
-np.savetxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedSource',template)
-np.savetxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedTarget',data[0])
-
-templateload=space.element(np.loadtxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedSource'))
-
-#lam_fbp=0.5
-#fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
-#reco_fbp=fbp(data[0])
-##reco_fbp.show()
-#reco_fbp.show(clim=[-0.2,1.2])
 #%% Define energy operator
 
 functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
                             lamb,tau,template ,data,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
-
-
-
-energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
-                            data_time_points, forward_operators,Norm, kernel,
-                            domain=None)
-
-#Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
-#
-#functional_LDDMM = energy_op + lamb*Reg
-#
-
-
-#nameinit='/home/barbara/odl/examples/Metamorphosis/Shepp_Logan_fac_greyscale_0_no_noise_directmatching'
-#name0= nameinit + 'Metamorphosis_sigma_2_lam_1_e__15_tau_1_e__2_iter_200'    
 
 
 #%% Gradient descent
@@ -361,17 +137,17 @@ for k in range(niter):
         X_temp1[0]= (X[0]- epsV *grad[0]).copy()
         X_temp1[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
         energy_temp1=functional(X_temp1)
-        
+
         X_temp2=X.copy()
         X_temp2[0]= (X[0]- 0.5*epsV *grad[0]).copy()
         X_temp2[1]= (X[1]- epsZ *grad[1]).copy()
         energy_temp2=functional(X_temp2)
-        
+
         X_temp3=X.copy()
         X_temp3[0]= (X[0]- 0.5*epsV *grad[0]).copy()
         X_temp3[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
         energy_temp3=functional(X_temp3)
-        
+
         if (energy_temp3<=energy_temp1 and energy_temp3<=energy_temp2):
             X_temp0=X_temp3.copy()
             energy_temp0=energy_temp3
@@ -386,16 +162,16 @@ for k in range(niter):
                 X_temp0=X_temp2.copy()
                 energy_temp0=energy_temp2
                 epsV*=0.5
-            
+
         if energy_temp0<energy:
             X=X_temp0.copy()
             energy=energy_temp0
             print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
         else:
             print("epsV = {} , epsZ = {}".format(epsV, epsZ))
-        
-    
-    
+
+
+
 #
 
 #%%
@@ -403,11 +179,11 @@ mini=-1
 maxi=1
 
 nameinit='/home/barbara/odl/examples/Metamorphosis/SheppLogan/Shepp_Logan_modifie_greyscale_modifed_no_noise'
-name0= nameinit + 'Metamorphosis_nbangle_10_sigma_5_lam_1_e__15_tau_1_e__2_iter_200'    
-#name0= nameinit + 'LDDMM_nbangle_10_sigma_5_lam_1_e__15_iter_200'    
+name0= nameinit + 'Metamorphosis_nbangle_10_sigma_5_lam_1_e__15_tau_1_e__2_iter_200'
+#name0= nameinit + 'LDDMM_nbangle_10_sigma_5_lam_1_e__15_iter_200'
 
 
-##%%
+##%% fbp
 #lam_fbp=200
 #fbp = odl.tomo.fbp_op(forward_op, filter_type='Hann', frequency_scaling=lam_fbp)
 #reco_fbp=fbp(data[0])
@@ -479,7 +255,7 @@ rec_proj_data = forward_op(rec_result)
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(2, figsize=(24, 24))
 #plt.clf()
@@ -587,7 +363,7 @@ rec_result = rec_space.element(image_N0[time_itvs])
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(3, figsize=(24, 24))
 #plt.clf()
@@ -667,7 +443,7 @@ rec_result = rec_space.element(image_N0[time_itvs])
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(4, figsize=(24, 24))
 #plt.clf()
