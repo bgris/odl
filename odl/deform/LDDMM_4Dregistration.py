@@ -306,8 +306,8 @@ class TemporalAttachmentLDDMMGeom(Functional):
                 return grad
 
         return TemporalAttachmentLDDMMGeomGradient()
-    
-    
+
+
     @property
     def gradientL2(self):
 
@@ -342,7 +342,7 @@ class TemporalAttachmentLDDMMGeom(Functional):
                     # Update image_N0[i+1] by image_N0[i] and vector_fields[i+1]
                     image_integration[i+1] = functional.image_domain.element(
                         _linear_deform(image_integration[i],
-                                       -functional.inv_N * vector_field_list[i+1])).copy()
+                                       -functional.inv_N * vector_field_list[i])).copy()
 
                 # time interpolation to obtain at the data time points
                 # - the transported template  : linear deformation from
@@ -398,14 +398,15 @@ class TemporalAttachmentLDDMMGeom(Functional):
                                    _linear_deform(grad_S_tj,
                                    delta_t * vector_field_list_data[j])).copy()
 
-                    tmp= grad_op(image_integration[functional.k_j_list[j]]).copy()
-                    tmp1=(grad_S[functional.k_j_list[j]] *
-                          detDphi[functional.k_j_list[j]]).copy()
-                    for d in range(dim):
-                        tmp[d] *= tmp1
+                    # Because it influences the gradient only if k_j_list[j] < t_j (not if it is equal)
+                    if (not delta_t==0):
+                        tmp= grad_op(image_integration[functional.k_j_list[j]]).copy()
+                        tmp1=(grad_S[functional.k_j_list[j]] *
+                              detDphi[functional.k_j_list[j]]).copy()
+                        for d in range(dim):
+                            tmp[d] *= tmp1
 
-
-                    grad[functional.k_j_list[j]]-=tmp.copy()
+                        grad[functional.k_j_list[j]]-=tmp.copy()
 
                     # loop for k < k_j
                     delta_t= functional.inv_N
@@ -415,8 +416,8 @@ class TemporalAttachmentLDDMMGeom(Functional):
                                 _linear_deform(detDphi[k+1],
                                 delta_t*vector_field_list[k])).copy()
                         detDphi[k]=functional.image_domain.element(detDphi[k]*
-                                   functional.image_domain.element(np.exp(delta_t *
-                                     div_op(vector_field_list[k])))).copy()
+                                   functional.image_domain.element(1+delta_t *
+                                     div_op(vector_field_list[k]))).copy()
                         grad_S[k]=functional.image_domain.element(
                                        _linear_deform(grad_S[k+1],
                                        delta_t * vector_field_list[k])).copy()
