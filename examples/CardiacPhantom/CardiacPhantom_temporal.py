@@ -47,11 +47,11 @@ data_list[1].show(indices=np.s_[ space.shape[0] // 2,:, :])
 
 # Save data to visualize them
 if False:
-    indi=4
+    indi=7
     filename='/home/bgris/odl/examples/CardiacPhantom/SPECT_Torso_act_'+ str(indi+1) + '.bin'
     A = np.fromfile(filename, dtype='float32')
     A = A.reshape([a,b,c]).copy()
-    A=data_list[0]
+    #A=data_list[1]
     data = np.asarray(A)
     img = nib.Nifti1Image(data, np.eye(4))
     img.get_data_dtype() == np.dtype(np.float32)

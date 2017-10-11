@@ -21,6 +21,8 @@ from odl.discr import uniform_partition
 
 from odl.deform.mrc_data_io import (read_mrc_data, geometry_mrc_data,
                                     result_2_mrc_format, result_2_nii_format)
+from odl.contrib.mrc import FileReaderMRC
+
 from odl.tomo import RayTransform, fbp_op
 from odl.operator import (BroadcastOperator, power_method_opnorm)
 from odl.solvers import (CallbackShow, CallbackPrintIteration, ZeroFunctional,
@@ -36,6 +38,11 @@ file_path = directory + data_filename
 data, data_extent, header= read_mrc_data(file_path=file_path,
                                                            normalize=False)
 #data_extent=np.moveaxis(data_extent, -1, 0).copy()
+
+
+with FileReaderMRC(file_path) as data_reader:
+  data_header,data = data_reader.read()
+
 
 angle_partition=uniform_partition(-np.radians(60),np.radians(60),61)
 data_shape=data.shape

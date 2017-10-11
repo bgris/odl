@@ -22,17 +22,21 @@ space = odl.uniform_discr(
     min_pt=[-127, -127, -59], max_pt=[127, 127, 59], shape=[a,b,c],
     dtype='float32', interp='linear')
 
+path = '/home/bgris/odl/examples/CardiacPhantom/'
 Ndata=2
 data_list=[]
 index_list=[0,4]
 for i in range(len(index_list)+1):
     filename='SPECT_Torso_act_'+ str(index_list[i]+1) + '.bin'
-    A = np.fromfile(filename, dtype='float32')
+    A = np.fromfile(path + filename, dtype='float32')
     A = A.reshape([a,b,c])
     data_list.append(space.element(A))
 
 data_list[0].show(indices=np.s_[ space.shape[0] // 2,:, :])
 
+
+#data_list[0].show(indices=np.s_[ :,space.shape[1] // 2, :])
+#plt.axis('equal')
 data_list[1].show(indices=np.s_[ space.shape[0] // 2,:, :])
 
 #%% Parameter for matching
