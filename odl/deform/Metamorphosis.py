@@ -216,18 +216,18 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
             #energy+=self.S[j](image_list[j])
         attach=energy
 
-        a=0
-        b=0
-        for i in range(self.N):
-            temp=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(vector_field_list[i]) * self.ft_kernel_fitting).copy()
-            #energy+=self.lamb*vector_field_list[i].inner(temp)
-            #energy+=self.tau*zeta_list[i].inner(zeta_list[i])
-            a+=self.lamb*vector_field_list[i].inner(temp)
-            b+=self.tau*zeta_list[i].inner(zeta_list[i])
-        energy+=a
-        energy+=b
-        print("Attachmant term = {} , norm v = {} , norm zeta = {} ".format(attach,a,b))
-        return energy
+        #a=0
+        #b=0
+        #for i in range(self.N):
+        #    temp=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(vector_field_list[i]) * self.ft_kernel_fitting).copy()
+        #    #energy+=self.lamb*vector_field_list[i].inner(temp)
+        #    #energy+=self.tau*zeta_list[i].inner(zeta_list[i])
+        #    a+=self.lamb*vector_field_list[i].inner(temp)
+        #    b+=self.tau*zeta_list[i].inner(zeta_list[i])
+        #energy+=a
+        #energy+=b
+        #print("Attachmant term = {} , norm v = {} , norm zeta = {} ".format(attach,a,b))
+        return attach
 
     def ComputeMetamorphosis(self,vector_field_list,zeta_list):
         image_list=ProductSpace(self.template.space,self.nb_data).element()
@@ -397,7 +397,33 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
 
 
+    @property
+    def gradient_gradzeta_penalized(self):
 
+        functional = self
+
+        class TemporalAttachmentMetamorphosisGeomGradientGradZetaPenalized(Operator):
+
+            """The gradient operator of the TemporalAttachmentMetmorphosisGeom
+            functional when zeta is also penalized by the norm of 
+            its gradient."""
+
+            def __init__(self):
+                """Initialize a new instance."""
+                super().__init__(functional.domain, functional.domain,
+                                 linear=False)
+
+            def _call(self, X):
+                zeta_list=X[1]
+                grad = functional.gradient(X)
+                laplacian_op = odl.discr.diff_ops.Laplacian(functional.image_domain)
+                for k in range(functional.N):
+                    grad[1][k] -= 2*laplacian_op(zeta_list[k]).copy()
+                    
+                return grad
+                
+
+        return TemporalAttachmentMetamorphosisGeomGradientGradZetaPenalized()
 
 
 
