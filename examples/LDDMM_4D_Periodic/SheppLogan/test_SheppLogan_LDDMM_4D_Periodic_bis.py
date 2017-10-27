@@ -161,7 +161,7 @@ def plot_grid(grid, skip):
 
 
 #
-#%% Generate dota
+##%% Generate dota
 
 #I1name = '/home/bgris/Downloads/pictures/v.png'
 #I0name = '/home/bgris/Downloads/pictures/j.png'
@@ -232,7 +232,7 @@ if False:
     I1.show('I1')
 #    I2.show('I2')
 #
-#%%
+##%%
 #I1.show(clim=[1,1.1])
 
 #ground_truth.show('ground truth')
@@ -254,7 +254,7 @@ sigma = 3
 # Give kernel function
 def kernel(x):
     scaled = [xi ** 2 / (2 * sigma ** 2) for xi in x]
-    return np.exp(-sum(scaled)) 
+    return np.exp(-sum(scaled))
 
 # Maximum iteration number
 niter = 200
@@ -267,19 +267,19 @@ lamb = 1*1e-15
 tau = 1* 1e-2
 
 # Give the number of directions
-num_angles = 10
+#num_angles = 10
 
 # Create the uniformly distributed directions
-angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
-                                    nodes_on_bdry=[(True, True)])
+#angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
+#                                    nodes_on_bdry=[(True, True)])
 
 # Create 2-D projection domain
 # The length should be 1.5 times of that of the reconstruction space
 rec_space=space
-detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+#detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
 
 # Create 2-D parallel projection geometry
-geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+#geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
 #forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
@@ -288,7 +288,7 @@ forward_op = odl.IdentityOperator(rec_space)
 # Create projection data by calling the op on the phantom
 ground_truth=[rec_space.element(template), rec_space.element(I1)]
 proj_data_uni = [forward_op(ground_truth[u]) for u in range(len(ground_truth))]
-proj_data = [proj_data_uni[1], proj_data_uni[0], proj_data_uni[1], proj_data_uni[0], proj_data_uni[1]] 
+proj_data = [proj_data_uni[1], proj_data_uni[0], proj_data_uni[1], proj_data_uni[0], proj_data_uni[1]]
 # Add white Gaussion noise onto the noiseless data
 noise =0.25 * odl.phantom.noise.white_noise(forward_op.range)
 
@@ -296,7 +296,7 @@ noise =0.25 * odl.phantom.noise.white_noise(forward_op.range)
 #noise_proj_data = proj_data + noise
 
 # Give the number of time points
-time_itvs = 40
+time_itvs = 50
 nb_time_point_int=time_itvs
 
 import copy
@@ -315,7 +315,7 @@ Norm=odl.solvers.L2NormSquared(forward_op.range)
 if False:
     np.savetxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedSource',template)
     np.savetxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedTarget',data[0])
-    
+
     templateload=space.element(np.loadtxt('/home/barbara/odl/examples/Metamorphosis/SheppLogan/SheppLoganModifiedSource'))
 #
 #lam_fbp=0.5
@@ -323,7 +323,7 @@ if False:
 #reco_fbp=fbp(data[0])
 ##reco_fbp.show()
 #reco_fbp.show(clim=[-0.2,1.2])
-#%% Define energy operator
+##%% Define energy operator
 
 #functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
 #                            lamb,tau,template ,data,
@@ -342,17 +342,17 @@ Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 ##%%
 #grad=energy_op.gradient(vector_fields)
 
-#%%
+##%%
 lam= 1e-8
 
 functional = energy_op + lam*Reg
-#%% Gradient descent initialisatio
+##%% Gradient descent initialisatio
 niter=200
 eps=0.002
 X_init=functional.domain.zero()
 X=X_init.copy()
-#%%Gradient descent
-import copy 
+##%%Gradient descent
+import copy
 energy=energy_op(X)
 print(" Initial ,  energy : {}".format(energy))
 
@@ -369,12 +369,12 @@ for k in range(niter):
     else:
         eps *= 0.8
         print("k = {} , eps = {}".format(k, eps))
-            
-    
-    
+
+
+
 #
 
-#%%
+##%%
 mini=-1
 maxi=1
 #
@@ -383,13 +383,13 @@ maxi=1
 #
 
 
-nameinit='/home/barbara/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target2_no_noise'
-name0= nameinit + 'nb_int_20_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_data_time_1'
+nameinit='/home/bgris/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target1_no_noise'
+name0= nameinit + 'nb_int_50_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_data_per_0_4'
 #name0= nameinit + '_zetagradientpenalized'
 
 
-#    
-#name0= nameinit + 'LDDMM_nbangle_10_sigma_5_lam_1_e__15_iter_200'    
+#
+#name0= nameinit + 'LDDMM_nbangle_10_sigma_5_lam_1_e__15_iter_200'
 
 
 ##%%
@@ -407,7 +407,7 @@ name0= nameinit + 'nb_int_20_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_data
 #plt.colorbar()
 #namefbp=nameinit + 'fbp.png'
 #plt.savefig(namefbp, bbox_inches='tight')
-#%% Compute estimated trajectory
+#%#% Compute estimated trajectory
 
 image_list=odl.deform.ShootTemplateFromVectorFields(X, template)
 
@@ -415,23 +415,24 @@ image_list=odl.deform.ShootTemplateFromVectorFields(X, template)
 #image_list_data[0].show(clim=[0,1])
 #
 #grid_points=compute_grid_deformation_list(X[0], 1/nb_time_point_int, template.space.points().T)
-
+for t in range(nb_time_point_int):
+    image_list[t].show('t = {}'.format(t))
 #
 #for t in range(nb_time_point_int):
 #    grid=grid_points[t].reshape(2, 128, 128).copy()
 #plot_grid(grid, 2)
-#%%
+##%%
 #image_list=odl.ProductSpace(functional.template.space,functional.N).element()
 #zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0], X[1]).copy()
 #template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
 #odl.deform.ShootTemplateFromVectorFieldsFinal(X[0],template_evolution[k],0,k).copy()
 
-#%% Plot metamorphosis
+##%% Plot LDDMM
 image_N0= image_list
-rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
-rec_result = rec_space.element(image_N0[time_itvs])
+rec_result_1 = rec_space.element(image_N0[3])
+rec_result_2 = rec_space.element(image_N0[5])
+rec_result_3 = rec_space.element(image_N0[7])
+rec_result = rec_space.element(image_N0[10])
 
 # Compute the projections of the reconstructed image
 rec_proj_data = forward_op(rec_result)
@@ -442,7 +443,7 @@ rec_proj_data = forward_op(rec_result)
 #    image_N0[t].show('t= {}'.format(t))
 #    #plot_grid(grid, 2)
 ##
-#%%%
+##%%%
 # Plot the results of interest
 plt.figure(2, figsize=(24, 24))
 #plt.clf()
@@ -463,7 +464,7 @@ plt.imshow(np.rot90(rec_result_1), cmap='bone',
 
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4))
+plt.title('nb int = 3')
 
 plt.subplot(3, 3, 3)
 plt.imshow(np.rot90(rec_result_2), cmap='bone',
@@ -473,7 +474,7 @@ plt.imshow(np.rot90(rec_result_2), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+plt.title('nb int = 5')
 
 plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
@@ -483,34 +484,33 @@ plt.imshow(np.rot90(rec_result_3), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+plt.title('nb int = 7')
 
 plt.subplot(3, 3, 5)
 plt.imshow(np.rot90(rec_result), cmap='bone',
            vmin=mini,
            vmax=maxi)
-#grid=grid_points[time_itvs // 4*3].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
-#plot_grid(grid, 2)
+plt.title('nb int = 10')#plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
 #plt.title('Reconstructed by {!r} iters, '
 #    '{!r} projs'.format(niter, num_angles))
 
 plt.subplot(3, 3, 7)
-plt.imshow(np.rot90(ground_truth[0]), cmap='bone',
-           vmin=mini,
-           vmax=maxi)
-plt.axis('off')
-plt.colorbar()
-plt.title('Ground truth 0.5')
-
-plt.subplot(3, 3, 8)
 plt.imshow(np.rot90(ground_truth[1]), cmap='bone',
            vmin=mini,
            vmax=maxi)
 plt.axis('off')
 plt.colorbar()
-plt.title('Ground truth 1')
+plt.title('Ground truth 0.2 (nb int = 5)')
+
+plt.subplot(3, 3, 8)
+plt.imshow(np.rot90(ground_truth[0]), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('Ground truth 0.4 (nb int = 10)')
 
 name=name0 + 'lddmm.png'
 plt.savefig(name, bbox_inches='tight')

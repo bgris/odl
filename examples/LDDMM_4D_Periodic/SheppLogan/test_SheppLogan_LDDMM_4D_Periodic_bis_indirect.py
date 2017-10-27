@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 20 17:44:30 2017
+Created on Mon Oct 23 19:44:12 2017
 
-@author: barbara
+@author: bgris
 """
 
 #!/usr/bin/env python3
@@ -275,23 +275,23 @@ lamb = 1*1e-15
 tau = 1* 1e-2
 
 # Give the number of directions
-#num_angles = 10
+num_angles = 10
 
 # Create the uniformly distributed directions
-#angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
-#                                    nodes_on_bdry=[(True, True)])
+angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
+                                    nodes_on_bdry=[(True, True)])
 
 # Create 2-D projection domain
 # The length should be 1.5 times of that of the reconstruction space
 rec_space=space
-#detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
 
 # Create 2-D parallel projection geometry
-#geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
-#forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
-forward_op = odl.IdentityOperator(rec_space)
+forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+#forward_op = odl.IdentityOperator(rec_space)
 
 # Create projection data by calling the op on the phantom
 ground_truth=[rec_space.element(template), rec_space.element(I1)]
@@ -338,40 +338,14 @@ if False:
 #                            data_time_points, forward_operators,Norm, kernel,
 #                            domain=None)
 
-T=0.4
-def a_fun(x):
-    divi = x / T
-    return T*(divi - int(divi))
 
-nb_time_point_int_gate = 20
-nb_time_point_int = 50
 
-#
-#energy_op=odl.deform.TemporalAttachmentLDDMMGeomGatingFunction(
-#        T, a_fun, nb_time_point_int_gate,nb_time_point_int, template,
-# data, data_time_points, forward_operators,Norm, kernel, domain= None)
-#
-#
-##energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
-##                            data_time_points, forward_operators,Norm, kernel,
-##                            domain=None)
-#
-#
-#Reg=odl.deform.RegularityLDDMMGatingFunction(T, a_fun,nb_time_point_int_gate,
-#                                             nb_time_point_int, kernel, domain = energy_op.domain)
-#
-
-period=0.4
-
-energy_op=odl.deform.TemporalAttachmentLDDMMGeomPeriodic(period,
-                                                        nb_time_point_int, template ,data,
+energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
-#energy=energy_op(vector_fields)
 
-Reg=odl.deform.RegularityLDDMMPeriodic(period,nb_time_point_int,
-                      kernel,energy_op.domain)
 
+Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 #Reg=odl.deform.RegularityGrowth(kernel,energy_op.domain)
 ##%%
 #grad=energy_op.gradient(vector_fields)
@@ -417,8 +391,8 @@ maxi=1
 #
 
 
-nameinit='/home/bgris/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target1_data_periodic_no_noise'
-name0= nameinit + 'functional_periodic_nb_int_50_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_period_0_4'
+nameinit='/home/bgris/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target1_no_noise'
+name0= nameinit + 'nb_int_50_nbangles_10_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_data_per_0_4'
 #name0= nameinit + '_zetagradientpenalized'
 
 
@@ -441,14 +415,10 @@ name0= nameinit + 'functional_periodic_nb_int_50_direct_sigma_3_lam_1_e__15_tau_
 #plt.colorbar()
 #namefbp=nameinit + 'fbp.png'
 #plt.savefig(namefbp, bbox_inches='tight')
-##%% Compute estimated trajectory
-image_list=odl.deform.ShootTemplateFromVectorFields(energy_op.ComputeTotalVectorFields(X),
-                                           template)
+#%#% Compute estimated trajectory
 
-#image_list=odl.deform.ShootTemplateFromVectorFields(X, template)
+image_list=odl.deform.ShootTemplateFromVectorFields(X, template)
 
-#for i in range(10):
-#    image_list[i].show('{}'.format(i))
 #image_list_data[0].show()
 #image_list_data[0].show(clim=[0,1])
 #
@@ -464,7 +434,7 @@ image_list=odl.deform.ShootTemplateFromVectorFields(energy_op.ComputeTotalVector
 #template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
 #odl.deform.ShootTemplateFromVectorFieldsFinal(X[0],template_evolution[k],0,k).copy()
 
-##%% Plot
+##%% Plot LDDMM
 image_N0= image_list
 rec_result_1 = rec_space.element(image_N0[3])
 rec_result_2 = rec_space.element(image_N0[5])

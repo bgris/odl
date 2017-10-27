@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 20 17:44:30 2017
+Created on Mon Oct 23 19:24:46 2017
 
-@author: barbara
+@author: bgris
 """
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 20 17:37:33 2017
+Created on Mon Oct 23 19:06:35 2017
 
-@author: barbara
+@author: bgris
 """
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 17 22:23:47 2017
+Created on Mon Oct 23 18:53:28 2017
 
-@author: barbara
+@author: bgris
 """
 
 #!/usr/bin/env python3
@@ -196,29 +196,28 @@ ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
             [val2, .0230, .0460, 0.0600, -.6050, 0]]
 
 template=odl.phantom.ellipsoid_phantom(space, ellipsoids)
-#
-#
-## Change of grey scale value for the target
-#background= 0.0
-#val0=-0.7 - background
-#val1=0.5 - background
-#val2=0.6 - background
-#ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
-#            [-.98, .6624, .8740, 0.0000, -.0184, 0],
-#            [val0, .1100, .3100, 0.2200, 0.0000, -18],
-#            [val1, .1600, .4100, -.2200, 0.0000, 18],
-#            [val1, .2100, .2500, 0.0000, 0.3500, 0],
-#            [val1, .0460, .0460, 0.0000, 0.1000, 0],
-#            [val1, .0460, .0460, 0.0000, -.1000, 0],
-#            [val2, .0460, .0230, -.0800, -.6050, 0],
-#            [val2, .0230, .0230, 0.0000, -.6060, 0],
-#            [val2, .0230, .0460, 0.0600, -.6050, 0]]
 
-#I0=odl.phantom.ellipsoid_phantom(space, ellipsoids) + background
+
+# Change of grey scale value for the target
+background= 0.2
+val0=-0.7 - background
+val1=0.5 - background
+val2=0.6 - background
+ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
+            [-.98, .6624, .8740, 0.0000, -.0184, 0],
+            [val0, .1100, .3100, 0.2200, 0.0000, -18],
+            [val1, .1600, .4100, -.2200, 0.0000, 18],
+            [val1, .2100, .2500, 0.0000, 0.3500, 0],
+            [val1, .0460, .0460, 0.0000, 0.1000, 0],
+            [val1, .0460, .0460, 0.0000, -.1000, 0],
+            [val2, .0460, .0230, -.0800, -.6050, 0],
+            [val2, .0230, .0230, 0.0000, -.6060, 0],
+            [val2, .0230, .0460, 0.0600, -.6050, 0]]
+
+I0=odl.phantom.ellipsoid_phantom(space, ellipsoids) + background
 
 #template= odl.phantom.shepp_logan(space)
-#I0= space.element(scipy.ndimage.filters.gaussian_filter(template.asarray(),1))
-I0= template.copy()
+I0= space.element(scipy.ndimage.filters.gaussian_filter(I0.asarray(),1))
 #template.show(clim=[1,1.1])
 
 
@@ -231,30 +230,20 @@ Cont_affine=-1*affine.Contspace.element([[[0.5,0],[1,-1],[1,1]],[[-1,0.5],[-1,0]
 vect_field_affine=affine.ComputeField(GD_affine,Cont_affine)
 
 I1=template.space.element(odl.deform.linearized._linear_deform(I0.copy(),vect_field_affine)).copy()
-#I2=template.space.element(odl.deform.linearized._linear_deform(I1.copy(),vect_field_affine)).copy()
+I2=template.space.element(odl.deform.linearized._linear_deform(I1.copy(),vect_field_affine)).copy()
 #I1_0.show(clim=[1,1.1])
 
 #I1=template.space.element((I1_0-1.03)*1.5+ 1.04)
 if False:
     template.show('template')
     I1.show('I1')
-#    I2.show('I2')
+    I2.show('I2')
 #
 ##%%
 #I1.show(clim=[1,1.1])
 
 #ground_truth.show('ground truth')
 #template.show('template')
-
-# The parameter for kernel function
-#sigma0 = 5
-#sigma1 = 1
-#
-## Give kernel function
-#def kernel(x):
-#    scaled0 = [xi ** 2 / (2 * sigma0 ** 2) for xi in x]
-#    scaled1 = [xi ** 2 / (2 * sigma1 ** 2) for xi in x]
-#    return np.exp(-sum(scaled0)) + np.exp(-sum(scaled1))
 
 # The parameter for kernel function
 sigma = 3
@@ -271,32 +260,31 @@ niter = 200
 eps = 0.02
 
 # Give regularization parameter
-lamb = 1*1e-15
+lamb = 1*1e-2
 tau = 1* 1e-2
 
 # Give the number of directions
-#num_angles = 10
+num_angles = 10
 
-# Create the uniformly distributed directions
-#angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
-#                                    nodes_on_bdry=[(True, True)])
-
-# Create 2-D projection domain
-# The length should be 1.5 times of that of the reconstruction space
+## Create the uniformly distributed directions
+angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
+                                    nodes_on_bdry=[(True, True)])
+#
+## Create 2-D projection domain
+## The length should be 1.5 times of that of the reconstruction space
 rec_space=space
-#detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
 
 # Create 2-D parallel projection geometry
-#geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
-#forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
-forward_op = odl.IdentityOperator(rec_space)
+forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
 
 # Create projection data by calling the op on the phantom
-ground_truth=[rec_space.element(template), rec_space.element(I1)]
-proj_data_uni = [forward_op(ground_truth[u]) for u in range(len(ground_truth))]
-proj_data = [proj_data_uni[1], proj_data_uni[0], proj_data_uni[1], proj_data_uni[0], proj_data_uni[1]]
+ground_truth=[rec_space.element(I1)]
+proj_data = [forward_op(ground_truth[u]) for u in range(len(ground_truth))]
+
 # Add white Gaussion noise onto the noiseless data
 noise =0.25 * odl.phantom.noise.white_noise(forward_op.range)
 
@@ -304,19 +292,14 @@ noise =0.25 * odl.phantom.noise.white_noise(forward_op.range)
 #noise_proj_data = proj_data + noise
 
 # Give the number of time points
-time_itvs = 50
+time_itvs = 20
 nb_time_point_int=time_itvs
 
 import copy
 #data=[noise_proj_data]
-#data=copy.deepcopy(proj_data)
-#data_time_points=np.array([0.5, 1])
-#forward_operators=[forward_op, forward_op]
-
 data=copy.deepcopy(proj_data)
-data_time_points=np.array([0.2, 0.4, 0.6, 0.8, 1])
-forward_operators=[forward_op, forward_op, forward_op, forward_op, forward_op]
-
+data_time_points=np.array([1])
+forward_operators=[forward_op, forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
 
 
@@ -333,76 +316,79 @@ if False:
 #reco_fbp.show(clim=[-0.2,1.2])
 ##%% Define energy operator
 
-#functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
-#                            lamb,tau,template ,data,
-#                            data_time_points, forward_operators,Norm, kernel,
-#                            domain=None)
-
-T=0.4
-def a_fun(x):
-    divi = x / T
-    return T*(divi - int(divi))
-
-nb_time_point_int_gate = 20
-nb_time_point_int = 50
-
-#
-#energy_op=odl.deform.TemporalAttachmentLDDMMGeomGatingFunction(
-#        T, a_fun, nb_time_point_int_gate,nb_time_point_int, template,
-# data, data_time_points, forward_operators,Norm, kernel, domain= None)
-#
-#
-##energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
-##                            data_time_points, forward_operators,Norm, kernel,
-##                            domain=None)
-#
-#
-#Reg=odl.deform.RegularityLDDMMGatingFunction(T, a_fun,nb_time_point_int_gate,
-#                                             nb_time_point_int, kernel, domain = energy_op.domain)
-#
-
-period=0.4
-
-energy_op=odl.deform.TemporalAttachmentLDDMMGeomPeriodic(period,
-                                                        nb_time_point_int, template ,data,
+functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
+                            lamb,tau,template ,data,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
-#energy=energy_op(vector_fields)
 
-Reg=odl.deform.RegularityLDDMMPeriodic(period,nb_time_point_int,
-                      kernel,energy_op.domain)
 
-#Reg=odl.deform.RegularityGrowth(kernel,energy_op.domain)
-##%%
-#grad=energy_op.gradient(vector_fields)
 
-##%%
-lam= 1e-8
+energy_op=odl.deform.TemporalAttachmentLDDMMGeom(nb_time_point_int, template ,data,
+                            data_time_points, forward_operators,Norm, kernel,
+                            domain=None)
 
-functional = energy_op + lam*Reg
+
 ##%% Gradient descent initialisatio
 niter=200
-eps=0.002
+epsV=0.002
+epsZ=0.00002
 X_init=functional.domain.zero()
 X=X_init.copy()
 ##%%Gradient descent
-import copy
-energy=energy_op(X)
+energy=functional(X)
 print(" Initial ,  energy : {}".format(energy))
 
 for k in range(niter):
     #X[1][0].show("Iter = {}".format(k),clim=[-1,1])
+    #grad=functional.gradient(X)
     grad=functional.gradient(X)
-    X_temp0=copy.deepcopy(X- eps *grad)
-    energy_temp0=energy_op(X_temp0)
+    X_temp0=X.copy()
+    X_temp0[0]= (X[0]- epsV *grad[0]).copy()
+    X_temp0[1]= (X[1]- epsZ *grad[1]).copy()
+    energy_temp0=functional(X_temp0)
     if energy_temp0<energy:
         X=X_temp0.copy()
         energy=energy_temp0
-        eps*=1.1
-        print(" iter : {}  , energy : {}, eps = {}".format(k,energy,eps))
+        epsV*=1.1
+        epsZ*=1.1
+        print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
     else:
-        eps *= 0.8
-        print("k = {} , eps = {}".format(k, eps))
+        X_temp1=X.copy()
+        X_temp1[0]= (X[0]- epsV *grad[0]).copy()
+        X_temp1[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
+        energy_temp1=functional(X_temp1)
+
+        X_temp2=X.copy()
+        X_temp2[0]= (X[0]- 0.5*epsV *grad[0]).copy()
+        X_temp2[1]= (X[1]- epsZ *grad[1]).copy()
+        energy_temp2=functional(X_temp2)
+
+        X_temp3=X.copy()
+        X_temp3[0]= (X[0]- 0.5*epsV *grad[0]).copy()
+        X_temp3[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
+        energy_temp3=functional(X_temp3)
+
+        if (energy_temp3<=energy_temp1 and energy_temp3<=energy_temp2):
+            X_temp0=X_temp3.copy()
+            energy_temp0=energy_temp3
+            epsZ*=0.5
+            epsV*=0.5
+        else:
+            if (energy_temp1<=energy_temp2 and energy_temp1<=energy_temp3):
+                X_temp0=X_temp1.copy()
+                energy_temp0=energy_temp1
+                epsZ*=0.5
+            else:
+                X_temp0=X_temp2.copy()
+                energy_temp0=energy_temp2
+                epsV*=0.5
+
+        if energy_temp0<energy:
+            X=X_temp0.copy()
+            energy=energy_temp0
+            print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
+        else:
+            print("epsV = {} , epsZ = {}".format(epsV, epsZ))
 
 
 
@@ -412,13 +398,14 @@ for k in range(niter):
 mini=-1
 maxi=1
 #
-#nameinit='/home/barbara/Results/Metamorphosis/SheppLogan/Shepp_Logan_modifie_0_1_target2_no_noise'
-#name0= nameinit + 'Metamorphosis_direct_sigma_5_lam_1_e__15_tau_1_e__2_iter_200_data_time_1__0_5'
-#
+
+#nameinit='/home/barbara/Results/Metamorphosis/SheppLogan/Shepp_Logan_modifie_background_0_2_target2_no_noise'
+#name0= nameinit + 'nb_int_20_Metamorphosis_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_100_data_time_1__0_5'
+#name0= nameinit + '_zetagradientpenalized'
 
 
-nameinit='/home/bgris/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target1_data_periodic_no_noise'
-name0= nameinit + 'functional_periodic_nb_int_50_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_period_0_4'
+nameinit='/home/bgris/Results/Metamorphosis/SheppLogan/Shepp_Logan_modified_background_0_2_target1_no_noise'
+name0= nameinit + 'nb_int_20_Metamorphosis_nbangle_10_sigma_3_lam_1_e__5_tau_1_e__2_iter_100_data_time_1'
 #name0= nameinit + '_zetagradientpenalized'
 
 
@@ -442,15 +429,33 @@ name0= nameinit + 'functional_periodic_nb_int_50_direct_sigma_3_lam_1_e__15_tau_
 #namefbp=nameinit + 'fbp.png'
 #plt.savefig(namefbp, bbox_inches='tight')
 ##%% Compute estimated trajectory
-image_list=odl.deform.ShootTemplateFromVectorFields(energy_op.ComputeTotalVectorFields(X),
-                                           template)
+image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
 
-#image_list=odl.deform.ShootTemplateFromVectorFields(X, template)
-
-#for i in range(10):
-#    image_list[i].show('{}'.format(i))
 #image_list_data[0].show()
 #image_list_data[0].show(clim=[0,1])
+
+image_list=functional.ComputeMetamorphosisListInt(X[0],X[1])
+
+for i in range(nb_time_point_int+1):
+    #image_list[i].show('Metamorphosis time {}'.format(i))
+    #image_list[i].show('Metamorphosis time {}'.format(i),clim=[0,1])
+    image_list[i].show('Metamorphosis time {}'.format(i),clim=[-1,1])
+
+
+template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
+
+#for i in range(nb_time_point_int+1):
+#    template_evo[i].show('Template evolution time {} '.format(i))
+
+
+zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
+#template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
+
+image_evol=odl.deform.IntegrateTemplateEvol(template,zeta_transp,0,nb_time_point_int)
+#for i in range(nb_time_point_int+1):
+#    image_evol[i].show('Image evolution time {} '.format(i),clim=[-1,1.1])
+
+
 #
 #grid_points=compute_grid_deformation_list(X[0], 1/nb_time_point_int, template.space.points().T)
 
@@ -464,12 +469,12 @@ image_list=odl.deform.ShootTemplateFromVectorFields(energy_op.ComputeTotalVector
 #template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
 #odl.deform.ShootTemplateFromVectorFieldsFinal(X[0],template_evolution[k],0,k).copy()
 
-##%% Plot
+##%% Plot metamorphosis
 image_N0= image_list
-rec_result_1 = rec_space.element(image_N0[3])
-rec_result_2 = rec_space.element(image_N0[5])
-rec_result_3 = rec_space.element(image_N0[7])
-rec_result = rec_space.element(image_N0[10])
+rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
+rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
+rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result = rec_space.element(image_N0[time_itvs])
 
 # Compute the projections of the reconstructed image
 rec_proj_data = forward_op(rec_result)
@@ -492,7 +497,7 @@ plt.imshow(np.rot90(template), cmap='bone',
 plt.axis('off')
 #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
 plt.colorbar()
-plt.title('LDDMM')
+plt.title('Metamorphosis')
 
 plt.subplot(3, 3, 2)
 plt.imshow(np.rot90(rec_result_1), cmap='bone',
@@ -501,7 +506,7 @@ plt.imshow(np.rot90(rec_result_1), cmap='bone',
 
 plt.axis('off')
 plt.colorbar()
-plt.title('nb int = 3')
+plt.title('time_pts = {!r}'.format(time_itvs // 4))
 
 plt.subplot(3, 3, 3)
 plt.imshow(np.rot90(rec_result_2), cmap='bone',
@@ -511,7 +516,7 @@ plt.imshow(np.rot90(rec_result_2), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('nb int = 5')
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
 
 plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
@@ -521,34 +526,193 @@ plt.imshow(np.rot90(rec_result_3), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('nb int = 7')
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
 
 plt.subplot(3, 3, 5)
 plt.imshow(np.rot90(rec_result), cmap='bone',
            vmin=mini,
            vmax=maxi)
-plt.title('nb int = 10')#plot_grid(grid, 2)
+#grid=grid_points[time_itvs // 4*3].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
 #plt.title('Reconstructed by {!r} iters, '
 #    '{!r} projs'.format(niter, num_angles))
 
 plt.subplot(3, 3, 7)
-plt.imshow(np.rot90(ground_truth[1]), cmap='bone',
-           vmin=mini,
-           vmax=maxi)
-plt.axis('off')
-plt.colorbar()
-plt.title('Ground truth 0.2 (nb int = 5)')
-
-plt.subplot(3, 3, 8)
 plt.imshow(np.rot90(ground_truth[0]), cmap='bone',
            vmin=mini,
            vmax=maxi)
 plt.axis('off')
 plt.colorbar()
-plt.title('Ground truth 0.4 (nb int = 10)')
+plt.title('Ground truth ')
 
-name=name0 + 'lddmm.png'
+
+
+name=name0 + 'metamorphosis.png'
 plt.savefig(name, bbox_inches='tight')
 
+##%% Plot template
+image_N0= template_evo
+rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
+rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
+rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result = rec_space.element(image_N0[time_itvs])
+##%%
+#
+#for t in range(nb_time_point_int+1):
+#    #grid=grid_points[t].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#    image_N0[t].show('t= {}'.format(t))
+#    #plot_grid(grid, 2)
+##
+##%%%
+# Plot the results of interest
+plt.figure(3, figsize=(24, 24))
+#plt.clf()
+
+plt.subplot(3, 3, 1)
+plt.imshow(np.rot90(template), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+#plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
+plt.colorbar()
+plt.title('Template')
+
+plt.subplot(3, 3, 2)
+plt.imshow(np.rot90(rec_result_1), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4))
+
+plt.subplot(3, 3, 3)
+plt.imshow(np.rot90(rec_result_2), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+
+plt.subplot(3, 3, 4)
+plt.imshow(np.rot90(rec_result_3), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+
+plt.subplot(3, 3, 5)
+plt.imshow(np.rot90(rec_result), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*3].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+#plt.axis('off')
+#plt.colorbar()
+#plt.title('Reconstructed by {!r} iters, '
+#    '{!r} projs'.format(niter, num_angles))
+
+plt.subplot(3, 3, 7)
+plt.imshow(np.rot90(ground_truth[0]), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('Ground truth ')
+
+
+
+
+name=name0 + 'template.png'
+plt.savefig(name, bbox_inches='tight')
+
+##%% Plot image
+image_N0= image_evol
+rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
+rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
+rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result = rec_space.element(image_N0[time_itvs])
+
+##%%
+#
+#for t in range(nb_time_point_int+1):
+#    #grid=grid_points[t].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#    image_N0[t].show('t= {}'.format(t))
+#    #plot_grid(grid, 2)
+##
+##%%%
+# Plot the results of interest
+plt.figure(4, figsize=(24, 24))
+#plt.clf()
+
+plt.subplot(3, 3, 1)
+plt.imshow(np.rot90(template), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+#plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
+plt.colorbar()
+plt.title('Image')
+
+plt.subplot(3, 3, 2)
+plt.imshow(np.rot90(rec_result_1), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4))
+
+plt.subplot(3, 3, 3)
+plt.imshow(np.rot90(rec_result_2), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+
+plt.subplot(3, 3, 4)
+plt.imshow(np.rot90(rec_result_3), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+
+plt.subplot(3, 3, 5)
+plt.imshow(np.rot90(rec_result), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*3].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+#plt.axis('off')
+#plt.colorbar()
+#plt.title('Reconstructed by {!r} iters, '
+#    '{!r} projs'.format(niter, num_angles))
+
+plt.subplot(3, 3, 7)
+plt.imshow(np.rot90(ground_truth[0]), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('Ground truth')
+
+
+#    plt.title('$\Theta=90^\circ$')
+#    plt.gca().axes.yaxis.set_ticklabels([])
+
+
+name=name0 + 'image.png'
+plt.savefig(name, bbox_inches='tight')

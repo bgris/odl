@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Mon Oct 23 19:45:39 2017
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Fri Oct 20 17:44:30 2017
 
 @author: barbara
@@ -275,23 +283,23 @@ lamb = 1*1e-15
 tau = 1* 1e-2
 
 # Give the number of directions
-#num_angles = 10
+num_angles = 10
 
 # Create the uniformly distributed directions
-#angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
-#                                    nodes_on_bdry=[(True, True)])
+angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
+                                    nodes_on_bdry=[(True, True)])
 
 # Create 2-D projection domain
 # The length should be 1.5 times of that of the reconstruction space
 rec_space=space
-#detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
 
 # Create 2-D parallel projection geometry
-#geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
-#forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
-forward_op = odl.IdentityOperator(rec_space)
+forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+#forward_op = odl.IdentityOperator(rec_space)
 
 # Create projection data by calling the op on the phantom
 ground_truth=[rec_space.element(template), rec_space.element(I1)]
@@ -418,7 +426,7 @@ maxi=1
 
 
 nameinit='/home/bgris/Results/LDDMM/4D/SheppLogan/Shepp_Logan_modifie_target1_data_periodic_no_noise'
-name0= nameinit + 'functional_periodic_nb_int_50_direct_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_period_0_4'
+name0= nameinit + 'functional_periodic_nb_int_50_nbangle_10_sigma_3_lam_1_e__15_tau_1_e__2_iter_200_period_0_4'
 #name0= nameinit + '_zetagradientpenalized'
 
 
