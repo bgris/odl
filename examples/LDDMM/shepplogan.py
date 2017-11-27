@@ -128,7 +128,7 @@ rec_space = odl.uniform_discr(
     dtype='float32', interp='linear')
 
 # Create the template as the deformed Shepp-Logan phantom
-ground_truth = odl.phantom.transmission.shepp_logan(rec_space, modified=True)
+template = odl.phantom.transmission.shepp_logan(rec_space, modified=True)
 
 # Create the template for Shepp-Logan phantom
 deform_field_space = rec_space.tangent_bundle
@@ -137,7 +137,7 @@ disp_func = [
     lambda x: 16.0 * np.sin(np.pi * x[1] / 36.0)]
 deform_field = deform_field_space.element(disp_func)
 
-template = rec_space.element(
+ground_truth = rec_space.element(
         odl.deform.mass_preserving.geometric_deform(odl.phantom.transmission.shepp_logan(rec_space, modified=True), deform_field))
 
 # Implementation method for mass preserving or not,
@@ -167,10 +167,18 @@ eps = 0.02
 # Give regularization parameter
 lamb = 1e-7
 
-# Give the number of directions
-num_angles = 10
 
-# Create the uniformly distributed directions
+#### Direct matching
+#forward_op = odl.IdentityOperator(rec_space)
+
+
+## Indirect matching
+
+# Give the number of directions
+num_angles = 20
+
+
+## Create the uniformly distributed directions
 angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
                                     nodes_on_bdry=[(True, True)])
 
@@ -188,7 +196,7 @@ forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
 proj_data = forward_op(ground_truth)
 
 # Add white Gaussion noise onto the noiseless data
-noise = 0.5 * odl.phantom.noise.white_noise(forward_op.range)
+noise = 0.0 * odl.phantom.noise.white_noise(forward_op.range)
 
 ## Create the noisy projection data
 noise_proj_data = proj_data + noise
@@ -233,6 +241,28 @@ for k in range(niter):
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #
 grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
+
+#%%
+step = 50
+points = rec_space.points()
+name = '/home/barbara/Results/LDDMM/SheppLogan/test/SheppLogan_indirect_nbangle_20_sigma_2'
+for i in range(nb_time_point_int+1):
+    name_fig = name + '_plot_vect_field_t_' + str(i) + '_.png'
+    fig = image_N0[i].show(clim=[0, 2])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    v = vector_fields_list[i].copy()
+    plt.quiver(points.T[0][::step],points.T[1][::step],v[0][::step],v[1][::step], color='r', scale = 80)
+    plt.savefig(name_fig)
+
+#
+#%%
+i=nb_time_point_int
+name_fig = name + '_plot_t_' + str(i) + '_.png'
+fig = image_N0[i].show(clim=[0, 2])
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+plt.savefig(name_fig)
 
 #%%
 t=nb_time_point_int
