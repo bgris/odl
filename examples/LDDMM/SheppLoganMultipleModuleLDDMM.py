@@ -129,11 +129,12 @@ def plot_grid(grid, skip):
 #
 #%%
 
-Name_target = '/home/bgris/data/SheppLoganRotationSmallDef/target_2affine_1rotation_512'
 space = odl.uniform_discr(
     min_pt=[-16, -16], max_pt=[16, 16], shape=[512, 512],
     dtype='float32', interp='linear')
 path = '/home/bgris/data/SheppLoganRotationSmallDef/Images/'
+Name_target = '/home/bgris/data/SheppLoganRotationSmallDef/target_2affine_1rotation_512'
+Name_target = path + 'source_5'
 
 
 template=space.element(np.loadtxt(path + 'source_0'))
@@ -240,7 +241,7 @@ functional = energy_op + lamb*Reg
 eps = 0.05
 import copy
 vector_fields_list_init=energy_op.domain.zero()
-vector_fields_list_init=energy_op.domain.element(copy.deepcopy(vector_fields_list_load))
+#vector_fields_list_init=energy_op.domain.element(copy.deepcopy(vector_fields_list_load))
 
 vector_fields_list=vector_fields_list_init.copy()
 
@@ -274,6 +275,17 @@ grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_poin
 #for t in range(nb_time_point_int):
 #    grid=grid_points[t].reshape(2, 128, 128).copy()
 #plot_grid(grid, 2)
+#%% save figures at each time
+name_exp = 'EstimatedTrajectory_SheppLogan_Rotation_LDDMMsigma_1_no_noise'
+name = '/home/bgris/Results/LDDMM/SheppLogan/Rotation/' + name_exp
+
+for i in range(nb_time_point_int + 1):
+
+    fig = image_N0[i].show(clim = [0,2])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(name + '_' + str(i), box_inches='tight')
+#
 
 #%% Def plotting function
 mini = 0
@@ -352,7 +364,9 @@ def plot_result(name,image_N0):
 #%%
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 
-name = '/home/bgris/Results/DeformationModules/testEstimation/Rotation/EstimatedTrajectory_SheppLogan_MultipleModule_LDDMMsigma_3_'
+name = '/home/bgris/Results/DeformationModules/testEstimation/Rotation/'
+name += name_exp
+#EstimatedTrajectory_SheppLogan_MultipleModule_LDDMMsigma_3_'
 name += '_notnoisydirect'
 #name += '_noisydirect'
 #name += '_noisydirect_10angles'
