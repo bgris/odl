@@ -112,14 +112,14 @@ functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
                             data_time_points, forward_operators,Norm, kernel,
                             domain=None)
 
-nameinit='/home/bgris/Results/Metamorphosis/Triangles/4D/triangle_background_0_1_'
-name0= nameinit + 'Metamorphosis_sigma_2_angle_10_lam_0_5_e__11_tau_0_5_e__2_iter_300_data_per_nb_int_25'
-##%% Gradient descent
-niter=300
-epsV=0.02
-epsZ=0.002
 X_init=functional.domain.zero()
 X=X_init.copy()
+epsV=0.02
+epsZ=0.002
+##%% Gradient descent
+nameinit='/home/bgris/Results/Metamorphosis/Triangles/4D/triangle_background_0_1_'
+name0= nameinit + 'Metamorphosis_sigma_2_angle_10_lam_0_5_e__11_tau_0_5_e__2_iter_600_data_per_nb_int_25'
+niter=600
 energy=functional(X)
 print(" Initial ,  energy : {}".format(energy))
 
@@ -192,12 +192,16 @@ maxi=1
 #zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0], X[1]).copy()
 #template_evolution=odl.deform.IntegrateTemplateEvol(functional.template,zeta_transp,0,functional.N)
 #odl.deform.ShootTemplateFromVectorFieldsFinal(X[0],template_evolution[k],0,k).copy()
-
+t0 = 5
+t1 = 10
+t2 = 15
+t3 = 20
 ##%% Plot metamorphosis
 image_N0= image_list
-rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result_1 = rec_space.element(image_N0[t0])
+rec_result_2 = rec_space.element(image_N0[t1])
+rec_result_3 = rec_space.element(image_N0[t2])
+rec_result_4 = rec_space.element(image_N0[t3])
 rec_result = rec_space.element(image_N0[time_itvs])
 
 # Compute the projections of the reconstructed image
@@ -230,7 +234,7 @@ plt.imshow(np.rot90(rec_result_1), cmap='bone',
 
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4))
+plt.title('time_pts = {!r}'.format(t0))
 
 plt.subplot(3, 3, 3)
 plt.imshow(np.rot90(rec_result_2), cmap='bone',
@@ -240,7 +244,7 @@ plt.imshow(np.rot90(rec_result_2), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+plt.title('time_pts = {!r}'.format(t1))
 
 plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
@@ -248,20 +252,25 @@ plt.imshow(np.rot90(rec_result_3), cmap='bone',
            vmax=maxi)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+plt.title('time_pts = {!r}'.format(t2))
 
 plt.subplot(3, 3, 5)
+plt.imshow(np.rot90(rec_result_4), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(t3))
+
+plt.subplot(3, 3, 6)
 plt.imshow(np.rot90(rec_result), cmap='bone',
            vmin=mini,
            vmax=maxi)
-#grid=grid_points[time_itvs // 4*3].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
-#plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('Reconstructed by {!r} iters, '
-    '{!r} projs'.format(niter, num_angles))
+plt.title('time_pts = {!r}'.format(nb_time_point_int))
 
-plt.subplot(3, 3, 6)
+plt.subplot(3, 3, 7)
 plt.imshow(np.rot90(ground_truth), cmap='bone',
            vmin=mini,
            vmax=maxi)
@@ -304,9 +313,10 @@ plt.savefig(name, bbox_inches='tight')
 
 ##%% Plot template
 image_N0= template_evo
-rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result_1 = rec_space.element(image_N0[t0])
+rec_result_2 = rec_space.element(image_N0[t1])
+rec_result_3 = rec_space.element(image_N0[t2])
+rec_result_4 = rec_space.element(image_N0[t3])
 rec_result = rec_space.element(image_N0[time_itvs])
 ##%%
 #
@@ -336,7 +346,7 @@ plt.imshow(np.rot90(rec_result_1), cmap='bone',
 
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4))
+plt.title('time_pts = {!r}'.format(t0))
 
 plt.subplot(3, 3, 3)
 plt.imshow(np.rot90(rec_result_2), cmap='bone',
@@ -346,7 +356,7 @@ plt.imshow(np.rot90(rec_result_2), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+plt.title('time_pts = {!r}'.format(t1))
 
 plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
@@ -356,9 +366,20 @@ plt.imshow(np.rot90(rec_result_3), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+plt.title('time_pts = {!r}'.format(t2))
 
 plt.subplot(3, 3, 5)
+plt.imshow(np.rot90(rec_result_3), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(t3))
+
+
+plt.subplot(3, 3, 6)
 plt.imshow(np.rot90(rec_result), cmap='bone',
            vmin=mini,
            vmax=maxi)
@@ -369,7 +390,7 @@ plt.colorbar()
 plt.title('Reconstructed by {!r} iters, '
     '{!r} projs'.format(niter, num_angles))
 
-plt.subplot(3, 3, 6)
+plt.subplot(3, 3, 7)
 plt.imshow(np.rot90(ground_truth), cmap='bone',
            vmin=mini,
            vmax=maxi)
@@ -383,9 +404,10 @@ plt.savefig(name, bbox_inches='tight')
 
 ##%% Plot metamorphosis
 image_N0= image_evol
-rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+rec_result_1 = rec_space.element(image_N0[t0])
+rec_result_2 = rec_space.element(image_N0[t1])
+rec_result_3 = rec_space.element(image_N0[t2])
+rec_result_4= rec_space.element(image_N0[t3])
 rec_result = rec_space.element(image_N0[time_itvs])
 
 ##%%
@@ -416,7 +438,7 @@ plt.imshow(np.rot90(rec_result_1), cmap='bone',
 
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4))
+plt.title('time_pts = {!r}'.format(t0))
 
 plt.subplot(3, 3, 3)
 plt.imshow(np.rot90(rec_result_2), cmap='bone',
@@ -426,7 +448,7 @@ plt.imshow(np.rot90(rec_result_2), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+plt.title('time_pts = {!r}'.format(t1))
 
 plt.subplot(3, 3, 4)
 plt.imshow(np.rot90(rec_result_3), cmap='bone',
@@ -436,7 +458,18 @@ plt.imshow(np.rot90(rec_result_3), cmap='bone',
 #plot_grid(grid, 2)
 plt.axis('off')
 plt.colorbar()
-plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+plt.title('time_pts = {!r}'.format(t2))
+
+plt.subplot(3, 3, 4)
+plt.imshow(np.rot90(rec_result_4), cmap='bone',
+           vmin=mini,
+           vmax=maxi)
+#grid=grid_points[time_itvs // 4*2].reshape(2, rec_space.shape[0], rec_space.shape[1]).copy()
+#plot_grid(grid, 2)
+plt.axis('off')
+plt.colorbar()
+plt.title('time_pts = {!r}'.format(t3))
+
 
 plt.subplot(3, 3, 5)
 plt.imshow(np.rot90(rec_result), cmap='bone',
