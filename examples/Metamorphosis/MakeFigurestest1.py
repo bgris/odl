@@ -58,7 +58,7 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 time_itvs = 10
 nb_time_point_int=time_itvs
 
-
+typefig = '.pdf'
 
 
 name_list_template = ['template_values__0_2__0_9', 'template_values__0__1']
@@ -103,7 +103,8 @@ for name in name_list:
     fig = image.show(clim=[mini, maxi])
     plt.axis('off')
     fig.delaxes(fig.axes[1])
-    plt.savefig(name_figure + name + '.png')
+    plt.savefig(name_figure + name + typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 #
 
 
@@ -134,7 +135,8 @@ plt.plot(np.asarray(rec_proj_data)[indexdataplot], 'r', linewidth=0.5, label = '
 plt.plot(np.asarray(proj_template)[indexdataplot], 'k', linewidth=0.5, label = 'Template data')
 plt.axis([0, int(round(space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
 plt.legend()
-plt.savefig(name_figure + 'DataResult' + '.png')
+plt.savefig(name_figure + 'DataResult' + typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 
 
 # figures for template
@@ -143,15 +145,17 @@ if False:
     fig = image.show(clim=[mini, maxi])
     plt.axis('off')
     fig.delaxes(fig.axes[1])
-    plt.savefig(path_figure + 'test' + str(numtest) + 'Template' + '.png')
+    plt.savefig(path_figure + 'test' + str(numtest) + 'Template' + typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 
 
 # figures for ground truth
-numtruth = 1
 if False:
+    numtruth = 1
     image = space.element(np.loadtxt(path_data + name_list_ground_truth[numtruth] ))
     fig = image.show(clim=[mini, maxi])
     plt.axis('off')
     fig.delaxes(fig.axes[1])
-    plt.savefig( path_figure + 'test' + str(numtest) + name_list_ground_truth[numtruth] + '.png')
+    plt.savefig( path_figure + 'test' + str(numtest) + name_list_ground_truth[numtruth] + typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 

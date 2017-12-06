@@ -41,13 +41,13 @@ numtest = 1
 
 ## Data parameters
 index_name_template = 1
-index_name_ground_truth = 1
+index_name_ground_truth = 0
 
 index_angle = 2
 index_maxangle = 0
 index_noise = 0
 
-
+typefig = '.pdf'
 ## The parameter for kernel function
 sigma = 2.0
 name_sigma=str(int(sigma))
@@ -108,7 +108,8 @@ image = space.element(np.loadtxt(path_result + '_' + str(time_itvs)))
 fig = image.show(clim=[mini, maxi])
 plt.axis('off')
 fig.delaxes(fig.axes[1])
-plt.savefig(name_figure +  '.png')
+plt.savefig(name_figure +  typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 #
 
 
@@ -139,7 +140,8 @@ plt.plot(np.asarray(rec_proj_data)[indexdataplot], 'r', linewidth=0.5, label = '
 plt.plot(np.asarray(proj_template)[indexdataplot], 'k', linewidth=0.5, label = 'Template data')
 plt.axis([0, int(round(space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
 plt.legend()
-plt.savefig(name_figure + 'DataResult' + '.png')
+plt.savefig(name_figure + 'DataResult' + typefig, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
 
 
 

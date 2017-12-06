@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Mon Dec  4 13:57:55 2017
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Thu Nov 30 12:30:26 2017
 
 @author: bgris
@@ -21,10 +29,10 @@ space = odl.uniform_discr(
     min_pt=[-16, -16], max_pt=[16, 16], shape=[256,256],
     dtype='float32', interp='linear')
 
-numtest = 2
+numtest = 4
 
 index_name_template = 0
-index_name_ground_truth = 1
+index_name_ground_truth = 0
 
 index_angle = 2
 index_maxangle = 0
@@ -52,7 +60,7 @@ nb_time_point_int=time_itvs
 
 
 name_list_template = ['SheppLogan0', 'SheppLogan1']
-name_list_ground_truth = ['SheppLogan0_deformed', 'SheppLogan1_deformed']
+name_list_ground_truth = ['SheppLogan2_deformed', 'SheppLogan3_deformed']
 num_angles_list = [10, 50, 100]
 maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
