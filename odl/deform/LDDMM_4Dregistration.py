@@ -528,3 +528,71 @@ class RegularityGrowth(Functional):
 
 
 
+
+
+class RegularitySobolev(Functional):
+
+
+
+    def __init__(self,  domain, space, mu, lam, nb_time_point_int):
+        
+        """
+        Parameters
+        ----------
+        domain : Product space
+            space of the discretized time-dependent vector fields
+
+        """
+        self.N = nb_time_point_int
+        self.mu = mu
+        self.lam = lam
+        self.image_space = space
+        super().__init__(domain,linear=False)
+
+
+
+    @property
+    def gradient(self):
+        """Gradient operator o."""
+        functional = self
+
+        class RegularitySobolevGradient(Operator):
+
+            """The gradient operator of the Sobolev functional developed by 
+            Sebastian Neumayer
+            
+            ONLY DIMENSION 2
+        
+            ."""
+
+            def __init__(self):
+                """Initialize a new instance."""
+                super().__init__(functional.domain, functional.domain,
+                                 linear=False)
+
+            def _call(self, vector_field_list):
+                grad=functional.domain.zero()
+                dim = functional.space.ndim
+                grad_op = Gradient(domain=functional.space, method='forward',
+                                   pad_mode='symmetric')
+
+                for t in range(self.N):
+                    # Der_vectfield[i][j] = der_j v_i
+                    Der_vectfield = [grad_op(v) for v in vector_field_list[t]]
+                    # Der2_vect_field[i][j][k] = der_k der_j v_i
+                    Der2_vect_field = [[grad_op(Der_vectfield[i][j]) for j in range(dim)] for i in range(dim)]
+                    
+                    grad[t][0] -= 2*(functional.mu + 0.5*functional.lam) * Der2_vect_field[0][0][0]
+                    grad[t][0] -=  2*functional.mu * Der2_vect_field[1][0][1]
+                    grad[t][0] -= functional.lam * Der2_vect_field[1][1][0]
+                
+                    grad[t][1] -= 2*(functional.mu + 0.5*functional.lam) * Der2_vect_field[1][1][1]
+                    grad[t][1] -=  2*functional.mu * Der2_vect_field[0][1][0]
+                    grad[t][1] -= functional.lam * Der2_vect_field[0][0][1]
+                
+                
+                
+                return copy.deepcopy(grad)
+
+        return RegularityLDDMMGradient()
+

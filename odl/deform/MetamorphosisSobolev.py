@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Mon Dec 11 15:38:29 2017
+
+@author: barbara
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Jun 21 17:34:54 2017
 
 @author: bgris
@@ -25,9 +33,9 @@ from odl.operator import (DiagonalOperator, IdentityOperator)
 from odl.trafos import FourierTransform
 from odl.space.fspace import FunctionSpace
 import odl
-
+import scipy.ndimage as ndimage
 from odl.solvers.functional.functional import Functional
-__all__ = ('TemporalAttachmentMetamorphosisGeom', 'IntegrateTemplateEvol',
+__all__ = ('TemporalAttachmentMetamorphosisGeomSobolev', 'IntegrateTemplateEvol',
            'ShootTemplateFromVectorFieldsFinal' , 'ShootTemplateFromVectorFields',
            'ShootSourceTermBackwardlist')
 
@@ -104,21 +112,23 @@ def ShootSourceTermBackwardlist(vector_field_list, zeta):
         zeta_transp[i]=temp.copy()
     return zeta_transp
 
-class TemporalAttachmentMetamorphosisGeom(Functional):
+class TemporalAttachmentMetamorphosisGeomSobolev(Functional):
 
     """
 
     """
 
 
-    def __init__(self, nb_time_point_int, lamb, tau, template, data, data_time_points, forward_operators,Norm, kernel, domain=None):
+    def __init__(self, nb_time_point_int, mu, lamb, tau, template, data, data_time_points, forward_operators,Norm, kernel, domain=None):
         """
         Parameters
         ----------
         nb_time_point_int : int
            number of time points for the numerical integration
+        mu : positive real number
         lamb : positive real number
-            multiplies the norm of the velocity field in the functional
+            regularization of ector field : 
+                \int \mu Tr(Dv_sym  T Dv_sym) + \lamda /2 Tr(Dv_sym)**2 \der x
         tau : positive real number
             multiplies the norm of the template evolution in the functional
         forward_operators : list of `Operator`
@@ -137,6 +147,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         """
 
         self.template=template
+        self.mu = mu
         self.lamb=lamb
         self.tau=tau
         self.data=data
@@ -281,6 +292,10 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
 
     def ConvolveIntegrate(self,grad_S_init,H,j0,vector_field_list,zeta_list):
+            """
+            We do not convolve by the kernel for the gradient of the vector field
+            so that it remains the gradient in L 2
+            """
             dim = self.image_domain.ndim
 
             k_j=self.k_j_list[j0]
@@ -306,7 +321,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                 for d in range(dim):
                     tmp[d] *= tmp1
                 tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
-                h[k_j]+=tmp3.copy()
+                h[k_j]+=tmp.copy()
                 eta[k_j]+=detDphi*grad_S
 
             delta_t= self.inv_N
@@ -327,10 +342,71 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                 for d in range(dim):
                     tmp[d] *= tmp1.copy()
                 tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
+                
                 h[k]+=tmp3.copy()
                 eta[k]+=detDphi*grad_S
 
             return [h,eta]
+
+
+    def ConvolveIntegrateL2(self,grad_S_init,H,j0,vector_field_list,zeta_list):
+            """
+            We do not convolve by the kernel for the gradient of the vector field
+            so that it remains the gradient in L 2
+            """
+            dim = self.image_domain.ndim
+
+            k_j=self.k_j_list[j0]
+            h=odl.ProductSpace(self.image_domain.tangent_bundle,k_j+1).zero()
+            eta=odl.ProductSpace(self.image_domain,k_j+1).zero()
+
+            grad_op = Gradient(domain=self.image_domain, method='forward',
+                   pad_mode='symmetric')
+            # Create the divergence op
+            div_op = -grad_op.adjoint
+            delta0=self.data_time_points[j0] -(k_j/self.N)
+
+            detDphi=self.image_domain.element(
+                                      1+delta0 *
+                                      div_op(vector_field_list[k_j])).copy()
+            grad_S=self.image_domain.element(
+                                   _linear_deform(grad_S_init,
+                                   delta0 * vector_field_list[k_j])).copy()
+
+            if (not delta0==0):
+                tmp=H[k_j].copy()
+                tmp1=(grad_S * detDphi).copy()
+                for d in range(dim):
+                    tmp[d] *= tmp1
+                #tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
+                h[k_j]+=tmp.copy()
+                eta[k_j]+=detDphi*grad_S
+
+            delta_t= self.inv_N
+            for u in range(k_j):
+                k=k_j -u-1
+                detDphi=self.image_domain.element(
+                                _linear_deform(detDphi,
+                                   delta_t*vector_field_list[k])).copy()
+                detDphi=self.image_domain.element(detDphi*
+                                self.image_domain.element(1+delta_t *
+                                div_op(vector_field_list[k]))).copy()
+                grad_S=self.image_domain.element(
+                                   _linear_deform(grad_S,
+                                   delta_t * vector_field_list[k])).copy()
+
+                tmp=H[k].copy()
+                tmp1=(grad_S * detDphi).copy()
+                for d in range(dim):
+                    tmp[d] *= tmp1.copy()
+                #tmp3=(2 * np.pi) ** (dim / 2.0) * self.vectorial_ft_fit_op.inverse(self.vectorial_ft_fit_op(tmp) * self.ft_kernel_fitting)
+                h[k]+=self.image_domain.tangent_bundle.element(ndimage.gaussian_filter(tmp, 3)).copy()
+                eta[k]+=detDphi*grad_S
+
+            return [h,eta]
+
+
+
 
 
 
@@ -339,7 +415,95 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
         functional = self
 
-        class TemporalAttachmentMetamorphosisGeomGradient(Operator):
+        class TemporalAttachmentMetamorphosisGeomGradientSobolev(Operator):
+
+            """The gradient operator of the TemporalAttachmentLDDMMGeom
+            functional."""
+
+            def __init__(self):
+                """Initialize a new instance."""
+                super().__init__(functional.domain, functional.domain,
+                                 linear=False)
+
+            def _call(self, X):
+
+                vector_field_list=X[0]
+                zeta_list=X[1]
+                h=vector_field_list.space.zero()
+                eta=zeta_list.space.zero()
+
+                # Compute the metamorphosis at the data time points
+                # zeta_transp [k] = zeta_list [k] \circ \varphi_{\tau_k}
+                zeta_transp=ShootSourceTermBackwardlist(vector_field_list, zeta_list).copy()
+                image_list=functional.ComputeMetamorphosisFromZetaTransp(vector_field_list,zeta_transp).copy()
+
+                template_deformation=ShootTemplateFromVectorFields(vector_field_list,functional.template).copy()
+
+                # Computation of G_k=\nabla (template \circ \phi_{\tau_k}^-1) for each k
+                G=odl.ProductSpace(functional.image_domain.tangent_bundle, functional.N +1).element()
+                grad_op = Gradient(domain=functional.image_domain, method='forward',
+                   pad_mode='symmetric')
+                for k in range(functional.N +1):
+                    G[k]=grad_op(template_deformation[k]).copy()
+
+
+                # Addition of  \int_0^\tau_k \nabla (\zeta(\tau) \circ \phi_{\tau_k , \tau}) d\tau
+                for k in range(functional.N +1):
+                    #G[k]+= (functional.inv_N * grad_op(zeta_list[k])).copy()
+                    for q in range(k):
+                        p=k-1-q
+                        temp=ShootTemplateFromVectorFieldsFinal(vector_field_list,zeta_transp[p],0,k).copy()
+                        G[k]+= (functional.inv_N * grad_op(temp)).copy()
+
+                for j in range(functional.nb_data):
+
+                    conv=functional.ConvolveIntegrateL2((functional.Norm*(functional.forward_op[j] -  functional.data[j])).gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
+                    #conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
+                    for k in range(functional.k_j_list[j]):
+                        h[k]-=conv[0][k].copy()
+                        eta[k]+=conv[1][k].copy()
+
+
+                                
+                dim = functional.image_domain.ndim
+                grad_op = Gradient(domain=functional.image_domain, method='forward',
+                                   pad_mode='symmetric')
+
+                for t in range(functional.N):
+                    # Der_vectfield[i][j] = der_j v_i
+                    Der_vectfield = [grad_op(v) for v in vector_field_list[t]]
+                    # Der2_vect_field[i][j][k] = der_k der_j v_i
+                    Der2_vect_field = [[grad_op(Der_vectfield[i][j]) for j in range(dim)] for i in range(dim)]
+                    
+                    h[t][0] -= 2*(functional.mu + 0.5*functional.lamb) * Der2_vect_field[0][0][0]
+                    h[t][0] -=  2*functional.mu * Der2_vect_field[1][0][1]
+                    h[t][0] -= functional.lamb * Der2_vect_field[1][1][0]
+                
+                    h[t][1] -= 2*(functional.mu + 0.5*functional.lamb) * Der2_vect_field[1][1][1]
+                    h[t][1] -=  2*functional.mu * Der2_vect_field[0][1][0]
+                    h[t][1] -= functional.lamb * Der2_vect_field[0][0][1]
+
+
+
+
+                for k in range(functional.N):
+                    eta[k]+=2*functional.tau*zeta_list[k]
+
+                return [h,eta]
+
+        return TemporalAttachmentMetamorphosisGeomGradientSobolev()
+
+
+
+
+
+
+    @property
+    def gradientReg(self):
+
+        functional = self
+
+        class TemporalAttachmentMetamorphosisGeomGradientSobolevReg(Operator):
 
             """The gradient operator of the TemporalAttachmentLDDMMGeom
             functional."""
@@ -387,44 +551,35 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
                         h[k]-=conv[0][k].copy()
                         eta[k]+=conv[1][k].copy()
 
+
+                                
+                dim = functional.image_domain.ndim
+                grad_op = Gradient(domain=functional.image_domain, method='forward',
+                                   pad_mode='symmetric')
+
+                for t in range(functional.N):
+                    # Der_vectfield[i][j] = der_j v_i
+                    Der_vectfield = [grad_op(v) for v in vector_field_list[t]]
+                    # Der2_vect_field[i][j][k] = der_k der_j v_i
+                    Der2_vect_field = [[grad_op(Der_vectfield[i][j]) for j in range(dim)] for i in range(dim)]
+                    
+                    h[t][0] -= 2*(functional.mu + 0.5*functional.lamb) * Der2_vect_field[0][0][0]
+                    h[t][0] -=  2*functional.mu * Der2_vect_field[1][0][1]
+                    h[t][0] -= functional.lamb * Der2_vect_field[1][1][0]
+                
+                    h[t][1] -= 2*(functional.mu + 0.5*functional.lamb) * Der2_vect_field[1][1][1]
+                    h[t][1] -=  2*functional.mu * Der2_vect_field[0][1][0]
+                    h[t][1] -= functional.lamb * Der2_vect_field[0][0][1]
+
+
+
+
                 for k in range(functional.N):
-                    h[k]+=2*functional.lamb*vector_field_list[k]
                     eta[k]+=2*functional.tau*zeta_list[k]
 
                 return [h,eta]
 
-        return TemporalAttachmentMetamorphosisGeomGradient()
-
-
-
-    @property
-    def gradient_gradzeta_penalized(self):
-
-        functional = self
-
-        class TemporalAttachmentMetamorphosisGeomGradientGradZetaPenalized(Operator):
-
-            """The gradient operator of the TemporalAttachmentMetmorphosisGeom
-            functional when zeta is also penalized by the norm of 
-            its gradient."""
-
-            def __init__(self):
-                """Initialize a new instance."""
-                super().__init__(functional.domain, functional.domain,
-                                 linear=False)
-
-            def _call(self, X):
-                zeta_list=X[1]
-                grad = functional.gradient(X)
-                laplacian_op = odl.discr.diff_ops.Laplacian(functional.image_domain)
-                for k in range(functional.N):
-                    grad[1][k] -= 2*laplacian_op(zeta_list[k]).copy()
-                    
-                return grad
-                
-
-        return TemporalAttachmentMetamorphosisGeomGradientGradZetaPenalized()
-
+        return TemporalAttachmentMetamorphosisGeomGradientSobolevReg()
 
 
 
