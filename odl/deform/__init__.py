@@ -38,6 +38,9 @@ __all__ += LDDMM_4Dregistration_gatingFunction.__all__
 from .Metamorphosis import *
 __all__ += Metamorphosis.__all__
 
+from .MetamorphosisSobolev import *
+__all__ += MetamorphosisSobolev.__all__
+
 
 from .LDDMM_4DregistrationAtlas import *
 __all__ += LDDMM_4DregistrationAtlas.__all__
