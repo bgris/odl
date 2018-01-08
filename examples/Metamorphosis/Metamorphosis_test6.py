@@ -26,6 +26,8 @@ import numpy as np
 from matplotlib import pylab as plt
 import os
 ##%%
+namepath= 'barbara'
+#namepath= 'bgris'
 
 ## Data parameters
 index_name_template = 0
@@ -76,15 +78,15 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test6/'
-path_result_init = '/home/bgris/Results/Metamorphosis/test6/'
+path_data = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test6/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test6/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
 
 
 
-path_result_init_dropbox = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results_ODE/test6/'
+path_result_init_dropbox = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results_ODE/test6/'
 path_result_dropbox = path_result_init_dropbox + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result_dropbox += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
 
@@ -218,7 +220,7 @@ for k in range(niter):
 
 ##%%
 
-##%% Compute estimated trajectory
+#%% Compute estimated trajectory
 image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
 
 
