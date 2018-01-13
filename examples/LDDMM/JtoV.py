@@ -236,6 +236,8 @@ for k in range(niter):
     attachment_term=energy_op(vector_fields_list)
     print(" iter : {}  ,  attachment term : {}".format(k,attachment_term))
 #
+
+
 #%% Compute estimated trajectory
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #
@@ -246,6 +248,32 @@ grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_poin
 #    grid=grid_points[t].reshape(2, 128, 128).copy()
 #plot_grid(grid, 2)
 
+#%% save image per image
+namefig_init = '/home/bgris/Results/LDDMM/JV'
+for i in range(nb_time_point_int+1):
+    namefig = namefig_init + '/' + str(i)
+    fig = image_N0[i].show(clim=[0,1])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(namefig)
+#
+step = 20
+points = rec_space.points()
+for i in range(nb_time_point_int+1):
+    namefig = namefig_init + '/' + 'vectfield' + str(i)
+    fig = image_N0[i].show(clim=[0,1])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    v = vector_fields_list[i].copy()
+    plt.quiver(points.T[0][::step], points.T[1][::step], v[0][::step], v[1][::step], color='r')
+    plt.savefig(namefig)
+#
+
+namefig = namefig_init + '/' + 'V'
+fig = ground_truth.show(clim=[0,1])
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+plt.savefig(namefig)
 #%%
 rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
 rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
