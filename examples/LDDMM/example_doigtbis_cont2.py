@@ -93,10 +93,10 @@ def plot_grid(grid, skip):
 #
 #%%
 
-path = '/home/bgris/data/Doigtbis_dimcont2/ex_source/'
+path = '/home/barbara/data/Doigtbis_dimcont2/ex_source/'
 
 I0 = np.loadtxt(path + '1')
-I1 = np.loadtxt(path + '0')
+I1 = np.loadtxt(path + '11')
 
 # Discrete reconstruction space: discretized functions on the rectangle
 rec_space = odl.uniform_discr(
@@ -121,7 +121,7 @@ ground_truth.show('ground truth')
 template.show('template')
 
 # The parameter for kernel function
-sigma = 5.0
+sigma = 1
 lamb = 1e-3
 # Give kernel function
 def kernel(x):
@@ -188,12 +188,30 @@ for k in range(niter):
 #%% Compute estimated trajectory
 image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #
-grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
+grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
 
+
+for t in range(nb_time_point_int):
+    image_N0[t].show(str(t))
+    #grid=grid_points[t].reshape(2, 512, 512).copy()
+    #plot_grid(grid, 10)
+    plt.axis('equal')
 #
-#for t in range(nb_time_point_int):
-#    grid=grid_points[t].reshape(2, 128, 128).copy()
-#plot_grid(grid, 2)
+
+#%% save image per image
+namefig_init = '/home/barbara/Results/DeformationModules/Doigtbis_dimcont2/LDDMMMatching1_11_sigma_1'
+import os
+os.mkdir(namefig_init)
+# save images
+for i in range(nb_time_point_int+1):
+    namefig = namefig_init + '/' +  str(i)
+    fig = image_N0[i].show(clim=[0, 1])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(namefig)
+    
+#
+
 
 #%%
 rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
