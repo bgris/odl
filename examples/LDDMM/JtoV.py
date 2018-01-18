@@ -260,7 +260,7 @@ grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_poin
 #plot_grid(grid, 2)
 
 #%% save image per image
-namefig_init = '/home/bgris/Results/LDDMM/JV'
+namefig_init = '/home/barbara/Results/LDDMM/JV'
 for i in range(nb_time_point_int+1):
     namefig = namefig_init + '/' + str(i)
     fig = image_N0[i].show(clim=[0,1])
