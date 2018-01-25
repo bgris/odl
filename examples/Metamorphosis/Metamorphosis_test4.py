@@ -32,9 +32,9 @@ import os
 index_name_template = 0
 index_name_ground_truth = 1
 
-index_angle = 2
+index_angle = 0
 index_maxangle = 0
-index_noise = 0
+index_noise = 2
 
 ## The parameter for kernel function
 sigma = 3.0
@@ -340,3 +340,4 @@ for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
     name=path_result_dropbox + name_plot + '.png'
     plt.savefig(name, bbox_inches='tight')
 #
+plt.close('all')

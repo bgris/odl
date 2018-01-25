@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Thu Jan 18 16:04:27 2018
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Thu Dec 21 17:57:08 2017
 
 @author: bgris
@@ -38,16 +46,16 @@ index_maxangle = 0
 index_noise = 2
 
 ## The parameter for kernel function
-sigma = 3.0
+sigma = 300
 name_sigma=str(int(sigma))
 
 niter=300
 epsV=0.02
-epsZ=0.02
+epsZ=0.002
 ## Give regularization parameter
 lamb = 1e-5
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
-tau = 1e-6
+tau = 1e-5
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
@@ -57,9 +65,11 @@ nb_time_point_int=time_itvs
 
 
 
-name_list_template = ['SheppLogan0', 'SheppLogan4']
-name_list_ground_truth = ['SheppLogan4_deformed']
+name_list_template = ['SheppLogan0', 'SheppLogan5']
+name_list_ground_truth = ['SheppLogan5_deformed']
 num_angles_list = [10, 50, 100]
+
+
 maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
@@ -78,15 +88,15 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test6/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test6/'
+path_data = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test7/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test7/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
 
 
 
-path_result_init_dropbox = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results_ODE/test6/'
+path_result_init_dropbox = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results_ODE/test7/'
 path_result_dropbox = path_result_init_dropbox + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result_dropbox += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
 
@@ -156,7 +166,6 @@ functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
 X_init=functional.domain.zero()
 X=X_init.copy()
 energy=functional(X)
-##%% Gradient descent
 
 print(" Initial ,  energy : {}".format(energy))
 
@@ -215,19 +224,11 @@ for k in range(niter):
         else:
             print("epsV = {} , epsZ = {}".format(epsV, epsZ))
 
-#    if (np.floor_divide(k,5) == 0):
-#        plt.close('all')
-#        functional.ComputeMetamorphosis(X[0], X[1])[-1].show(str(k))
-
-
-
 
 
 #
 
 ##%%
-
-
 
 ##%% Compute estimated trajectory
 image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
@@ -350,4 +351,4 @@ for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
     name=path_result_dropbox + name_plot + '.png'
     plt.savefig(name, bbox_inches='tight')
 #
-plt.close('all')
+

@@ -332,3 +332,4 @@ for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
     name=path_result_dropbox + name_plot + '.png'
     plt.savefig(name, bbox_inches='tight')
 #
+plt.close('all')
