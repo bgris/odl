@@ -121,8 +121,12 @@ def plot_grid(grid, skip):
 #
 #%%
 
-I1name = '/home/bgris/Downloads/pictures/v.png'
-I0name = '/home/bgris/Downloads/pictures/j.png'
+#I1name = '/home/bgris/Downloads/pictures/v.png'
+#I0name = '/home/bgris/Downloads/pictures/j.png'
+
+I1name = '/home/barbara/data/JV/v.png'
+I0name = '/home/barbara/data/JV/j.png'
+
 I0 = np.rot90(plt.imread(I0name).astype('float'), -1)
 I1 = np.rot90(plt.imread(I1name).astype('float'), -1)
 
@@ -164,7 +168,7 @@ def kernel(x):
     return np.exp(-sum(scaled))
 
 # Maximum iteration number
-niter = 200
+niter = 500
 
 # Give step size for solver
 eps = 0.02
@@ -224,7 +228,7 @@ Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 functional = energy_op + lamb*Reg
 
 #%% Gradient descent
-
+import copy
 vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
 attachment_term=energy_op(vector_fields_list)
@@ -232,9 +236,16 @@ print(" Initial ,  attachment term : {}".format(attachment_term))
 
 for k in range(niter):
     grad=functional.gradient(vector_fields_list)
-    vector_fields_list= (vector_fields_list- eps *grad).copy()
-    attachment_term=energy_op(vector_fields_list)
-    print(" iter : {}  ,  attachment term : {}".format(k,attachment_term))
+    vector_fields_list_temp = (vector_fields_list- eps *grad).copy()
+    attachment_term_temp=energy_op(vector_fields_list_temp)
+    if (attachment_term_temp< attachment_term):
+        vector_fields_list = copy.deepcopy(vector_fields_list_temp)
+        attachment_term = attachment_term_temp
+        eps *= 1.1
+        print(" iter : {}  ,  attachment term : {}".format(k,attachment_term))
+    else:
+        eps *= 0.9
+        print(" iter : {}".format(k,attachment_term))
 #
 
 
@@ -249,7 +260,7 @@ grid_points=compute_grid_deformation_list_bis(vector_fields_list, 1/nb_time_poin
 #plot_grid(grid, 2)
 
 #%% save image per image
-namefig_init = '/home/bgris/Results/LDDMM/JV'
+namefig_init = '/home/barbara/Results/LDDMM/JV'
 for i in range(nb_time_point_int+1):
     namefig = namefig_init + '/' + str(i)
     fig = image_N0[i].show(clim=[0,1])
