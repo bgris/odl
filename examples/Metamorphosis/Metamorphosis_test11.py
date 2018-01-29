@@ -1,6 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Mon Jan 29 11:48:37 2018
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan 26 14:28:06 2018
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 25 18:13:41 2018
+
+@author: bgris
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Jan 24 10:48:00 2018
 
 @author: bgris
@@ -41,7 +65,7 @@ namepath= 'bgris'
 index_name_template = 0
 index_name_ground_truth = 0
 
-index_angle = 2
+index_angle = 4
 index_maxangle = 0
 index_noise = 2
 
@@ -65,8 +89,8 @@ nb_time_point_int=time_itvs
 
 
 
-name_list_template = ['SheppLogan7_0']
-name_list_ground_truth = ['SheppLogan8_deformed']
+name_list_template = ['SheppLogan10']
+name_list_ground_truth = ['SheppLogan11_deformed']
 num_angles_list = [10, 50, 100, 20, 30]
 maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
@@ -86,8 +110,8 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/' + namepath + '/data/Metamorphosis/test8/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test8/'
+path_data = '/home/' + namepath + '/data/Metamorphosis/test11/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test11/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
