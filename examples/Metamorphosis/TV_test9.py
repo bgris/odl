@@ -51,7 +51,8 @@ index_name_ground_truth = 0
 
 index_angle = 4
 index_maxangle = 0
-index_noise = 0
+index_minangle = 0
+index_noise = 2
 
 ## The parameter for kernel function
 sigma = 3.0
@@ -76,11 +77,12 @@ nb_time_point_int=time_itvs
 name_list_template = ['SheppLogan10']
 name_list_ground_truth = ['SheppLogan11_deformed']
 num_angles_list = [10, 50, 100, 20, 30]
-maxiangle_list = ['pi', '0_25pi']
-max_angle_list = [np.pi, 0.25*np.pi]
+maxiangle_list = ['pi', '0_25pi', '0_5pi', '0_75pi']
+max_angle_list = [np.pi, 0.25*np.pi, 0.5*np.pi, 0.75*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
 noi_list = ['0', '0_05', '0_25']
-
+miniangle_list = ['0', '0_25pi']
+min_angle_list = [0, 0.25*np.pi]
 name_val_template = name_list_template[index_name_template]
 name_val = name_list_ground_truth[index_name_ground_truth]
 num_angles = num_angles_list[index_angle]
@@ -88,9 +90,10 @@ maxiangle = maxiangle_list[index_maxangle]
 max_angle = max_angle_list[index_maxangle]
 noise_level = noise_level_list[index_noise]
 noi = noi_list[index_noise]
-min_angle = 0.0
+min_angle = min_angle_list[index_minangle]
+miniangle = miniangle_list[index_minangle]
 
-name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_'
+name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
 name_exp += maxiangle + '_noise_' + noi
 
 
@@ -207,7 +210,7 @@ for data_matching in data_matching_list :
     x = ray_trafo.domain.zero()
     odl.solvers.douglas_rachford_pd(x, f, g, lin_ops,
                                     tau=0.1, sigma=[0.1, 0.02], lam=1.5,
-                                    niter=200, callback=callback)
+                                    niter=500, callback=callback)
     
     np.savetxt(path_result + '_TV_' + data_matching + 'num_angles_' + str(num_angles) + '__lam_' + str(lam), x)
 

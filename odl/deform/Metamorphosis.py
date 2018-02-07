@@ -111,7 +111,8 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
     """
 
 
-    def __init__(self, nb_time_point_int, lamb, tau, template, data, data_time_points, forward_operators,Norm, kernel, domain=None):
+    def __init__(self, nb_time_point_int, lamb, tau, template, data, data_time_points, forward_operators, Norm, kernel, domain=None):
+        
         """
         Parameters
         ----------
