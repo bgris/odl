@@ -59,27 +59,28 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'gris'
 
 ## Data parameters
 index_name_template = 0
 index_name_ground_truth = 0
 
-index_angle = 4
-index_maxangle = 0
+index_angle = 3 
+index_maxangle = 0 
+index_minangle = 0
 index_noise = 2
 
 ## The parameter for kernel function
 sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=500
+niter= 1000 
 epsV=0.02
-epsZ=0.02
+epsZ=0.0002
 ## Give regularization parameter
-lamb = 1e-5
+lamb = 1e-6
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
-tau = 1e-6
+tau = 1e-4
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
@@ -90,10 +91,12 @@ nb_time_point_int=time_itvs
 
 
 name_list_template = ['SheppLogan10']
-name_list_ground_truth = ['SheppLogan11_deformed']
+name_list_ground_truth = ['SheppLogan13_deformed']
 num_angles_list = [10, 50, 100, 20, 30]
-maxiangle_list = ['pi', '0_25pi']
-max_angle_list = [np.pi, 0.25*np.pi]
+maxiangle_list = ['pi', '0_25pi', '0_5pi', '0_75pi']
+max_angle_list = [np.pi, 0.25*np.pi, 0.5*np.pi, 0.75*np.pi]
+miniangle_list = ['0', '0_25pi']
+min_angle_list = [0, 0.25*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
 noi_list = ['0', '0_05', '0_25']
 
@@ -104,9 +107,10 @@ maxiangle = maxiangle_list[index_maxangle]
 max_angle = max_angle_list[index_maxangle]
 noise_level = noise_level_list[index_noise]
 noi = noi_list[index_noise]
-min_angle = 0.0
+min_angle = min_angle_list[index_minangle]
+miniangle = miniangle_list[index_minangle]
 
-name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_'
+name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
 name_exp += maxiangle + '_noise_' + noi
 
 

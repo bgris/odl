@@ -8,11 +8,12 @@ Created on Thu Aug 24 13:42:31 2017
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed May 17 11:31:20 2017
-
-@author: bgris
-"""
+#"""
+#Created on Wed May 17 11:31:20 2017
+#
+#@author: bgris
+#
+#"""
 
 # ODL is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,9 +28,9 @@ Created on Wed May 17 11:31:20 2017
 # You should have received a copy of the GNU General Public License
 # along with ODL.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-ET image reconstruction using LDDMM.
-"""
+#"""
+#ET image reconstruction using LDDMM.
+#"""
 
 # Imports for common Python 2/3 codebase
 from __future__ import print_function, division, absolute_import
@@ -57,10 +58,14 @@ standard_library.install_aliases()
 # --- Reading data --- #
 
 # Get the path of data radon
-#directory = '/home/bgris/data/TEM/wetransfer-569840/'
+directory = '/home/gris/data/TEM/'
 
+#path radon
+path ='/home/gris/'
+#path Cormack
+#path ='/home/bgris/'
 # Get the path of data cormack
-directory = '/home/bgris/data/TEM/wetransfer-569840/'
+#/bgris/data/TEM/wetransfer-569840/'
 
 data_filename = 'triangle_crop.mrc'
 file_path = directory + data_filename
@@ -69,7 +74,7 @@ data, data_extent, header, extended_header = read_mrc_data(file_path=file_path,
                                                            normalize=True)
 
 #Downsample the data
-downsam = 20
+downsam =1
 data_downsam = data[:, :, ::downsam]
 
 # --- Getting geometry --- #
@@ -144,17 +149,83 @@ A = np.asarray(reco_fbp)
 img = nib.Nifti1Image(A, np.eye(4))
 img.get_data_dtype() == np.dtype(np.float32)
 img.header.get_xyzt_units()
-img.to_filename(os.path.join('/home/bgris/Results/Metamorphosis/TEM/','reco_fbp_'+ str(lam_fbp) + '.nii'))
+img.to_filename(os.path.join(path + 'Results/Metamorphosis/TEM/','reco_fbp_'+ str(lam_fbp) + '.nii'))
 
 template=reco_fbp.copy()
 
 
+# Re-define forward operator with another number of directions
+data_filename = 'triangle_crop.mrc'
+file_path = directory + data_filename
+data, data_extent, header, extended_header = read_mrc_data(file_path=file_path,
+                                                           force_type='FEI1',
+                                                           normalize=True)
+
+#Downsample the data
+downsam = 20
+data_downsam = data[:, :, ::downsam]
+
+# --- Getting geometry --- #
+det_pix_size = 0.521
+
+# Create 3-D parallel projection geometry
+single_axis_geometry = odl.deform.mrc_data_io.geometry_mrc_data(data_extent=data_extent,
+                                         data_shape=data.shape, det_pix_size=det_pix_size,
+                                         units='physical',
+                                         extended_header=extended_header,
+                                         downsam=downsam)
+
+
+# --- Creating reconstruction space --- #
+
+# Voxels in 3D region of interest
+rec_shape = (data.shape[0], data.shape[0], data.shape[0])
+
+## Create reconstruction extent
+## for rod
+#min_pt = np.asarray((-150, -150, -150), float)
+#max_pt = np.asarray((150, 150, 150), float)
+
+# Create reconstruction extent
+# for triangle, sphere
+rec_extent = np.asarray(rec_shape, float)
+#min_pt = np.asarray((-100, -100, -100), float)
+#max_pt = np.asarray((100, 100, 100), float)
+
+# Reconstruction space with physical setting
+rec_space = uniform_discr(-rec_extent / 2 * det_pix_size,
+                          rec_extent / 2  * det_pix_size, rec_shape,
+dtype='float32', interp='linear')
+
+# --- Creating forward operator --- #
+
+# Create forward operator
+forward_op = RayTransform(rec_space, single_axis_geometry, impl='astra_cuda')
+
+# --- Chaging the axises of the 3D data --- #
+
+# Change the axises of the 3D data
+#data = np.where(data >= 30, data, 0.0)
+data_temp1 = np.swapaxes(data_downsam, 0, 2)
+data_temp2 = np.swapaxes(data_temp1, 1, 2)
+data_elem = forward_op.range.element(data_temp2)
+
+# Show one sinograph
+#data_elem.show(title='Data in one projection',
+#               indices=np.s_[data_elem.shape[0] // 2, :, :])
+
+
+
+data_space = uniform_discr(-rec_extent / 2 * det_pix_size,
+                          rec_extent / 2  * det_pix_size, (200,200,151),
+dtype='float32', interp='linear')
+
 #%% Modifying template
 
 # step template with 1/0 inside/outsi
-template_step=1.0*np.array((np.asarray(template)>0.5)).copy()
+#template_step=1.0*np.array((np.asarray(template)>0.5)).copy()
 
-template=rec_space.element(template_step).copy()
+#template=rec_space.element(template_step).copy()
 
 #%%
 #mean = np.sum(data_temp2[data_temp2.shape[0] // 2]) / data_temp2[data_temp2.shape[0] // 2].size
@@ -249,10 +320,6 @@ X_init=functional.domain.zero()
 X=X_init.copy()
 #%%
 
-#path radon
-path ='/home/gris/'
-#path Cormack
-path ='/home/bgris/'
 #nameinit='   OlivettiFaces_smoothing_1_directmatching'
 name0= 'ET_Metamorphosis_sigma_3_lam_1_e__3_tau_1_e__3_nbInt_5_iter_300_initialisation_fbp_steped_directions_151_registration_8'
 
@@ -331,7 +398,7 @@ for k in range(niter):
             print("epsV = {} , epsZ = {}".format(epsV, epsZ))
 
 
-    if(k%5 == 0):
+    if False:
         image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
         template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
         zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
