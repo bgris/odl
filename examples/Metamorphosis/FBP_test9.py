@@ -57,7 +57,7 @@ namepath= 'bgris'
 index_name_template = 0
 index_name_ground_truth = 0
 
-index_angle = 0
+index_angle = 2
 index_maxangle = 0
 index_noise = 0
 
@@ -102,8 +102,8 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/' + namepath + '/data/Metamorphosis/test11/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test11/'
+path_data = '/home/' + namepath + '/data/Metamorphosis/test12/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test12/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
@@ -143,6 +143,18 @@ detector_partition = odl.uniform_partition(-24, 24, int(round(space.shape[0]*np.
 ## Create 2-D parallel projection geometry
 geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
+
+
+detector_partition = odl.uniform_partition(-8, 8, int(round(rec_space.shape[0]*np.sqrt(2))))
+
+## Create 2-D parallel projection geometry
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+
+## Ray transform aka forward projection. We use ASTRA CUDA backend.
+
+
+
+
 ## Ray transform aka forward projection. We use ASTRA CUDA backend.
 ray_trafo = odl.tomo.RayTransform(space, geometry, impl='astra_cpu')
 
@@ -176,8 +188,7 @@ ramp_filter = fourier.inverse * ramp_function * fourier
 # Create filtered back-projection by composing the back-projection (adjoint)
 # with the ramp filter.
 fbp = ray_trafo.adjoint * ramp_filter
-
-x = fbp(data)
+xxxx = fbp(data)
 
 np.savetxt(path_result + '_FBP_'  + 'num_angles_' + str(num_angles), x)
 
