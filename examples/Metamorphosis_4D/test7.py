@@ -73,7 +73,7 @@ nb_data_points = len(indexes_name_ground_truth_timepoints)
 
 #name_list_template = ['SheppLogan7_0']
 #name_list_ground_truth = ['SheppLogan7_']
-name_list_template = [ 'temporal__t_']
+name_list_template = [ 'temporal__t_0']
 name_list_ground_truth = [ 'temporal__t_']
 
 num_angles_list = [10, 20, 30, 50, 100]
@@ -93,11 +93,11 @@ min_angle = 0.0
 
 name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
 #name_list = [name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi for i in range(nb_data_points)]
-name_list = [name_val + i for i in range(nb_data_points)]
+name_list = [name_val + str(i) for i in range(nb_data_points)]
 
 
-path_data = '/home/' + namepath + '/data/Metamorphosistemporal/test' + numtest + '/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosistemporal/test' + numtest + '/'
+path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(numtest) + '/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'data_time_points' + str(data_time_points) + '/'
