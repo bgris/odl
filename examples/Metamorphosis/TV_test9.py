@@ -42,14 +42,14 @@ import numpy as np
 from matplotlib import pylab as plt
 import os
 ##%%
-#namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'barbara'
+#namepath= 'bgris'
 
 ## Data parameters
 index_name_template = 0
-index_name_ground_truth = 0
+index_name_ground_truth = 10
 
-index_angle = 4
+index_angle = 3
 index_maxangle = 0
 index_minangle = 0
 index_noise = 2
@@ -71,11 +71,15 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 time_itvs = 20
 nb_time_point_int=time_itvs
 
+numtest = 13
 
+nb_data_points = 10
 
+#name_list_template = ['SheppLogan10']
+#name_list_ground_truth = ['SheppLogan11_deformed']
+name_list_template = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
+name_list_ground_truth = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
 
-name_list_template = ['SheppLogan10']
-name_list_ground_truth = ['SheppLogan11_deformed']
 num_angles_list = [10, 50, 100, 20, 30]
 maxiangle_list = ['pi', '0_25pi', '0_5pi', '0_75pi']
 max_angle_list = [np.pi, 0.25*np.pi, 0.5*np.pi, 0.75*np.pi]
@@ -97,8 +101,8 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangl
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/' + namepath + '/data/Metamorphosis/test11/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test11/'
+path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(numtest) + '/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'

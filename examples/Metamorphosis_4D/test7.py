@@ -35,15 +35,17 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
+#namepath= 'bgris'
+namepath= 'gris'
 
 ## Data parameters
 index_name_template = 0
 index_name_ground_truth = 0
-indexes_name_ground_truth_timepoints = [1, 2]
-data_time_points=np.array([0.8, 1])
+nb_data_point = 10
+indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
+data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 2
+index_angle = 1
 index_maxangle = 0
 index_noise = 0
 
@@ -65,13 +67,16 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 # Give the number of time points
 time_itvs = 20
 nb_time_point_int=time_itvs
-
+numtest = 13
 
 nb_data_points = len(indexes_name_ground_truth_timepoints)
 
-name_list_template = ['SheppLogan7_0']
-name_list_ground_truth = ['SheppLogan7_']
-num_angles_list = [10, 50, 100]
+#name_list_template = ['SheppLogan7_0']
+#name_list_ground_truth = ['SheppLogan7_']
+name_list_template = [ 'temporal__t_']
+name_list_ground_truth = [ 'temporal__t_']
+
+num_angles_list = [10, 20, 30, 50, 100]
 maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
@@ -87,11 +92,12 @@ noi = noi_list[index_noise]
 min_angle = 0.0
 
 name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
-name_list = [name_val + str(indexes_name_ground_truth_timepoints[i]) + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi for i in range(nb_data_points)]
+#name_list = [name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi for i in range(nb_data_points)]
+name_list = [name_val + i for i in range(nb_data_points)]
 
 
-path_data = '/home/' + namepath + '/data/Metamorphosistemporal/test7/'
-path_result_init = '/home/' + namepath + '/Results/Metamorphosistemporal/test7/'
+path_data = '/home/' + namepath + '/data/Metamorphosistemporal/test' + numtest + '/'
+path_result_init = '/home/' + namepath + '/Results/Metamorphosistemporal/test' + numtest + '/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'data_time_points' + str(data_time_points) + '/'
@@ -274,72 +280,72 @@ for i in range(nb_time_point_int + 1):
 
 ## save plot results
 
-
-##%% Plot metamorphosis
-image_N0_list= [image_list, template_evo, image_evol]
-name_plot_list = ['metamorphosis', 'template', 'image']
-proj_template = forward_op(template)
-
-for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
-    rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-    rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-    rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
-    rec_result = rec_space.element(image_N0[time_itvs])
-    rec_proj_data = forward_op(rec_result)
-    plt.figure(index, figsize=(24, 24))
-    plt.subplot(3, 3, 1)
-    plt.imshow(np.rot90(template), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
-    plt.colorbar()
-    plt.title(name_plot)
-
-    plt.subplot(3, 3, 2)
-    plt.imshow(np.rot90(rec_result_1), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4))
-
-    plt.subplot(3, 3, 3)
-    plt.imshow(np.rot90(rec_result_2), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
-
-    plt.subplot(3, 3, 4)
-    plt.imshow(np.rot90(rec_result_3), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
-
-    plt.subplot(3, 3, 5)
-    plt.imshow(np.rot90(rec_result), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('Reconstructed by {!r} iters, '
-        '{!r} projs'.format(niter, num_angles))
-
-    for i in range(nb_data_points):
-        plt.subplot(3, 3, 7 + i)
-        plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
-                   vmin=mini,
-                   vmax=maxi)
-        plt.axis('off')
-        plt.colorbar()
-        plt.title('Ground truth time ' + str(data_time_points[i]))
-
-    name=path_result + name_plot + '.png'
-    plt.savefig(name, bbox_inches='tight')
 #
-plt.close('all')
+###%% Plot metamorphosis
+#image_N0_list= [image_list, template_evo, image_evol]
+#name_plot_list = ['metamorphosis', 'template', 'image']
+#proj_template = forward_op(template)
+#
+#for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
+#    rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
+#    rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
+#    rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+#    rec_result = rec_space.element(image_N0[time_itvs])
+#    rec_proj_data = forward_op(rec_result)
+#    plt.figure(index, figsize=(24, 24))
+#    plt.subplot(3, 3, 1)
+#    plt.imshow(np.rot90(template), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi)
+#    plt.axis('off')
+#    #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
+#    plt.colorbar()
+#    plt.title(name_plot)
+#
+#    plt.subplot(3, 3, 2)
+#    plt.imshow(np.rot90(rec_result_1), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi)
+#
+#    plt.axis('off')
+#    plt.colorbar()
+#    plt.title('time_pts = {!r}'.format(time_itvs // 4))
+#
+#    plt.subplot(3, 3, 3)
+#    plt.imshow(np.rot90(rec_result_2), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi)
+#    plt.axis('off')
+#    plt.colorbar()
+#    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+#
+#    plt.subplot(3, 3, 4)
+#    plt.imshow(np.rot90(rec_result_3), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi)
+#    plt.axis('off')
+#    plt.colorbar()
+#    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+#
+#    plt.subplot(3, 3, 5)
+#    plt.imshow(np.rot90(rec_result), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi)
+#    plt.axis('off')
+#    plt.colorbar()
+#    plt.title('Reconstructed by {!r} iters, '
+#        '{!r} projs'.format(niter, num_angles))
+#
+#    for i in range(nb_data_points):
+#        plt.subplot(3, 3, 7 + i)
+#        plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
+#                   vmin=mini,
+#                   vmax=maxi)
+#        plt.axis('off')
+#        plt.colorbar()
+#        plt.title('Ground truth time ' + str(data_time_points[i]))
+#
+#    name=path_result + name_plot + '.png'
+#    plt.savefig(name, bbox_inches='tight')
+##
+#plt.close('all')

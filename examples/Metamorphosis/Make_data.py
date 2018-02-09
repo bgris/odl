@@ -1173,60 +1173,76 @@ val2=0.1 - background
 val3 = 0.3-background
 
 #[1.0, -0.8, -0.2, -0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-
-ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
-            [-.8, .6624, .8740, 0.0000, -.0184, 0],
-            [val0, .1100, .3100, 0.2200, 0.0000, -18],
-            [val0, .1600, .4100, -.2200, 0.0000, 18],
-            [val1, .2100, .2500, 0.0000, 0.3500, 0],
-            [val1, .0460, .0460, 0.0000, 0.1000, 0],
-            [val1, .0460, .0460, 0.0000, -.1000, 0],
-            [val2, .0460, .0230, -.0800, -.6050, 0],
-            [val2, .0230, .0230, 0.0000, -.6060, 0],
-            [val2, .0230, .0460, 0.0600, -.6050, 0],
-            [val3, .020, .020, -0.540, .3050, 0]]
-
-I0=odl.phantom.ellipsoid_phantom(rec_space, ellipsoids) + background + mask_noise
-
-#template= odl.phantom.shepp_logan(space)
-I0= rec_space.element(scipy.ndimage.filters.gaussian_filter(I0.asarray(),1))
-#template.show(clim=[1,1.1])
-
+nb_data_points = 10
 
 NAffine=2
 kernelaff=Kernel.GaussianKernel(3)
 affine=UnconstrainedAffine.UnconstrainedAffine(rec_space, NAffine, kernelaff)
 
 GD_affine=affine.GDspace.element([[-5,5],[3,4]])
-Cont_affine=-1.2*affine.Contspace.element([[[0.5,0],[1,-1],[1,1]],[[-1,0.5],[-1,0],[0.5,0]]])
+Cont_affine=-1.5*affine.Contspace.element([[[0.5,0],[1,-1],[1,1]],[[-1.5, 1],[-2,0],[1,0]]])
 vect_field_affine=affine.ComputeField(GD_affine,Cont_affine)
+data_list = []
 
-I1=template.space.element(odl.deform.linearized._linear_deform(I0.copy(),vect_field_affine)).copy()
-I2=template.space.element(odl.deform.linearized._linear_deform(template.copy(),vect_field_affine)).copy()
+I0=odl.phantom.ellipsoid_phantom(rec_space, ellipsoids) + background + mask_noise
+
+data_list.append(I0.copy())
+for i in range(nb_data_points):
+    fac = (i+1)/nb_data_points
+    ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
+                [-.8, .6624, .8740, 0.0000, -.0184, 0],
+                [val0, .1100, .3100, 0.2200, 0.0000, -18],
+                [val0, .1600, .4100, -.2200, 0.0000, 18],
+                [val1, .2100, .2500, 0.0000, 0.3500, 0],
+                [val1, .0460, .0460, 0.0000, 0.1000, 0],
+                [val1, .0460, .0460, 0.0000, -.1000, 0],
+                [val2, .0460, .0230, -.0800, -.6050, 0],
+                [val2, .0230, .0230, 0.0000, -.6060, 0],
+                [val2, .0230, .0460, 0.0600, -.6050, 0],
+                [fac*val3, fac*.046, fac*.046, -0.540, .3050, 0]]
+
+    I0=odl.phantom.ellipsoid_phantom(rec_space, ellipsoids) + background + mask_noise
+
+    #template= odl.phantom.shepp_logan(space)
+    I0= rec_space.element(scipy.ndimage.filters.gaussian_filter(I0.asarray(),1))
+    #template.show(clim=[1,1.1])
+
+
+    I1=template.space.element(odl.deform.linearized._linear_deform(I0.copy(),fac*vect_field_affine)).copy()
+    data_list.append(I1.copy())
+    #I2=template.space.element(odl.deform.linearized._linear_deform(template.copy(),fac*vect_field_affine)).copy()
 #I1_0.show(clim=[1,1.1])
 mini=0
 maxi = 1
-template.show('template', clim=[mini, maxi])
-I0.show('I0', clim=[mini, maxi])
-I1.show('I1', clim=[mini, maxi])
-I2.show('I2', clim=[mini, maxi])
+
+for i in range(nb_data_points+1):
+    data_list[i].show(str(i), clim=[mini, maxi])
+    
+#template.show('template', clim=[mini, maxi])
+#I0.show('I0', clim=[mini, maxi])
+#I1.show('I1', clim=[mini, maxi])
+#I2.show('I2', clim=[mini, maxi])
 #%%
 
-path = '/home/bgris/data/Metamorphosis/'
-name_exp = 'test12/'
+path = '/home/barbara/data/Metamorphosis/'
+name_exp = 'test13/'
 name = path + name_exp
+for i in range(nb_data_points+1):
+    np.savetxt(name + 'temporal__t_' + str(i), data_list[i])
 #np.savetxt(name + 'SheppLogan10', template)
 #np.savetxt(name + 'SheppLogan10_deformed', I2)
-np.savetxt(name + 'SheppLogan13', I0)
-np.savetxt(name + 'SheppLogan13_deformed', I1)
+#np.savetxt(name + 'SheppLogan13', I0)
+#np.savetxt(name + 'SheppLogan13_deformed', I1)
 
 
 #%% Generate data
-name_list = ['SheppLogan13_deformed']
+name_list = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
 #num_angles_list = [10, 50, 100, 20]
-num_angles_list = [ 30]
-maxiangle_list = ['pi', '0_25pi', '0_5pi', '0_75pi']
-max_angle_list = [np.pi, 0.25*np.pi, 0.5*np.pi, 0.75*np.pi]
+num_angles_list = [20, 30, 50]
+maxiangle_list = ['pi']
+max_angle_list = [np.pi]
+#maxiangle_list = ['pi', '0_25pi', '0_5pi', '0_75pi']
+#max_angle_list = [np.pi, 0.25*np.pi, 0.5*np.pi, 0.75*np.pi]
 #maxiangle_list = ['0_75pi']
 #max_angle_list = [0.75*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
@@ -1273,7 +1289,7 @@ for name_val in name_list:
 
                         np.savetxt(name, data)
 
-
+#
 
 #%% Generate data
 name_list = ['SheppLogan11_deformed']
