@@ -150,8 +150,10 @@ forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
 ## load data
 
 #data_load = forward_op.range.element(np.loadtxt(path_data + name_exp))
+nameexp =  'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+nameexp += maxiangle + '_noise_' + noi
 
-name_data = [path_data + name_list[i]  for i in range(nb_data_points)]
+name_data = [path_data + name_list[i] + nameexp for i in range(nb_data_points)]
 data_load = [forward_op.range.element(np.loadtxt(name_data[i])) for i in range(nb_data_points)]
 
 
