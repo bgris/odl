@@ -35,6 +35,9 @@ Created on Tue Nov 28 16:44:11 2017
 Created on Tue Nov 28 15:37:44 2017
 
 @author: bgris
+
+Concatenation of several temporal data
+
 """
 
 import odl
@@ -52,7 +55,7 @@ index_name_ground_truth = 10
 index_angle = 0
 index_maxangle = 0
 index_minangle = 0
-index_noise = 0
+index_noise = 2
 
 ## The parameter for kernel function
 sigma = 3.0
@@ -71,14 +74,14 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 time_itvs = 10
 nb_time_point_int=time_itvs
 
-numtest = 14
+numtest = 15
 
 nb_data_points = 10
 
 #name_list_template = ['SheppLogan10']
 #name_list_ground_truth = ['SheppLogan11_deformed']
 name_list_template = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
-name_list_ground_truth = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
+name_list_ground_truth_tot = [ 'temporal__t_' + str(i) for i in range(nb_data_points + 1)]
 
 name_list_template = [ 'temporal__t_0']
 name_list_ground_truth = [ 'temporal__t_']
@@ -103,7 +106,7 @@ data_time_points=10
 #name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
 #name_exp += maxiangle + '_noise_' + noi
 
-name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
+name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi + 'randompartition'
 
 path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/'
 path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(numtest) + '/'
@@ -133,17 +136,47 @@ ground_truth = space.element(np.loadtxt(name_ground_truth))
 name_template = path_data + name_val_template
 template = space.element(np.loadtxt(name_template))
 
+# Loading data 
 
+name =  path_data + name_list_ground_truth[0] + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+name += maxiangle + 'randompartition'
 
+list_angles_tot = np.loadtxt(name + 'angles')
+detector_partition = odl.uniform_partition(-24, 24, int(round(space.shape[0]*np.sqrt(2))))
 
+array_data = np.empty((num_angles * data_time_points, detector_partition.points().shape[0]))
+list_data = []
+list_forward_op = []
+for i in range(data_time_points):
+    name_ground_truth = path_data + name_list_ground_truth_tot[i+1]
+    name = name_ground_truth + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+    name += maxiangle + '_noise_' + noi 
+    name += 'randompartition'
+    array_data[i*num_angles : (i+1)*num_angles, :] = np.loadtxt(name)
+    inter_angle = odl.set.domain.IntervalProd(list_angles_tot[i * num_angles], list_angles_tot[(i+1) * num_angles - 1])
+    grid_tmp = odl.discr.grid.RectGrid(list_angles_tot[i*num_angles : (i+1)*num_angles])
+    angle_partition = odl.discr.partition.RectPartition(inter_angle, grid_tmp)
+    geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+    list_forward_op.append(odl.tomo.RayTransform(space, geometry, impl='astra_cpu'))
+    list_data.append(list_forward_op[i].range.element(np.loadtxt(name)))
+    
+#
+
+#%%
+i=9
+list_data[i].show()
+#%%
 ## Create forward operator
 ## Create the uniformly distributed directions
-angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
-                                    nodes_on_bdry=[(True, True)])
+#angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
+#                                    nodes_on_bdry=[(True, True)])
+inter_angle = odl.set.domain.IntervalProd(min_angle, max_angle)
+grid = odl.discr.grid.RectGrid(list_angles_tot)
+angle_partition = odl.discr.partition.RectPartition(inter_angle, grid)
+
 
 ## Create 2-D projection domain
 ## The length should be 1.5 times of that of the reconstruction space
-detector_partition = odl.uniform_partition(-24, 24, int(round(space.shape[0]*np.sqrt(2))))
 
 ## Create 2-D parallel projection geometry
 geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
@@ -152,11 +185,12 @@ geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 ray_trafo = odl.tomo.RayTransform(space, geometry, impl='astra_cpu')
 
 
-## load data
-name_expdata = name_val  + str(index_name_ground_truth) + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
 
-namedataload = path_data + name_expdata 
-data_load = ray_trafo.range.element(np.loadtxt( namedataload ))
+## load data
+#name_expdata = name_val  + str(index_name_ground_truth) + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
+#
+#namedataload = path_data + name_expdata 
+data_load = ray_trafo.range.element(array_data)
 
 
 
@@ -165,7 +199,7 @@ data=data_load.copy()
 
 
 # --- Create functionals for solving the optimization problem ---
-
+#%%
 # Gradient for TV regularization
 gradient = odl.Gradient(space)
 
@@ -231,4 +265,11 @@ for data_matching in data_matching_list :
 #fbp_recon = odl.tomo.fbp_op(ray_trafo)(data)
 #fbp_recon.show('FBP reconstruction')
 #phantom.show('Phantom')
-#data.show('Sinogram')
+#data.show('Sinogram')#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb 13 11:27:36 2018
+
+@author: bgris
+"""
+

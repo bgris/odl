@@ -42,8 +42,8 @@ import numpy as np
 from matplotlib import pylab as plt
 import os
 ##%%
-namepath= 'barbara'
-#namepath= 'bgris'
+#namepath= 'barbara'
+namepath= 'bgris'
 #namepath= 'gris'
 
 ## Data parameters
@@ -53,7 +53,7 @@ nb_data_point = 10
 indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
 data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 1
+index_angle = 0
 index_maxangle = 0
 index_noise = 0
 
@@ -63,7 +63,7 @@ index_noise = 0
 sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=5
+niter=100
 epsV=0.02
 epsZ=0.02
 ## Give regularization parameter
@@ -73,9 +73,9 @@ tau = 1e-6
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
-time_itvs = 20
+time_itvs = 10
 nb_time_point_int=time_itvs
-numtest = 13
+numtest = 14
 
 nb_data_points = len(indexes_name_ground_truth_timepoints)
 
@@ -109,7 +109,7 @@ path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/
 path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(numtest) + '/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
-path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'datatimepoints_' + str(len(data_time_points)) + '/'
+path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'datatimepoints' + str(len(data_time_points)) + '/'
 
 
 
@@ -199,38 +199,60 @@ for i in range(nb_time_point_int + 1):
     image_evol[i].show( 'Image_t_' + str(i))
 #
 
+#%%
+for i in range(nb_time_point_int ):
+    (image_list[i+1] - ground_truth_list[i]).show('Difference_t_' + str(i))
+#
+
+#%% Plot in one gib image
+mini = -1
+maxi = 1
+image_N0_list= [ image_list, template_evo, image_evol]
+names_list = ['Image', 'Deformation part', 'template part']
+plt.figure(figsize=(nb_time_point_int+1, 5*4))
+#for i in range(nb_time_point_int + 1):
+#    plt.text(-1, -20, 't = ' + str(i/nb_time_point_int), rotation = 90)
+plt.subplot(nb_time_point_int + 1, 4,  1)
+plt.title('Ground truth')
+plt.axis('off')
+i=0
+for i in range(nb_time_point_int + 1):
+    plt.text(-0.2, 0.5 - 1.2*i, 't = ' + str(i/nb_time_point_int), rotation = 90)
+for i in range(nb_time_point_int + 1):
+#    print(i)
+
+    
+    if (i < nb_time_point_int):
+        plt.subplot(nb_time_point_int + 1, 4, (i+1)*4 + 1)
+        plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
+               vmin=mini,
+               vmax=maxi, aspect='auto')
+        plt.axis('off')
+#        plt.text(-3, 0.5, 't = ' + str((i+1)/nb_time_point_int), rotation = 90)
+
+    for j in range(3):
+        plt.subplot(nb_time_point_int + 1, 4, i*4 + j+ 2)
+        if (i==0):
+           plt.title(names_list[j]) 
+        plt.imshow(np.rot90(image_N0_list[j][i]), cmap='bone',
+               vmin=mini,
+               vmax=maxi, aspect='auto')
+        plt.axis('off')
+name=path_result + 'plot.png'
+plt.savefig(name, bbox_inches='tight')
+
+#
+
+#%% Plot FBF and TV
+names = ['_FBP_num_angles_10', '_TV_exactnum_angles_10__lam_1', '_TV_inexactnum_angles_10__lam_1']
+i = 0
+image = np.loadtxt(path_result + names[i])
+plt.imshow(np.rot90(image), cmap = 'bone', vmin=mini, vmax=maxi)
+plt.axis('off')
+name=path_result + names[i] + 'plot.png'
+plt.savefig(name, bbox_inches='tight')
 
 #%%
-##%% Compute estimated trajectory
-image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
-
-
-image_list=functional.ComputeMetamorphosisListInt(X[0],X[1])
-
-template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
-
-zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
-
-image_evol=odl.deform.IntegrateTemplateEvol(template,zeta_transp,0,nb_time_point_int)
-##%%
-mini=-1
-maxi=1
-#
-
-
-#
-##%% save results
-
-os.mkdir(path_result)
-#os.mkdir(path_result_dropbox)
-
-
-for i in range(nb_time_point_int + 1):
-    np.savetxt(path_result + 'Metamorphosis_t_' + str(i), image_list[i])
-    np.savetxt(path_result + 'Image_t_' + str(i), image_evol[i])
-    np.savetxt(path_result + 'Template_t_' + str(i), template_evo[i])
-#
-
 ## save plot results
 
 #

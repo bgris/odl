@@ -132,10 +132,31 @@ def mean_absolute_error(data, ground_truth, mask=None, normalized=False):
 def mean_value_difference(data, ground_truth, mask=None, normalized=False):
     """Return difference in mean value between ``data`` and ``ground_truth``.
 
+<<<<<<< Updated upstream
     Evaluates difference in `mean value
     <https://en.wikipedia.org/wiki/Mean_of_a_function>`_ between input
     (``data``) and reference (``ground_truth``). Allows for normalization
     (``normalized``) and a masking of the two spaces (``mask``).
+=======
+    Parameters
+    ----------
+    data : `FnBaseVector`
+        Input data to compare to the ground truth.
+    ground_truth : `FnBaseVector`
+        Reference to compare ``data`` to.
+    mask : `array-like`, optional
+        If given, ``data * mask`` is compared to ``ground_truth * mask``.
+    normalized  : bool, optional
+        Boolean flag to switch between unormalized and normalized FOM.
+    force_lower_is_better : bool, optional
+        If ``True``, it is ensured that lower values correspond to better
+        matches. For the mean squared error, this is already the case, and
+        the flag is only present for compatibility to other figures of merit.
+    Returns
+    -------
+    mvd : float
+        FOM value, where a lower value means a better match.
+>>>>>>> Stashed changes
 
     Notes
     ----------
@@ -207,9 +228,31 @@ def standard_deviation_difference(data, ground_truth, mask=None,
                                   normalized=False):
     """Return absolute difference in std between ``data`` and ``ground_truth``.
 
+<<<<<<< Updated upstream
     Evaluates difference in standard deviation (std) between input (``data``)
     and reference (``ground_truth``). Allows for normalization (``normalized``)
     and a masking of the two spaces (``mask``).
+=======
+    Parameters
+    ----------
+    data : `FnBaseVector`
+        Input data to compare to the ground truth.
+    ground_truth : `FnBaseVector`
+        Reference to compare ``data`` to.
+    mask : `array-like`, optional
+        If given, ``data * mask`` is compared to ``ground_truth * mask``.
+    normalized  : bool, optional
+        Boolean flag to switch between unormalized and normalized FOM.
+    force_lower_is_better : bool, optional
+        If ``True``, it is ensured that lower values correspond to better
+        matches. For the mean squared error, this is already the case, and
+        the flag is only present for compatibility to other figures of merit.
+
+    Returns
+    -------
+    sdd : float
+        FOM value, where a lower value means a better match.
+>>>>>>> Stashed changes
 
     Notes
     ----------
@@ -275,8 +318,16 @@ def standard_deviation_difference(data, ground_truth, mask=None,
                   l2_norm(ground_truth - ground_truth_mean)))
 
     if normalized:
+<<<<<<< Updated upstream
         fom /= (l2_norm(data - data_mean) +
                 l2_norm(ground_truth - ground_truth_mean))
+=======
+        sum_deviation = deviation_data + deviation_ground_truth
+        if fom == sum_deviation == 0:
+            fom = 0.0
+        else:
+            fom /=  sum_deviation
+>>>>>>> Stashed changes
 
     return fom
 
