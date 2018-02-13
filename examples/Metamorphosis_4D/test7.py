@@ -45,7 +45,7 @@ nb_data_point = 10
 indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
 data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 1
+index_angle = 0 
 index_maxangle = 0
 index_noise = 0
 
@@ -55,9 +55,9 @@ index_noise = 0
 sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=300
+niter = 100 
 epsV=0.02
-epsZ=0.02
+epsZ=0.0002
 ## Give regularization parameter
 lamb = 1e-5
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
@@ -65,9 +65,10 @@ tau = 1e-6
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
-time_itvs = 20
+time_itvs = 10
+
 nb_time_point_int=time_itvs
-numtest = 13
+numtest = 14
 
 nb_data_points = len(indexes_name_ground_truth_timepoints)
 
@@ -81,6 +82,10 @@ maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
 noi_list = ['0', '0_05', '0_25']
+miniangle_list = ['0']
+min_angle_list = [0]
+
+
 
 name_val_template = name_list_template[index_name_template]
 name_val = name_list_ground_truth[index_name_ground_truth]
@@ -90,6 +95,7 @@ max_angle = max_angle_list[index_maxangle]
 noise_level = noise_level_list[index_noise]
 noi = noi_list[index_noise]
 min_angle = 0.0
+miniangle = '0'
 
 name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
 #name_list = [name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi for i in range(nb_data_points)]
@@ -100,7 +106,7 @@ path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/
 path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(numtest) + '/'
 #path_result_init = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results/test2/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
-path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'data_time_points' + str(data_time_points) + '/'
+path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'datatimepoints' + str(len(data_time_points)) + '/'
 
 
 
