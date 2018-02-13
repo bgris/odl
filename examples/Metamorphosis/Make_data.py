@@ -1184,6 +1184,16 @@ Cont_affine=-1.5*affine.Contspace.element([[[0.5,0],[1,-1],[1,1]],[[-1.5, 1],[-2
 vect_field_affine=affine.ComputeField(GD_affine,Cont_affine)
 data_list = []
 
+ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
+                [-.8, .6624, .8740, 0.0000, -.0184, 0],
+                [val0, .1100, .3100, 0.2200, 0.0000, -18],
+                [val0, .1600, .4100, -.2200, 0.0000, 18],
+                [val1, .2100, .2500, 0.0000, 0.3500, 0],
+                [val1, .0460, .0460, 0.0000, 0.1000, 0],
+                [val1, .0460, .0460, 0.0000, -.1000, 0],
+                [val2, .0460, .0230, -.0800, -.6050, 0],
+                [val2, .0230, .0230, 0.0000, -.6060, 0],
+                [val2, .0230, .0460, 0.0600, -.6050, 0]]
 I0=odl.phantom.ellipsoid_phantom(rec_space, ellipsoids) + background + mask_noise
 
 data_list.append(I0.copy())
