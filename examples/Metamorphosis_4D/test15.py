@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Feb  9 18:42:38 2018
+Created on Tue Feb 13 12:39:20 2018
 
-@author: barbara
+@author: bgris
 """
 
 #!/usr/bin/env python3
@@ -35,6 +35,9 @@ Created on Tue Nov 28 16:44:11 2017
 Created on Tue Nov 28 15:37:44 2017
 
 @author: bgris
+
+different forward operator for each time
+
 """
 
 import odl
@@ -53,7 +56,7 @@ nb_data_point = 10
 indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
 data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 0
+index_angle = 0 
 index_maxangle = 0
 index_noise = 2
 
@@ -63,9 +66,9 @@ index_noise = 2
 sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=100
+niter = 100 
 epsV=0.02
-epsZ=0.02
+epsZ=0.0002
 ## Give regularization parameter
 lamb = 1e-5
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
@@ -74,6 +77,7 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
 time_itvs = 10
+
 nb_time_point_int=time_itvs
 numtest = 16
 
@@ -89,6 +93,10 @@ maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
 noise_level_list = [0.0, 0.05, 0.25]
 noi_list = ['0', '0_05', '0_25']
+miniangle_list = ['0']
+min_angle_list = [0]
+
+
 
 name_val_template = name_list_template[index_name_template]
 name_val = name_list_ground_truth[index_name_ground_truth]
@@ -102,7 +110,7 @@ miniangle = '0'
 
 name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi
 #name_list = [name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_' + maxiangle + '_noise_' + noi for i in range(nb_data_points)]
-name_list = [name_val + str(i) for i in range(nb_data_points + 1)]
+name_list = [name_val + str(i) for i in range(nb_data_points)]
 
 
 path_data = '/home/' + namepath + '/data/Metamorphosis/test' + str(numtest) + '/'
@@ -140,127 +148,179 @@ def kernel(x):
 
 
 
-## Create forward operator
-## Create the uniformly distributed directions
-angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
-                                    nodes_on_bdry=[(True, True)])
+namedata =  path_data + name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+namedata += maxiangle + 'randompartition'
 
-## Create 2-D projection domain
-## The length should be 1.5 times of that of the reconstruction space
+list_angles_tot = np.loadtxt(namedata + 'angles')
 detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
 
-## Create 2-D parallel projection geometry
-geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+#array_data = np.empty((num_angles * data_time_points, detector_partition.points().shape[0]))
+list_data = []
+list_forward_op = []
+for i in range(len(data_time_points)):
+    name_ground_truth = path_data + name_val + str(i+1)
+    name = name_ground_truth + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+    name += maxiangle + '_noise_' + noi 
+    name += 'randompartition'
+#    array_data[i*num_angles : (i+1)*num_angles, :] = np.loadtxt(name)
+    inter_angle = odl.set.domain.IntervalProd(list_angles_tot[i * num_angles], list_angles_tot[(i+1) * num_angles - 1])
+    grid_tmp = odl.discr.grid.RectGrid(list_angles_tot[i*num_angles : (i+1)*num_angles])
+    angle_partition = odl.discr.partition.RectPartition(inter_angle, grid_tmp)
+    geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+    list_forward_op.append(odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu'))
+    list_data.append(list_forward_op[i].range.element(np.loadtxt(name)))
 
-## Ray transform aka forward projection. We use ASTRA CUDA backend.
-forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
 
+
+## Create forward operator
+### Create the uniformly distributed directions
+#angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
+#                                    nodes_on_bdry=[(True, True)])
+#
+### Create 2-D projection domain
+### The length should be 1.5 times of that of the reconstruction space
+#detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+#
+### Create 2-D parallel projection geometry
+#geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+#
+### Ray transform aka forward projection. We use ASTRA CUDA backend.
+#forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+#
 
 ## load data
 
 #data_load = forward_op.range.element(np.loadtxt(path_data + name_exp))
 nameexp =  'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
-nameexp += maxiangle + '_noise_' + noi + 'randompartition'
+nameexp += maxiangle + '_noise_' + noi
 
-name_data = [path_data + name_list[i+1] + nameexp for i in range(nb_data_points)]
-data_load = [forward_op.range.element(np.loadtxt(name_data[i])) for i in range(nb_data_points)]
+#name_data = [path_data + name_list[i] + nameexp for i in range(nb_data_points)]
+#data_load = [forward_op.range.element(np.loadtxt(name_data[i])) for i in range(nb_data_points)]
 
 
 #data=[data_load]
 #data=[proj_data]
-forward_operators=[forward_op for i in range(nb_data_points)]
-Norm=odl.solvers.L2NormSquared(forward_op.range)
+#forward_operators=[forward_op for i in range(nb_data_points)]
+Norm_list=[odl.solvers.L2NormSquared(list_forward_op[i].range) for i in range(len(data_time_points))]
 
-
-#%% Define energy operator
+#%%
+##%% Define energy operator
 
 functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
-                            lamb,tau,template ,data_load,
-                            data_time_points, forward_operators,Norm, kernel,
+                            lamb,tau,template ,list_data,
+                            data_time_points, list_forward_op, Norm_list, kernel,
                             domain=None)
 
 
+##%%
+##%% Gradient descent
+
+X_init=functional.domain.zero()
+X=X_init.copy()
+energy=functional(X)
+#%% Gradient descent
+
+print(" Initial ,  energy : {}".format(energy))
 
 
-#%% load data
-image_list = []
-template_evo = []
-image_evol = []
-for i in range(nb_time_point_int + 1):
-    image_list.append(rec_space.element(np.loadtxt(path_result + 'Metamorphosis_t_' + str(i))))
-    template_evo.append(rec_space.element(np.loadtxt(path_result + 'Template_t_' + str(i))))
-    image_evol.append(rec_space.element(np.loadtxt(path_result + 'Image_t_' + str(i))))
+for k in range(niter):
+    #X[1][0].show("Iter = {}".format(k),clim=[-1,1])
+    #grad=functional.gradient(X)
+    grad=functional.gradient(X)
+    X_temp0=X.copy()
+    X_temp0[0]= (X[0]- epsV *grad[0]).copy()
+    X_temp0[1]= (X[1]- epsZ *grad[1]).copy()
+    energy_temp0=functional(X_temp0)
+    if energy_temp0<energy:
+        X=X_temp0.copy()
+        energy=energy_temp0
+        epsV*=1.1
+        epsZ*=1.1
+        print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
+    else:
+        X_temp1=X.copy()
+        X_temp1[0]= (X[0]- epsV *grad[0]).copy()
+        X_temp1[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
+        energy_temp1=functional(X_temp1)
+
+        X_temp2=X.copy()
+        X_temp2[0]= (X[0]- 0.5*epsV *grad[0]).copy()
+        X_temp2[1]= (X[1]- epsZ *grad[1]).copy()
+        energy_temp2=functional(X_temp2)
+
+        X_temp3=X.copy()
+        X_temp3[0]= (X[0]- 0.5*epsV *grad[0]).copy()
+        X_temp3[1]= (X[1]- 0.5*epsZ *grad[1]).copy()
+        energy_temp3=functional(X_temp3)
+
+        if (energy_temp3<=energy_temp1 and energy_temp3<=energy_temp2):
+            X_temp0=X_temp3.copy()
+            energy_temp0=energy_temp3
+            epsZ*=0.5
+            epsV*=0.5
+        else:
+            if (energy_temp1<=energy_temp2 and energy_temp1<=energy_temp3):
+                X_temp0=X_temp1.copy()
+                energy_temp0=energy_temp1
+                epsZ*=0.5
+            else:
+                X_temp0=X_temp2.copy()
+                energy_temp0=energy_temp2
+                epsV*=0.5
+
+        if energy_temp0<energy:
+            X=X_temp0.copy()
+            energy=energy_temp0
+            epsV *= 1.1
+            epsZ *= 1.1
+            print(" iter : {}  , energy : {}, epsV = {} , epsZ = {}".format(k,energy,epsV, epsZ))
+        else:
+            print("epsV = {} , epsZ = {}".format(epsV, epsZ))
+
+    if (np.mod(k,5) == 0):
+        plt.close('all')
+        functional.ComputeMetamorphosis(X[0], X[1])[-1].show(str(k))
+
+
+
+
+
 #
 
-#%%
-for i in range(nb_time_point_int + 1):
-    image_list[i].show('Metamorphosis_t_' + str(i))
-    template_evo[i].show('Template_t_' + str(i))
-    image_evol[i].show( 'Image_t_' + str(i))
+##%%
+
+
+
+##%% Compute estimated trajectory
+image_list_data=functional.ComputeMetamorphosis(X[0],X[1])
+
+
+image_list=functional.ComputeMetamorphosisListInt(X[0],X[1])
+
+template_evo=odl.deform.ShootTemplateFromVectorFields(X[0], template)
+
+zeta_transp=odl.deform.ShootSourceTermBackwardlist(X[0],X[1])
+
+image_evol=odl.deform.IntegrateTemplateEvol(template,zeta_transp,0,nb_time_point_int)
+##%%
+mini=-1
+maxi=1
 #
 
-#%%
-for i in range(nb_time_point_int ):
-    (image_list[i+1] - ground_truth_list[i]).show('Difference_t_' + str(i))
-#
-
-#%% Plot in one big image
-mini = -0.3
-maxi = 1
-image_N0_list= [ image_list, template_evo, image_evol]
-names_list = ['Image', 'Deformation part', 'template part']
-plt.figure(figsize=(nb_time_point_int+1, 5*4))
-#for i in range(nb_time_point_int + 1):
-#    plt.text(-1, -20, 't = ' + str(i/nb_time_point_int), rotation = 90)
-plt.subplot(nb_time_point_int + 1, 4,  1)
-plt.title('Ground truth')
-plt.axis('off')
-i=0
-for i in range(nb_time_point_int + 1):
-    plt.text(-0.2, 0.5 - 1.2*i, 't = ' + str(i/nb_time_point_int), rotation = 90)
-for i in range(nb_time_point_int + 1):
-#    print(i)
-
-    
-    if (i < nb_time_point_int):
-        plt.subplot(nb_time_point_int + 1, 4, (i+1)*4 + 1)
-        plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
-               vmin=mini,
-               vmax=maxi, aspect='auto')
-        plt.axis('off')
-#        plt.text(-3, 0.5, 't = ' + str((i+1)/nb_time_point_int), rotation = 90)
-
-    for j in range(3):
-        plt.subplot(nb_time_point_int + 1, 4, i*4 + j+ 2)
-        if (i==0):
-           plt.title(names_list[j]) 
-        plt.imshow(np.rot90(image_N0_list[j][i]), cmap='bone',
-               vmin=mini,
-               vmax=maxi, aspect='auto')
-        plt.axis('off')
-name=path_result + 'plot.png'
-plt.savefig(name, bbox_inches='tight')
 
 #
-#%% plot data
-i=0
-plt.figure(figsize=(1, 15))
-plt.imshow(np.rot90(np.array(list_data[i])), cmap = 'bone')
-plt.axis('off')
-#fig = list_data[i].show()
-plt.savefig(path_result + 'plotdata_t_' + str(i+1), bbox_inches='tight')
+##%% save results
+
+os.mkdir(path_result)
+#os.mkdir(path_result_dropbox)
 
 
-#%% Plot FBF and TV
-names = ['_FBP_num_angles_10', '_TV_exactnum_angles_10__lam_1', '_TV_inexactnum_angles_10__lam_1']
-i = 0
-image = np.loadtxt(path_result + names[i])
-plt.imshow(np.rot90(image), cmap = 'bone', vmin=mini, vmax=maxi)
-plt.axis('off')
-name=path_result + names[i] + 'plot.png'
-plt.savefig(name, bbox_inches='tight')
+for i in range(nb_time_point_int + 1):
+    np.savetxt(path_result + 'Metamorphosis_t_' + str(i), image_list[i])
+    np.savetxt(path_result + 'Image_t_' + str(i), image_evol[i])
+    np.savetxt(path_result + 'Template_t_' + str(i), template_evo[i])
+#
 
-#%%
 ## save plot results
 
 #

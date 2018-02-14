@@ -52,7 +52,7 @@ index_name_ground_truth = 10
 index_angle = 0
 index_maxangle = 0
 index_minangle = 0
-index_noise = 0
+index_noise = 2
 
 ## The parameter for kernel function
 sigma = 3.0
@@ -163,7 +163,7 @@ data_load = ray_trafo.range.element(np.loadtxt( namedataload ))
 data=data_load.copy()
 #data=[proj_data]
 
-
+#%%
 # --- Create functionals for solving the optimization problem ---
 
 # Gradient for TV regularization

@@ -74,7 +74,7 @@ name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 time_itvs = 10
 nb_time_point_int=time_itvs
 
-numtest = 15
+numtest = 16
 
 nb_data_points = 10
 
@@ -163,7 +163,7 @@ for i in range(data_time_points):
 #
 
 #%%
-i=9
+i=0
 list_data[i].show()
 #%%
 ## Create forward operator
@@ -260,10 +260,12 @@ for data_matching in data_matching_list :
     
     np.savetxt(path_result + '_TV_' + data_matching + 'num_angles_' + str(num_angles) + '__lam_' + str(lam), x)
 
-
+#%%
 # Compare with filtered back-projection
-#fbp_recon = odl.tomo.fbp_op(ray_trafo)(data)
-#fbp_recon.show('FBP reconstruction')
+fbp_recon = odl.tomo.fbp_op(ray_trafo)(data)
+fbp_recon.show('FBP reconstruction')
+np.savetxt(path_result + '_FBP_' + data_matching + 'num_angles_' + str(num_angles), fbp_recon)
+
 #phantom.show('Phantom')
 #data.show('Sinogram')#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
