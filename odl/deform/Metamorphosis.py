@@ -111,7 +111,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
     """
 
 
-    def __init__(self, nb_time_point_int, lamb, tau, template, data, data_time_points, forward_operators, Norm, kernel, domain=None):
+    def __init__(self, nb_time_point_int, lamb, tau, template, data, data_time_points, forward_operators, Norm_list, kernel, domain=None):
         
         """
         Parameters
@@ -124,8 +124,8 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
             multiplies the norm of the template evolution in the functional
         forward_operators : list of `Operator`
             list of the forward operators, one per data time point.
-        Norm : functional
-            Norm in the data space (ex: l2 norm)
+        Norm_list : list of functionals
+            Norms in the data spaces (ex: l2 norm), one per data time point.
         data_elem : list of 'DiscreteLpElement'
             Given data.
         data_time_points : list of floats
@@ -141,7 +141,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         self.lamb=lamb
         self.tau=tau
         self.data=data
-        self.Norm=Norm
+        self.Norm_list=Norm_list
         self.data_time_points= np.array(data_time_points)
         self.forward_op=forward_operators
         self.kernel=kernel
@@ -213,7 +213,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
         energy=0
         for j in range(self.nb_data):
 
-            energy+=self.Norm(self.forward_op[j](image_list[j]) -  self.data[j])
+            energy+=self.Norm_list[j](self.forward_op[j](image_list[j]) -  self.data[j])
             #energy+=self.S[j](image_list[j])
         attach=energy
 
@@ -382,7 +382,7 @@ class TemporalAttachmentMetamorphosisGeom(Functional):
 
                 for j in range(functional.nb_data):
 
-                    conv=functional.ConvolveIntegrate((functional.Norm*(functional.forward_op[j] -  functional.data[j])).gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
+                    conv=functional.ConvolveIntegrate((functional.Norm_list[j]*(functional.forward_op[j] -  functional.data[j])).gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
                     #conv=functional.ConvolveIntegrate(functional.S[j].gradient(image_list[j]),G,j,vector_field_list,zeta_list).copy()
                     for k in range(functional.k_j_list[j]):
                         h[k]-=conv[0][k].copy()
