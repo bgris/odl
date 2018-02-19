@@ -69,11 +69,12 @@ niter=200
 epsV=0.02
 epsZ=0.02
 ## Give regularization parameter
-explist = [1, 3, 5, 7]
-lamblist = [1e-1, 1e-3, 1e-5,1e-7]
-name_lamb_list =['1e_' + str(ex) for ex in explist]
+explistlamb = [7]
+explisttau = [1, 3, 5, 7]
+lamblist = [1e-7]
+name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
 taulist = [1e-1, 1e-3, 1e-5,1e-7]
-name_tau_list =['1e_' + str(ex) for ex in explist]
+name_tau_list =['1e_' + str(ex) for ex in explisttau]
 
 # Give the number of time points
 time_itvs = 20

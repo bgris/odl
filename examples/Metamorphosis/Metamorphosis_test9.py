@@ -43,8 +43,8 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
-
+#namepath= 'bgris'
+namepath = 'gris'
 ## Data parameters
 index_name_template = 0
 index_name_ground_truth = 0
