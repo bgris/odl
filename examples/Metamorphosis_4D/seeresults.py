@@ -205,11 +205,12 @@ for i in range(nb_time_point_int ):
 #
 
 #%% Plot in one big image
+from mpl_toolkits.axes_grid1 import SubplotDivider, LocatableAxes, make_axes_locatable, Size
 mini = -0.3
 maxi = 1
 image_N0_list= [ image_list, template_evo, image_evol]
 names_list = ['Image', 'Deformation part', 'template part']
-plt.figure(figsize=(nb_time_point_int+1, 5*4))
+fig1 = plt.figure(figsize=(nb_time_point_int+1, 5*4))
 #for i in range(nb_time_point_int + 1):
 #    plt.text(-1, -20, 't = ' + str(i/nb_time_point_int), rotation = 90)
 plt.subplot(nb_time_point_int + 1, 4,  1)
@@ -221,7 +222,6 @@ for i in range(nb_time_point_int + 1):
 for i in range(nb_time_point_int + 1):
 #    print(i)
 
-    
     if (i < nb_time_point_int):
         plt.subplot(nb_time_point_int + 1, 4, (i+1)*4 + 1)
         plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
@@ -231,13 +231,46 @@ for i in range(nb_time_point_int + 1):
 #        plt.text(-3, 0.5, 't = ' + str((i+1)/nb_time_point_int), rotation = 90)
 
     for j in range(3):
-        plt.subplot(nb_time_point_int + 1, 4, i*4 + j+ 2)
+        im=plt.subplot(nb_time_point_int + 1, 4, i*4 + j+ 2)
         if (i==0):
            plt.title(names_list[j]) 
+           
         plt.imshow(np.rot90(image_N0_list[j][i]), cmap='bone',
                vmin=mini,
                vmax=maxi, aspect='auto')
+        #if (i > 0 or j > 0):
         plt.axis('off')
+        
+    if i==0:
+        plt.subplot(nb_time_point_int + 1, 4, 1)
+        plt.colorbar()
+#        im=plt.subplot(nb_time_point_int + 1, 4, 1)
+#        divider = SubplotDivider(fig1, nb_time_point_int + 1, 4, 1, aspect=True)
+#        ax_cb = LocatableAxes(fig1, divider.get_position())
+#        ax = LocatableAxes(fig1, divider.get_position())
+#        h = [Size.AxesX(ax),  # main axes
+#             Size.Fixed(0.05),  # padding, 0.1 inch
+#             Size.Fixed(0.2),  # colorbar, 0.3 inch
+#             ]
+#    
+#        v = [Size.AxesY(ax)]
+#    
+#        divider.set_horizontal(h)
+#        divider.set_vertical(v)
+#    
+#        ax_cb.set_axes_locator(divider.new_locator(nx=2, ny=0))
+#    
+#        fig1.add_axes(ax_cb)
+#    
+#        ax_cb.axis["left"].toggle(all=False)
+#        ax_cb.axis["right"].toggle(ticks=True)
+#        #ax = plt.gca()  
+#        #divider = make_axes_locatable(ax)
+#        #cax = divider.append_axes("right", size="5%", pad=0.05)
+#        plt.colorbar(im, cax=ax_cb)
+        #cax = plt.axes([0.85, 0.1, 0.075, 0.8])
+        #if (i==0 and j==0):
+        #    plt.colorbar(im)
 name=path_result + 'plot.png'
 plt.savefig(name, bbox_inches='tight')
 
@@ -259,6 +292,20 @@ plt.imshow(np.rot90(image), cmap = 'bone', vmin=mini, vmax=maxi)
 plt.axis('off')
 name=path_result + names[i] + 'plot.png'
 plt.savefig(name, bbox_inches='tight')
+#%% plot full data
+mini = -2
+maxi = 15
+fig = data.show(clim=[mini, maxi])
+name=path_result + '/plotfulldata.png'
+#plt.axis([0, 100, 0, 20])
+fig.savefig(name)
+
+#%% plot data
+k =9
+fig = list_data[k].show(clim=[mini, maxi])
+name=path_result + '/data' + str(k) + '.png'
+#plt.axis([0, 100, 0, 20])
+fig.savefig(name)
 
 #%%
 ## save plot results

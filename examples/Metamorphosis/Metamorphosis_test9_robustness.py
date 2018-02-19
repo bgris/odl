@@ -170,7 +170,7 @@ for lamb, name_lamb in zip(lamblist, name_lamb_list):
             #data=[proj_data]
             data_time_points=np.array([1])
             forward_operators=[forward_op]
-            Norm=odl.solvers.L2NormSquared(forward_op.range)
+            Norm=[odl.solvers.L2NormSquared(forward_op.range)]
             
             
             ##%% Define energy operator
