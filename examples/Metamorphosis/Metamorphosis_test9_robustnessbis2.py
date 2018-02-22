@@ -51,7 +51,7 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'gris'
+namepath= 'bgris'
 
 ## Data parameters
 index_name_template = 0
@@ -60,21 +60,28 @@ index_name_ground_truth = 0
 index_angle = 2
 index_maxangle = 0
 index_noise = 2
-
 ## The parameter for kernel function
-sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
-name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
-
+#sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
+#name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
+sigmalist = [5., 10.]
+name_sigma_list=[ '5', '10' ]
 niter=200
-epsV=0.02
-epsZ=0.02
+epsVinit=0.02
+epsZinit=0.002
 ## Give regularization parameter
+#explistlamb = [3]
+#explisttau = [1, 3, 5, 7]
+#lamblist = [1e-3]
+#name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
+#taulist = [1e-1, 1e-3, 1e-5,1e-7]
+#name_tau_list =['1e_' + str(ex) for ex in explisttau]
+#
 explistlamb = [5]
-explisttau = [1, 3, 5, 7]
 lamblist = [1e-5]
-name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
-taulist = [1e-1, 1e-3, 1e-5,1e-7]
-name_tau_list =['1e_' + str(ex) for ex in explisttau]
+name_lamb_list =['1e_5']
+explisttau = [5]
+taulist = [1e-5]
+name_tau_list =['1e_5']
 
 # Give the number of time points
 time_itvs = 20
@@ -105,7 +112,9 @@ for lamb, name_lamb in zip(lamblist, name_lamb_list):
     for tau, name_tau in zip(taulist, name_tau_list):
         for sigma, name_sigma in zip(sigmalist, name_sigma_list):
             print('lamb = {}, tau = {}, sigma = {}'.format(lamb, tau, sigma))
-            
+            epsV = epsVinit
+            epsZ = epsZinit
+
             name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_'
             name_exp += maxiangle + '_noise_' + noi
             

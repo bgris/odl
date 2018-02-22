@@ -53,7 +53,7 @@ nb_data_point = 10
 indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
 data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 0
+index_angle = 4
 index_maxangle = 0
 index_noise = 2
 
@@ -69,7 +69,7 @@ epsZ=0.02
 ## Give regularization parameter
 lamb = 1e-5
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
-tau = 1e-6
+tau = 1e-5
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points

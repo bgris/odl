@@ -48,10 +48,11 @@ space = odl.uniform_discr(
     min_pt=[-16, -16], max_pt=[16, 16], shape=[256,256],
     dtype='float32', interp='linear')
 
-numtest = 1
+numtest = 9
+numtestdata = 8
 
 ## Data parameters
-index_name_template = 1
+index_name_template = 0
 index_name_ground_truth = 0
 
 index_angle = 2
@@ -60,10 +61,10 @@ index_noise = 2
 
 
 ## The parameter for kernel function
-sigma = 2.0
+sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=300
+niter=200
 epsV=0.02
 epsZ=0.002
 ## Give regularization parameter
@@ -73,7 +74,7 @@ tau = 1e-5
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
-time_itvs = 10
+time_itvs = 20
 nb_time_point_int=time_itvs
 
 typefig = '.pdf'
@@ -81,6 +82,8 @@ typefig = '.pdf'
 
 name_list_template = ['template_values__0_2__0_9', 'template_values__0__1']
 name_list_ground_truth = ['ground_truth_values__0_2__0_9', 'ground_truth_values__0__1']
+name_list_template = ['SheppLogan0']
+name_list_ground_truth = ['SheppLogan8_deformed']
 num_angles_list = [10, 50, 100]
 maxiangle_list = ['pi', '0_25pi']
 max_angle_list = [np.pi, 0.25*np.pi]
@@ -100,7 +103,8 @@ name_exp = name_val + 'num_angles_' + str(num_angles) + '_min_angle_0_max_angle_
 name_exp += maxiangle + '_noise_' + noi
 
 
-path_data = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test' + str(numtest) + '/'
+#path_data = '/home/bgris/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/data/test' + str(numtestdata) + '/'
+path_data = '/home/bgris/data/Metamorphosis/test' + str(numtestdata) + '/'
 path_result_init = '/home/bgris/Results/Metamorphosis/test' + str(numtest) + '/'
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + '/'
@@ -112,23 +116,23 @@ name_figure += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__nt
 
 
 ##%%
-mini=-1
-maxi=1
-
+mini = -0.3
+maxi = 1
 name_list = ['Metamorphosis', 'Image', 'Template']
-for name in name_list:
+name_list_result = ['Image', 'Template_part', 'Deformation_part']
+for name, name_result in zip(name_list, name_list_result):
     for t in range(time_itvs + 1):
         image = space.element(np.loadtxt(path_result + name + '_t_' + str(t)))
-        plt.imshow(image, cmap=plt.get_cmap('bone'), vmin=mini, vmax=maxi)
+        plt.imshow(np.rot90(image), cmap=plt.get_cmap('bone'), vmin=mini, vmax=maxi)
         plt.axis('off')
 #        fig.delaxes(fig.axes[1])
-        plt.savefig(name_figure + name  + str(t) + typefig, transparent = True, bbox_inches='tight',
+        plt.savefig(name_figure + name_result  + str(t) + typefig, transparent = True, bbox_inches='tight',
         pad_inches = 0)
 #
 
 plt.close('all')
 
-
+#%%
 ## Create forward operator
 ## Create the uniformly distributed directions
 angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
@@ -161,20 +165,23 @@ plt.savefig(name_figure + 'Data' + str(indexdataplot) + typefig, transparent = T
 
 # figures for template
 if False:
-    image = space.element(np.loadtxt(path_data + name_list_template[index_name_template] ))
-    plt.imshow(image, cmap=plt.get_cmap('bone'), vmin=mini, vmax=maxi)
-    plt.savefig(path_figure + 'test' + str(numtest) + 'Template_withaxis' + typefig, transparent = True, bbox_inches='tight',
+#    image = space.element(np.loadtxt(path_data + name_list_template[index_name_template] ))
+    image = space.element(np.loadtxt(path_result + name + '_t_' + str(t)))
+    plt.imshow(np.rot90(image), cmap=plt.get_cmap('bone'), vmin=mini, vmax=maxi)
+    plt.savefig(name_figure + 'test' + str(numtest) + 'Template_withaxis' + typefig, transparent = True, bbox_inches='tight',
     pad_inches = 0)
 
 
 # figures for ground truth
 if False:
-    numtruth = 1
+    numtruth = 0
     image = space.element(np.loadtxt(path_data + name_list_ground_truth[numtruth] ))
-    fig = image.show(clim=[mini, maxi])
+#    fig = image.show(clim=[mini, maxi])
+    plt.imshow(np.rot90(image), cmap=plt.get_cmap('bone'), vmin=mini, vmax=maxi)
+
     plt.axis('off')
-    fig.delaxes(fig.axes[1])
-    plt.savefig( path_figure + 'test' + str(numtest) + name_list_ground_truth[numtruth] + typefig, transparent = True, bbox_inches='tight',
+#    plt.delaxes(plt.axes[1])
+    plt.savefig( name_figure + 'test' + str(numtest) + name_list_ground_truth[numtruth] + typefig, transparent = True, bbox_inches='tight',
     pad_inches = 0)
 
 #%%

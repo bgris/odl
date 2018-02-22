@@ -318,16 +318,8 @@ def standard_deviation_difference(data, ground_truth, mask=None,
                   l2_norm(ground_truth - ground_truth_mean)))
 
     if normalized:
-<<<<<<< Updated upstream
         fom /= (l2_norm(data - data_mean) +
                 l2_norm(ground_truth - ground_truth_mean))
-=======
-        sum_deviation = deviation_data + deviation_ground_truth
-        if fom == sum_deviation == 0:
-            fom = 0.0
-        else:
-            fom /=  sum_deviation
->>>>>>> Stashed changes
 
     return fom
 

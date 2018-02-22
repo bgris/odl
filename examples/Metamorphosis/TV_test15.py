@@ -206,7 +206,7 @@ gradient = odl.Gradient(space)
 # Functional to enforce 0 <= x <= 1
 f = odl.solvers.IndicatorBox(space, -1.5, 1.5)
 
-lam = 1
+lam = 0.1
 data_matching_list = ['exact', 'inexact']
 for data_matching in data_matching_list :
     if data_matching == 'exact':
@@ -247,7 +247,7 @@ for data_matching in data_matching_list :
     g = [indicator_data, cross_norm]
     
     # Create callback that prints the iteration number and shows partial results
-    callback = (odl.solvers.CallbackShow('iterates', step=5, clim=[0, 1]) &
+    callback = (odl.solvers.CallbackShow('iterates', step=5, clim=[-0.3, 1]) &
                 odl.solvers.CallbackPrintIteration())
     
     # Solve with initial guess x = 0.
@@ -264,6 +264,7 @@ for data_matching in data_matching_list :
 # Compare with filtered back-projection
 fbp_recon = odl.tomo.fbp_op(ray_trafo)(data)
 fbp_recon.show('FBP reconstruction')
+#%%
 np.savetxt(path_result + '_FBP_' + data_matching + 'num_angles_' + str(num_angles), fbp_recon)
 
 #phantom.show('Phantom')
