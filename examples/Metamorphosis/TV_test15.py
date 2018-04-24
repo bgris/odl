@@ -263,6 +263,10 @@ for data_matching in data_matching_list :
     #%%
     np.savetxt(path_result + '_TV_' + data_matching + 'num_angles_' + str(num_angles) + '__lam_' + str(lam), x)
 
+#%%   
+name = name_init + '/Results/DeformationModule/test6/' + 'target_' + name_target + '__limx0_' + str(limx0)  + '__limx1_' + str(limx1)  + '__limy0_' + str(limy0)  + '__limy1_' + str(limy1) +  '__numangles_' + str(num_angles) + '__min_angle_' + miniangle + '__max_angle_' + maxiangle + '__SNR_' + str(snr) 
+np.savetxt(name + '_TV_' + data_matching + '__lam_' + str(lam), x)
+
 #%%
 # Compare with filtered back-projection
 fbp_recon = odl.tomo.fbp_op(ray_trafo)(data)
