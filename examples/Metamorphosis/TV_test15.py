@@ -258,7 +258,7 @@ for data_matching in data_matching_list :
     x = ray_trafo.domain.zero()
     odl.solvers.douglas_rachford_pd(x, f, g, lin_ops,
                                     tau=0.1, sigma=[0.1, 0.02], lam=1.5,
-                                    niter=500, callback=callback)
+                                    niter=20, callback=callback)
     x.show()
     #%%
     np.savetxt(path_result + '_TV_' + data_matching + 'num_angles_' + str(num_angles) + '__lam_' + str(lam), x)
