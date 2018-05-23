@@ -280,7 +280,7 @@ image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
 ##%%
 for i in range(nb_time_point_int + 1):
-    name = '/home/' + path +'/Results/SheppLogan/Rotation' + 'angles_' + str(num_angles) + '_LDDMM_sigma_' +str(int(sigma))
+    name = '/home/' + path +'/Results/SheppLogan/Rotation' + 'angles_' + str(num_angles) + '_LDDMM_sigma_' +str(int(sigma)) + '_t_' + str(i)
     np.savetxt(name, image_N0[i])
 #
 #
