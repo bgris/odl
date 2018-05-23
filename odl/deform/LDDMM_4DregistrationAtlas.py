@@ -65,10 +65,10 @@ def fitting_kernel(space, kernel):
     return discretized_kernel
 
 def ShootTemplateFromVectorFields(vector_field_list, template):
-    N=vector_field_list.size-1
+    N = vector_field_list.size-1
     series_image_space_integration = ProductSpace(template.space,
                                                   N+1)
-    inv_N=1/N
+    inv_N=1/float(N)
     I=series_image_space_integration.element()
     I[0]=template.copy()
     for i in range(N):
