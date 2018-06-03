@@ -208,6 +208,7 @@ f = odl.solvers.IndicatorBox(space, -1.5, 1.5)
 
 lam = 0.1
 data_matching_list = ['exact', 'inexact']
+data_matching_list = ['exact']
 for data_matching in data_matching_list :
     if data_matching == 'exact':
         # Functional to enforce Ax = g
@@ -247,8 +248,9 @@ for data_matching in data_matching_list :
     g = [indicator_data, cross_norm]
     
     # Create callback that prints the iteration number and shows partial results
-    callback = (odl.solvers.CallbackShow('iterates', step=5, clim=[-0.3, 1]) &
-                odl.solvers.CallbackPrintIteration())
+#    callback = (odl.solvers.CallbackShow('iterates', step=5, clim=[-0.3, 1]) &
+#                odl.solvers.CallbackPrintIteration())
+    callback = (odl.solvers.CallbackPrintIteration())
     
     # Solve with initial guess x = 0.
     # Step size parameters are selected to ensure convergence.
@@ -256,9 +258,14 @@ for data_matching in data_matching_list :
     x = ray_trafo.domain.zero()
     odl.solvers.douglas_rachford_pd(x, f, g, lin_ops,
                                     tau=0.1, sigma=[0.1, 0.02], lam=1.5,
-                                    niter=500, callback=callback)
+                                    niter=20, callback=callback)
+    x.show()
     #%%
     np.savetxt(path_result + '_TV_' + data_matching + 'num_angles_' + str(num_angles) + '__lam_' + str(lam), x)
+
+#%%   
+name = name_init + '/Results/DeformationModule/test6/' + 'target_' + name_target + '__limx0_' + str(limx0)  + '__limx1_' + str(limx1)  + '__limy0_' + str(limy0)  + '__limy1_' + str(limy1) +  '__numangles_' + str(num_angles) + '__min_angle_' + miniangle + '__max_angle_' + maxiangle + '__SNR_' + str(snr) 
+np.savetxt(name + '_TV_' + data_matching + '__lam_' + str(lam), x)
 
 #%%
 # Compare with filtered back-projection

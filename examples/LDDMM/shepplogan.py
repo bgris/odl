@@ -11,6 +11,7 @@ import odl
 from odl.deform.linearized import _linear_deform
 import numpy as np
 from matplotlib import pylab as plt
+plt.ioff()
 
 
 
@@ -190,7 +191,7 @@ detector_partition = odl.uniform_partition(-24, 24, 620)
 geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
-forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='skimage')
 
 # Create projection data by calling the op on the phantom
 proj_data = forward_op(ground_truth)
@@ -230,7 +231,7 @@ vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
 attachment_term=energy_op(vector_fields_list)
 print(" Initial ,  attachment term : {}".format(attachment_term))
-
+niter = 10
 for k in range(niter):
     grad=functional.gradient(vector_fields_list)
     vector_fields_list= (vector_fields_list- eps *grad).copy()
@@ -256,10 +257,11 @@ for i in range(nb_time_point_int+1):
     plt.savefig(name_fig)
 
 #
+
 #%%
 i=nb_time_point_int
 name_fig = name + '_plot_t_' + str(i) + '_.png'
-fig = image_N0[i].show(clim=[0, 2])
+fig = image_N0[i].show(clim=[0, 1])
 plt.axis('off')
 fig.delaxes(fig.axes[1])
 plt.savefig(name_fig)
