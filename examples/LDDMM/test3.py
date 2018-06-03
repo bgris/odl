@@ -7,6 +7,8 @@ Created on Thu May 11 18:03:37 2017
 """
 
 path = 'gris'
+path = 'barbara'
+name_path = 'barbara'
 
 import odl
 from odl.deform.linearized import _linear_deform
@@ -14,6 +16,8 @@ import numpy as np
 from matplotlib import pylab as plt
 import scipy
 
+from odl.discr import (uniform_discr, ResizingOperator)
+from odl.operator import (DiagonalOperator, IdentityOperator)
 #
 #def snr_fun(signal, noise, impl):
 #    """Compute the signal-to-noise ratio.
@@ -153,7 +157,45 @@ fac_smooth=0.8
 template=space.element(scipy.ndimage.filters.gaussian_filter(phantom.asarray(),fac_smooth))
 rec_space = space
 
-ground_truth = space.element(np.loadtxt('/home/' + path + '/data/SheppLogan/Rotation'))
+
+
+space_init = odl.uniform_discr(
+    min_pt=[-16, -16], max_pt=[16, 16], shape=[256, 256],
+    dtype='float32', interp='linear')
+fac_smooth = 0.8
+template_init = odl.phantom.shepp_logan(space_init, modified=True)
+
+
+val0=-0.7
+val1=0.7
+val2=1.5
+ellipsoids=[[1.00, .6900, .9200, 0.0000, 0.0000, 0],
+            [-.98, .6624, .8740, 0.0000, -.0184, 0],
+            [val0, .1100, .3100, 0.2200, 0.0000, -18],
+            [val0, .1600, .4100, -.2200, 0.0000, 18],
+            [val1, .2100, .2500, 0.0000, 0.3500, 0],
+            [val1, .0460, .0460, 0.0000, 0.1000, 0],
+            [val1, .0460, .0460, 0.0000, -.1000, 0],
+            [val2, .0460, .0230, -.0800, -.6050, 0],
+            [val2, .0230, .0230, 0.0000, -.6060, 0],
+            [val2, .0230, .0460, 0.0600, -.6050, 0]]
+
+template_init=odl.phantom.ellipsoid_phantom(space_init, ellipsoids)
+
+
+
+
+template_init = space_init.element(scipy.ndimage.filters.gaussian_filter(template_init.asarray(),fac_smooth))
+#template_init.show()
+
+padded_op = ResizingOperator(
+        space_init, ran_shp=[2* template_init.shape[0] for _ in range(space_init.ndim)])
+
+template = padded_op(template_init)
+space = template.space
+
+ground_truth = space.element(np.loadtxt('/home/' + path + '/data/SheppLogan/Rot'))
+
 
 # Create the template as the deformed Shepp-Logan phantom
 #template = odl.phantom.transmission.shepp_logan(rec_space, modified=True)
@@ -212,13 +254,14 @@ angle_partition = odl.uniform_partition(0.0, np.pi, num_angles,
 
 # Create 2-D projection domain
 # The length should be 1.5 times of that of the reconstruction space
-detector_partition = odl.uniform_partition(-24, 24, 620)
+#detector_partition = odl.uniform_partition(-24, 24, 620)
+detector_partition = odl.uniform_partition(-32, 32, int(round(space.shape[0]*np.sqrt(2))))
 
 # Create 2-D parallel projection geometry
 geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
 
 # Ray transform aka forward projection. We use ASTRA CUDA backend.
-forward_op = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+forward_op = odl.tomo.RayTransform(space, geometry, impl='astra_cpu')
 
 # Create projection data by calling the op on the phantom
 proj_data = forward_op(ground_truth)
@@ -252,7 +295,7 @@ Reg=odl.deform.RegularityLDDMM(kernel,energy_op.domain)
 
 functional = energy_op + lamb*Reg
 
-##%% Gradient descent
+#%% Gradient descent
 import copy
 vector_fields_list_init=energy_op.domain.zero()
 vector_fields_list=vector_fields_list_init.copy()
@@ -280,11 +323,75 @@ image_N0=odl.deform.ShootTemplateFromVectorFields(vector_fields_list, template)
 #grid_points=compute_grid_deformation_list(vector_fields_list, 1/nb_time_point_int, template.space.points().T)
 ##%%
 for i in range(nb_time_point_int + 1):
-    name = '/home/' + path +'/Results/SheppLogan/Rotation' + 'angles_' + str(num_angles) + '_LDDMM_sigma_' +str(int(sigma))
+    name = '/home/' + path +'/Results/LDDMM/SheppLogan/Rot/Rot' + 'angles_' + str(num_angles) + '_LDDMM_sigma_' +str(int(sigma)) + '__t_' + str(i)
     np.savetxt(name, image_N0[i])
 #
 #
-##%%
+#%% Load results 
+image_N0 = []
+
+for i in range(nb_time_point_int + 1):
+    name = '/home/' + path +'/Results/LDDMM/SheppLogan/Rot/Rot' + 'angles_' + str(num_angles) + '_LDDMM_sigma_' +str(int(sigma)) + '__t_' + str(i)
+    image_N0.append(space.element(np.loadtxt(name)))
+#
+#%% Plot
+mini=-1
+maxi=1
+space_init = odl.uniform_discr(
+    min_pt=[-16, -16], max_pt=[16, 16], shape=[256, 256],
+    dtype='float32', interp='linear')
+
+def restr_op(f):
+    return space_init.element(f.interpolation(space_init.points().T))
+
+name_fig = '/home/barbara/Dropbox/Recherche/mes_publi/ReconstructionDefMod/figures/SheppLogan_LDDMM_'
+for i in range(nb_time_point_int + 1):
+    fig = restr_op(image_N0[i]).show(clim=[mini, maxi])
+    plt.axis('equal')
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    
+    plt.savefig( name_fig + str(i) + '.pdf' )
+    plt.close('all')
+#
+#%% Plot ground truth
+fig = restr_op(ground_truth).show(clim=[mini, maxi])
+plt.axis('equal')
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+
+plt.savefig( name_fig + 'ground_truth' + '.pdf' )
+plt.close('all')
+
+#%% Plot translated data
+mini_d = -7
+maxi_d = 15
+## Create the uniformly distributed directions
+angle_partition = odl.uniform_partition(0.5*np.pi, 1.5*np.pi, num_angles,
+                                    nodes_on_bdry=[(True, True)])
+
+# Create 2-D projection domain
+# The length should be 1.5 times of that of the reconstruction space
+#detector_partition = odl.uniform_partition(-24, 24, 620)
+detector_partition = odl.uniform_partition(-32, 32, int(round(space.shape[0]*np.sqrt(2))))
+
+# Create 2-D parallel projection geometry
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+
+# Ray transform aka forward projection. We use ASTRA CUDA backend.
+forward_op = odl.tomo.RayTransform(space, geometry, impl='astra_cpu')
+
+# Create projection data by calling the op on the phantom
+proj_databis = forward_op(ground_truth)
+name_fig = '/home/barbara/Dropbox/Recherche/mes_publi/ReconstructionDefMod/figures/SheppLogan_Rot_data'
+
+fig = proj_databis.show(clim=[mini_d, maxi_d])
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+
+plt.savefig( name_fig + '.pdf' , transparent = True, bbox_inches='tight')
+plt.close('all')
+
 #mini = 0
 #maxi = 1
 #

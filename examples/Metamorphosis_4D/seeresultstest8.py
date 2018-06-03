@@ -49,9 +49,10 @@ import odl
 import numpy as np
 from matplotlib import pylab as plt
 import os
+import odl.contrib.fom.supervised as supervised
 ##%%
-#namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'barbara'
+#namepath= 'bgris'
 #namepath= 'gris'
 
 ## Data parameters
@@ -68,37 +69,43 @@ index_noise = 2
 
 
 ## The parameter for kernel function
-sigma = 3.0
+sigma = 2.0
 name_sigma=str(int(sigma))
 
-#sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
-#name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
+sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
+name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
 #
-sigmalist = [0.3]
-name_sigma_list=['3e_1' ]
+#sigmalist = [0.3]
+#name_sigma_list=['3e_1' ]
 
 
 niter=200
 epsV=0.02
 epsZ=0.02
 
-
+#
 explistlamb = [1, 3, 5, 7]
 lamblist = [1e-1, 1e-3, 1e-5, 1e-7]
+#explistlamb = [1, 5, 7, 3]
+#lamblist = [1e-1, 1e-5, 1e-7, 1e-3]
 name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
 explisttau = [1, 3, 5, 7]
 taulist = [1e-1, 1e-3, 1e-5, 1e-7]
+#explisttau = [1, 5, 7, 3]
+#taulist = [1e-1, 1e-5, 1e-7, 1e-3]
 name_tau_list =['1e_' + str(ex) for ex in explisttau]
 
-ilamb = 2
-itau = 2
+ilamb = 1
+itau = 1
+comp_ssim = []
+comp_psnr = []
 fom_mat_ssim = np.empty((4,4))
 fom_mat_psnr = np.empty((4,4))
-#for ilamb in range(4):
-#    for itau in range(4):
-for sigma, name_sigma in zip(sigmalist, name_sigma_list):
+#for sigma, name_sigma in zip(sigmalist, name_sigma_list):
+for ilamb in range(4):
+    for itau in range(4):
 
-## Give regularization parameter
+        ## Give regularization parameter
         lamb = lamblist[ilamb]
         #name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
         name_lamb=name_lamb_list[ilamb]
@@ -223,30 +230,36 @@ for sigma, name_sigma in zip(sigmalist, name_sigma_list):
         image_list = []
         template_evo = []
         image_evol = []
-        for i in range(nb_time_point_int + 1):
-#        i = nb_time_point_int
-            image_list.append(rec_space.element(np.loadtxt(path_result + 'Metamorphosis_t_' + str(i))))
-            template_evo.append(rec_space.element(np.loadtxt(path_result + 'Template_t_' + str(i))))
-            image_evol.append(rec_space.element(np.loadtxt(path_result + 'Image_t_' + str(i))))
+        #for i in range(nb_time_point_int + 1):
+        i = nb_time_point_int
+        image_list.append(rec_space.element(np.loadtxt(path_result + 'Metamorphosis_t_' + str(i))))
+        template_evo.append(rec_space.element(np.loadtxt(path_result + 'Template_t_' + str(i))))
+        image_evol.append(rec_space.element(np.loadtxt(path_result + 'Image_t_' + str(i))))
         #
-        
-    
-        ##%% Save final plot 
-        mini = -0.3
-        maxi = 1
-        image_N0_list= [ image_list, template_evo, image_evol]
-        names_list = ['Image', 'Deformation_part', 'template_part']
-        name_exp += '__sigma_' + name_sigma + '__lamb_' + name_lamb + '__tau_' + name_tau 
-        for nameim, imlist in zip(names_list, image_N0_list):
-            plt.figure()
-            plt.imshow(np.rot90(imlist[-1]), cmap='bone',
-               vmin=mini,
-               vmax=maxi, aspect='auto')
-            plt.axis('off')
-            path_dr_re = '/home/bgris/Dropbox/Recherche/mes_publi/ReconstructionMetamorphosis/figures/'
-#            name=path_result + name_exp  + nameim + 'final.png'
-            name=path_dr_re + name_exp  + nameim + 'final.png'
-            plt.savefig(name, bbox_inches='tight')
+        #comp = []
+        #comp_ssim.append(supervised.ssim(image_list[-1], ground_truth))
+        #comp_psnr.append(10.0 * np.log10(1/Norm_init(ground_truth - image_list[-1])))
+        #np.savetxt(path_result + name_exp + 'fom', comp)
+        fom_mat_ssim[ilamb, itau] = supervised.ssim(image_list[-1], ground_truth)
+        fom_mat_psnr[ilamb, itau] = 10.0 * np.log10(1/Norm_init(ground_truth - image_list[-1]))
+       
+#    
+#        ##%% Save final plot 
+#        mini = -0.3
+#        maxi = 1
+#        image_N0_list= [ image_list, template_evo, image_evol]
+#        names_list = ['Image', 'Deformation_part', 'template_part']
+#        name_exp += '__sigma_' + name_sigma + '__lamb_' + name_lamb + '__tau_' + name_tau 
+#        for nameim, imlist in zip(names_list, image_N0_list):
+#            plt.figure()
+#            plt.imshow(np.rot90(imlist[-1]), cmap='bone',
+#               vmin=mini,
+#               vmax=maxi, aspect='auto')
+#            plt.axis('off')
+#            path_dr_re = '/home/bgris/Dropbox/Recherche/mes_publi/ReconstructionMetamorphosis/figures/'
+##            name=path_result + name_exp  + nameim + 'final.png'
+#            name=path_dr_re + name_exp  + nameim + 'final.png'
+#            plt.savefig(name, bbox_inches='tight')
 #        
 #        comp = []
 #        comp.append(supervised.ssim(image_list[-1], ground_truth))
