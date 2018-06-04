@@ -51,7 +51,7 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'gris'
 
 ## Data parameters
 index_name_template = 0
@@ -62,10 +62,10 @@ index_maxangle = 0
 index_noise = 2
 
 ## The parameter for kernel function
-#sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
-#name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
-sigmalist = [1., 2.]
-name_sigma_list=['1', '2']
+#sigmalist = [0.3, 0.6, 1., 2., 3.0, 4., 5., 10.]
+#name_sigma_list=['3e_1','6e_1', '1', '2', '3','4', '5', '10' ]
+sigmalist = [3]
+name_sigma_list=['3']
 
 niter=200
 epsVinit=0.02

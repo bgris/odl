@@ -57,13 +57,13 @@ index_noise = 2
 sigma = 3.0
 name_sigma=str(int(sigma))
 
-niter=500
+niter=100
 epsV=0.02
 epsZ=0.02
 ## Give regularization parameter
 lamb = 1e-5
 name_lamb='1e_' + str(-int(np.log(lamb)/np.log(10)))
-tau = 1e-6
+tau = 1e-5
 name_tau='1e_' + str(-int(np.log(tau)/np.log(10)))
 
 # Give the number of time points
@@ -156,13 +156,14 @@ data=[data_load]
 data_time_points=np.array([1])
 forward_operators=[forward_op]
 Norm=odl.solvers.L2NormSquared(forward_op.range)
+Norm_list = [Norm]
 
 
 ##%% Define energy operator
 
 functional=odl.deform.TemporalAttachmentMetamorphosisGeom(nb_time_point_int,
                             lamb,tau,template ,data,
-                            data_time_points, forward_operators,Norm, kernel,
+                            data_time_points, forward_operators,Norm_list, kernel,
                             domain=None)
 
 
@@ -279,91 +280,91 @@ for i in range(nb_time_point_int + 1):
 
 
 ##%% Plot metamorphosis
-image_N0_list= [image_list, template_evo, image_evol]
-name_plot_list = ['metamorphosis', 'template', 'image']
-proj_template = forward_op(template)
-
-for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
-    rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
-    rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
-    rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
-    rec_result = rec_space.element(image_N0[time_itvs])
-    rec_proj_data = forward_op(rec_result)
-    plt.figure(index, figsize=(24, 24))
-    plt.subplot(3, 3, 1)
-    plt.imshow(np.rot90(template), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
-    plt.colorbar()
-    plt.title(name_plot)
-
-    plt.subplot(3, 3, 2)
-    plt.imshow(np.rot90(rec_result_1), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4))
-
-    plt.subplot(3, 3, 3)
-    plt.imshow(np.rot90(rec_result_2), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
-
-    plt.subplot(3, 3, 4)
-    plt.imshow(np.rot90(rec_result_3), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
-
-    plt.subplot(3, 3, 5)
-    plt.imshow(np.rot90(rec_result), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('Reconstructed by {!r} iters, '
-        '{!r} projs'.format(niter, num_angles))
-
-    plt.subplot(3, 3, 6)
-    plt.imshow(np.rot90(ground_truth), cmap='bone',
-               vmin=mini,
-               vmax=maxi)
-    plt.axis('off')
-    plt.colorbar()
-    plt.title('Ground truth')
-    ##%%
-    plt.subplot(3, 3, 7)
-    plt.plot(np.asarray(data_load)[0], 'b', linewidth=0.5)
-    plt.plot(np.asarray(rec_proj_data)[0], 'r', linewidth=0.5)
-    plt.plot(np.asarray(proj_template)[0], 'k', linewidth=0.5)
-    plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
-    #    plt.title('$\Theta=0^\circ$, b: truth, r: noisy, '
-    #        'g: rec_proj, SNR = {:.3}dB'.format(snr))
-    #    plt.gca().axes.yaxis.set_ticklabels([])
-
-    plt.subplot(3, 3, 8)
-    plt.plot(np.asarray(data_load)[2], 'b', linewidth=0.5)
-    plt.plot(np.asarray(rec_proj_data)[2], 'r', linewidth=0.5)
-    plt.plot(np.asarray(proj_template)[2], 'k', linewidth=0.5)
-    plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
-
-    plt.subplot(3, 3, 9)
-    plt.plot(np.asarray(data_load)[4], 'b', linewidth=0.5)
-    plt.plot(np.asarray(rec_proj_data)[4], 'r', linewidth=0.5)
-    plt.plot(np.asarray(proj_template)[4], 'k', linewidth=0.5)
-    plt.axis([0,int(round(rec_space.shape[0]*np.sqrt(2))), -5, 25]), plt.grid(True, linestyle='--')
-
-
-    name=path_result + name_plot + '.png'
-    plt.savefig(name, bbox_inches='tight')
+#image_N0_list= [image_list, template_evo, image_evol]
+#name_plot_list = ['metamorphosis', 'template', 'image']
+#proj_template = forward_op(template)
+#
+#for index, image_N0, name_plot in zip(range(3), image_N0_list, name_plot_list):
+ #   rec_result_1 = rec_space.element(image_N0[time_itvs // 4])
+ #   rec_result_2 = rec_space.element(image_N0[time_itvs // 4 * 2])
+ #   rec_result_3 = rec_space.element(image_N0[time_itvs // 4 * 3])
+ #   rec_result = rec_space.element(image_N0[time_itvs])
+ #   rec_proj_data = forward_op(rec_result)
+ #   plt.figure(index, figsize=(24, 24))
+ #   plt.subplot(3, 3, 1)
+ #   plt.imshow(np.rot90(template), cmap='bone',
+ #              vmin=mini,
+ #              vmax=maxi)
+ #   plt.axis('off')
+ #   #plt.savefig("/home/chchen/SwedenWork_Chong/NumericalResults_S/LDDMM_results/J_V/template_J.png", bbox_inches='tight')
+ #   plt.colorbar()
+ #   plt.title(name_plot)
+#
+ #   plt.subplot(3, 3, 2)
+ #   plt.imshow(np.rot90(rec_result_1), cmap='bone',
+ #              vmin=mini,
+ #              vmax=maxi)
+#
+ #   plt.axis('off')
+ #   plt.colorbar()
+ #   plt.title('time_pts = {!r}'.format(time_itvs // 4))
+#
+ #   plt.subplot(3, 3, 3)
+ #   plt.imshow(np.rot90(rec_result_2), cmap='bone',
+  #             vmin=mini,
+  #             vmax=maxi)
+  #  plt.axis('off')
+ #   plt.colorbar()
+ #   plt.title('time_pts = {!r}'.format(time_itvs // 4 * 2))
+#
+ #   plt.subplot(3, 3, 4)
+ #   plt.imshow(np.rot90(rec_result_3), cmap='bone',
+ #              vmin=mini,
+ #              vmax=maxi)
+  #  plt.axis('off')
+ #   plt.colorbar()
+  #  plt.title('time_pts = {!r}'.format(time_itvs // 4 * 3))
+#
+ #   plt.subplot(3, 3, 5)
+ #   plt.imshow(np.rot90(rec_result), cmap='bone',
+ #              vmin=mini,
+ #              vmax=maxi)
+ #   plt.axis('off')
+ #   plt.colorbar()
+ #   plt.title('Reconstructed by {!r} iters, '
+ #       '{!r} projs'.format(niter, num_angles))
+#
+ #   plt.subplot(3, 3, 6)
+ #   plt.imshow(np.rot90(ground_truth), cmap='bone',
+ #              vmin=mini,
+ #              vmax=maxi)
+ #   plt.axis('off')
+ #   plt.colorbar()
+ #   plt.title('Ground truth')
+ #   ##%%
+ #   plt.subplot(3, 3, 7)
+ #   plt.plot(np.asarray(data_load)[0], 'b', linewidth=0.5)
+ #   plt.plot(np.asarray(rec_proj_data)[0], 'r', linewidth=0.5)
+ #   plt.plot(np.asarray(proj_template)[0], 'k', linewidth=0.5)
+ #   plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
+ #   #    plt.title('$\Theta=0^\circ$, b: truth, r: noisy, '
+ #   #        'g: rec_proj, SNR = {:.3}dB'.format(snr))
+ #   #    plt.gca().axes.yaxis.set_ticklabels([])
+#
+ #   plt.subplot(3, 3, 8)
+ #   plt.plot(np.asarray(data_load)[2], 'b', linewidth=0.5)
+ #   plt.plot(np.asarray(rec_proj_data)[2], 'r', linewidth=0.5)
+ #   plt.plot(np.asarray(proj_template)[2], 'k', linewidth=0.5)
+ #   plt.axis([0, int(round(rec_space.shape[0]*np.sqrt(2))), -4, 20]), plt.grid(True, linestyle='--')
+#
+ #   plt.subplot(3, 3, 9)
+    #plt.plot(np.asarray(data_load)[4], 'b', linewidth=0.5)
+   # plt.plot(np.asarray(rec_proj_data)[4], 'r', linewidth=0.5)
+  #  plt.plot(np.asarray(proj_template)[4], 'k', linewidth=0.5)
+ #   plt.axis([0,int(round(rec_space.shape[0]*np.sqrt(2))), -5, 25]), plt.grid(True, linestyle='--')
+#
+#
+  #  name=path_result + name_plot + '.png'
+ #   plt.savefig(name, bbox_inches='tight')
 #
 plt.close('all')

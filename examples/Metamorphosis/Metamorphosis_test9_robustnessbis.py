@@ -64,8 +64,8 @@ index_noise = 2
 ## The parameter for kernel function
 sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
 name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
-sigmalist = [0.6]
-name_sigma_list=['6e_1']
+sigmalist = [2.]
+name_sigma_list=['2']
 
 niter=200
 epsVinit=0.02

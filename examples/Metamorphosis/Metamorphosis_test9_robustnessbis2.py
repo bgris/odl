@@ -51,7 +51,7 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'gris'
 
 ## Data parameters
 index_name_template = 0
@@ -63,25 +63,26 @@ index_noise = 2
 ## The parameter for kernel function
 #sigmalist = [0.3, 0.6, 1., 2., 3.0, 5., 10.]
 #name_sigma_list=['3e_1','6e_1', '1', '2', '3', '5', '10' ]
-sigmalist = [5., 10.]
-name_sigma_list=[ '5', '10' ]
+sigmalist = [2.]
+name_sigma_list=['2']
 niter=200
 epsVinit=0.02
 epsZinit=0.002
 ## Give regularization parameter
-#explistlamb = [3]
+explistlamb = [3]
 #explisttau = [1, 3, 5, 7]
-#lamblist = [1e-3]
-#name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
+lamblist = [1e-3]
+name_lamb_list =['1e_' + str(ex) for ex in explistlamb]
 #taulist = [1e-1, 1e-3, 1e-5,1e-7]
 #name_tau_list =['1e_' + str(ex) for ex in explisttau]
 #
-explistlamb = [5]
-lamblist = [1e-5]
-name_lamb_list =['1e_5']
-explisttau = [5]
-taulist = [1e-5]
-name_tau_list =['1e_5']
+#explistlamb = [ 7., 5., 3.]
+#lamblist = [1e-7, 1e-5, 1e-3]
+#name_lamb_list =['1e_7', '1e_5', '1e_3']
+
+explisttau = [3.]
+taulist = [1e-3]
+name_tau_list =['1e_3']
 
 # Give the number of time points
 time_itvs = 20

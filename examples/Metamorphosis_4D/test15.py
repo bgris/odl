@@ -46,8 +46,8 @@ from matplotlib import pylab as plt
 import os
 ##%%
 #namepath= 'barbara'
-namepath= 'bgris'
-#namepath= 'gris'
+#namepath= 'bgris'
+namepath= 'gris'
 
 ## Data parameters
 index_name_template = 0
@@ -63,7 +63,7 @@ index_noise = 2
 
 
 ## The parameter for kernel function
-sigma = 3.0
+sigma = 2.0
 name_sigma=str(int(sigma))
 
 niter = 100 
@@ -277,9 +277,9 @@ for k in range(niter):
         else:
             print("epsV = {} , epsZ = {}".format(epsV, epsZ))
 
-    if (np.mod(k,5) == 0):
-        plt.close('all')
-        functional.ComputeMetamorphosis(X[0], X[1])[-1].show(str(k))
+    #if (np.mod(k,5) == 0):
+    #    plt.close('all')
+    #    functional.ComputeMetamorphosis(X[0], X[1])[-1].show(str(k))
 
 
 
