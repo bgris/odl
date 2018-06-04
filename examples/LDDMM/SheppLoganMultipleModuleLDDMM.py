@@ -134,6 +134,8 @@ space = odl.uniform_discr(
     dtype='float32', interp='linear')
 path = '/home/bgris/data/SheppLoganRotationSmallDef/Images/'
 Name_target = '/home/bgris/data/SheppLoganRotationSmallDef/target_2affine_1rotation_512'
+Name_target = '/home/barbara/data/SheppLoganRotationSmallDef/target_2affine_1rotation_512'
+Name_target = '/home/barbara/data/SheppLogan/Rotation'
 Name_target = path + 'source_5'
 
 
@@ -489,3 +491,85 @@ plt.ylabel('Energy')
 # plt.gca().axes.yaxis.set_ticklabels(['0']+['']*8)
 plt.gca().axes.yaxis.set_ticklabels([])
 plt.grid(True, linestyle='--')
+
+
+#%% Save figures article
+import odl
+import numpy as np
+from matplotlib import pylab as plt
+
+from odl.discr import (uniform_discr, ResizingOperator)
+typefig='pdf'
+name_init_result = '/home/barbara/Results/LDDMM/SheppLogan/Rotation/Indirect/Rotationangles_100_LDDMM_sigma_2_t_'
+name_init_figure = '/home/barbara/Dropbox/Recherche/mes_publi/ReconstructionDefMod/figures/SheppLogan_LDDMM_'
+
+space_init = odl.uniform_discr(
+    min_pt=[-16, -16], max_pt=[16, 16], shape=[512, 512],
+    dtype='float32', interp='linear')
+
+template_init=space_init.element(np.loadtxt(name_init_result + str(0)))
+mini=0
+maxi=1
+
+n_iter = 20
+for t in range(n_iter+1):
+    im = space_init.element(np.loadtxt(name_init_result + str(t)))
+    fig = im.show(clim=[mini,maxi])
+    plt.axis('equal')
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(name_init_figure + str(t) + '.' +typefig, transparent = True, bbox_inches='tight',
+        pad_inches = 0, format='pdf')
+    plt.close('all')
+#
+    
+
+# Target
+if False:
+    Name_target = '/home/barbara/data/SheppLogan/Rotation'
+    im = space_init.element(np.loadtxt(Name_target))
+    fig = im.show(clim=[mini,maxi])
+    plt.axis('equal')
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(name_init_figure + 'ground_truth.'  + typefig, transparent = True, bbox_inches='tight',
+        pad_inches = 0, format='pdf')
+    plt.close('all')
+
+# data
+if False:
+    ##%% Give the number of directions
+    num_angles = 100
+    min_angle = 0.0 * np.pi
+    max_angle = 1. * np.pi
+    
+    # Create the uniformly distributed directions
+    angle_partition = odl.uniform_partition(min_angle, max_angle, num_angles,
+                                        nodes_on_bdry=[(True, True)])
+    
+    # Create 2-D projection domain
+    # The length should be 1.5 times of that of the reconstruction space
+    detector_partition = odl.uniform_partition(-20, 20, int(round(space_init.shape[0]*np.sqrt(2))))
+    
+    # Create 2-D parallel projection geometry
+    geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+    ## Ray transform aka forward projection. We use ASTRA CUDA backend.
+    #forward_op = odl.tomo.RayTransform(space, geometry, impl='astra_cpu') 
+    # Ray transform aka forward projection. We use skimage backend.
+    forward_op = odl.tomo.RayTransform(space_init, geometry, impl='skimage')
+    Name_target = '/home/barbara/data/SheppLogan/Rotation'
+    target = space_init.element(np.loadtxt(Name_target))
+    im = forward_op(target)
+    fig = im.show()
+    #plt.axis('equal')
+    #plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(name_init_figure + 'data.'  + typefig, transparent = True, bbox_inches='tight',
+        pad_inches = 0, format='pdf')
+    plt.close('all')
+
+
+
+
+
+

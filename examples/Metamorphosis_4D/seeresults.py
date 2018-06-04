@@ -42,8 +42,8 @@ import numpy as np
 from matplotlib import pylab as plt
 import os
 ##%%
-#namepath= 'barbara'
-namepath= 'bgris'
+namepath= 'barbara'
+#namepath= 'bgris'
 #namepath= 'gris'
 
 ## Data parameters
@@ -53,14 +53,14 @@ nb_data_point = 10
 indexes_name_ground_truth_timepoints = [i + 1 for i in range(nb_data_point)]
 data_time_points=np.array([ (i+1)/10 for i in range(nb_data_point)])
 
-index_angle = 4
+index_angle = 0
 index_maxangle = 0
 index_noise = 2
 
 
 
 ## The parameter for kernel function
-sigma = 3.0
+sigma = 2.0
 name_sigma=str(int(sigma))
 
 niter=100
@@ -111,7 +111,7 @@ path_result_init = '/home/' + namepath + '/Results/Metamorphosis/test' + str(num
 path_result = path_result_init + name_exp + '__sigma_' + name_sigma + '__lamb_'
 path_result += name_lamb + '__tau_' + name_tau + '__niter_' + str(niter) + '__ntimepoints_' + str(time_itvs) + 'datatimepoints' + str(len(data_time_points)) + '/'
 
-
+#%%
 
 #path_result_init_dropbox = '/home/' + namepath + '/Dropbox/Recherche/mes_publi/Metamorphosis_PDE_ODE/Results_ODE/test6/'
 #path_result_dropbox = path_result_init_dropbox + name_exp + '__sigma_' + name_sigma + '__lamb_'
@@ -210,7 +210,7 @@ mini = -0.3
 maxi = 1
 image_N0_list= [ image_list, template_evo, image_evol]
 names_list = ['Image', 'Deformation part', 'template part']
-fig1 = plt.figure(figsize=(nb_time_point_int+1, 5*4))
+fig1 = plt.figure(figsize=(nb_time_point_int+1, 4))
 #for i in range(nb_time_point_int + 1):
 #    plt.text(-1, -20, 't = ' + str(i/nb_time_point_int), rotation = 90)
 plt.subplot(nb_time_point_int + 1, 4,  1)
@@ -220,15 +220,15 @@ i=0
 for i in range(nb_time_point_int + 1):
     plt.text(-0.2, 0.5 - 1.2*i, 't = ' + str(i/nb_time_point_int), rotation = 90)
 for i in range(nb_time_point_int + 1):
-#    print(i)
+    #    print(i)
 
     if (i < nb_time_point_int):
         plt.subplot(nb_time_point_int + 1, 4, (i+1)*4 + 1)
         plt.imshow(np.rot90(ground_truth_list[i]), cmap='bone',
                vmin=mini,
-               vmax=maxi, aspect='auto')
+               vmax=maxi, aspect='equal')
         plt.axis('off')
-#        plt.text(-3, 0.5, 't = ' + str((i+1)/nb_time_point_int), rotation = 90)
+        #        plt.text(-3, 0.5, 't = ' + str((i+1)/nb_time_point_int), rotation = 90)
 
     for j in range(3):
         im=plt.subplot(nb_time_point_int + 1, 4, i*4 + j+ 2)
@@ -237,44 +237,62 @@ for i in range(nb_time_point_int + 1):
            
         plt.imshow(np.rot90(image_N0_list[j][i]), cmap='bone',
                vmin=mini,
-               vmax=maxi, aspect='auto')
+               vmax=maxi, aspect='equal')
         #if (i > 0 or j > 0):
         plt.axis('off')
         
-    if i==0:
-        plt.subplot(nb_time_point_int + 1, 4, 1)
-        plt.colorbar()
-#        im=plt.subplot(nb_time_point_int + 1, 4, 1)
-#        divider = SubplotDivider(fig1, nb_time_point_int + 1, 4, 1, aspect=True)
-#        ax_cb = LocatableAxes(fig1, divider.get_position())
-#        ax = LocatableAxes(fig1, divider.get_position())
-#        h = [Size.AxesX(ax),  # main axes
-#             Size.Fixed(0.05),  # padding, 0.1 inch
-#             Size.Fixed(0.2),  # colorbar, 0.3 inch
-#             ]
-#    
-#        v = [Size.AxesY(ax)]
-#    
-#        divider.set_horizontal(h)
-#        divider.set_vertical(v)
-#    
-#        ax_cb.set_axes_locator(divider.new_locator(nx=2, ny=0))
-#    
-#        fig1.add_axes(ax_cb)
-#    
-#        ax_cb.axis["left"].toggle(all=False)
-#        ax_cb.axis["right"].toggle(ticks=True)
-#        #ax = plt.gca()  
-#        #divider = make_axes_locatable(ax)
-#        #cax = divider.append_axes("right", size="5%", pad=0.05)
-#        plt.colorbar(im, cax=ax_cb)
-        #cax = plt.axes([0.85, 0.1, 0.075, 0.8])
-        #if (i==0 and j==0):
-        #    plt.colorbar(im)
+    #if i==0:
+    #    plt.subplot(nb_time_point_int + 1, 4, 1)
+    #    plt.colorbar()
+
 name=path_result + 'plot.png'
 plt.savefig(name, bbox_inches='tight')
 
 #
+
+#%% plot result figure by figure
+typefig = 'pdf'
+mini = -0.7
+maxi = 1
+image_N0_list= [ image_list, template_evo, image_evol]
+names_list = ['Image', 'Deformation_part', 'template_part']
+
+    #    print(i)
+
+
+for j in range(3):
+    for i in range(nb_time_point_int + 1):
+        fig = image_N0_list[j][i].show(clim=[mini, maxi])
+        plt.axis('off')
+        fig.delaxes(fig.axes[1])
+        plt.savefig(path_result + names_list[j] + '__t_' + str(i) + '.' + typefig, transparent = True, format=typefig, bbox_inches='tight',
+                    pad_inches = 0)
+        plt.close('all')
+
+#
+
+#%% plot ground truth, figure by figure
+
+for i in range(nb_time_point_int):
+    fig = ground_truth_list[i].show(clim=[mini, maxi])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    plt.savefig(path_result + 'ground_truth' + '__t_' + str(i+1) + '.' + typefig, transparent = True, format=typefig, bbox_inches='tight',
+                pad_inches = 0)
+    plt.close('all')
+
+#
+
+#%% empty figure
+fig=plt.figure()
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+plt.savefig(path_result + 'empty' + '.' + typefig, transparent = True, format=typefig, bbox_inches='tight',
+            pad_inches = 0)
+plt.close('all')
+
+
+
 #%% plot data
 i=0
 plt.figure(figsize=(1, 15))
@@ -299,6 +317,86 @@ fig = data.show(clim=[mini, maxi])
 name=path_result + '/plotfulldata.png'
 #plt.axis([0, 100, 0, 20])
 fig.savefig(name)
+
+#%% Load data
+name_data0 = 'temporal__t_'
+name_data1 = 'num_angles_10_min_angle_0_max_angle_pi_noise_0_25randompartition'
+
+nb_data = 10
+
+
+namedata =  path_data + name_val + 'num_angles_' + str(num_angles) + '_min_angle_' + miniangle + '_max_angle_'
+namedata += maxiangle + 'randompartition'
+
+list_angles_tot = np.loadtxt(namedata + 'angles')
+detector_partition = odl.uniform_partition(-24, 24, int(round(rec_space.shape[0]*np.sqrt(2))))
+
+#array_data = np.empty((num_angles * data_time_points, detector_partition.points().shape[0]))
+
+inter_angle = odl.set.domain.IntervalProd(min_angle, max_angle)
+grid = odl.discr.grid.RectGrid(list_angles_tot)
+angle_partition = odl.discr.partition.RectPartition(inter_angle, grid)
+
+
+## Create 2-D projection domain
+## The length should be 1.5 times of that of the reconstruction space
+
+## Create 2-D parallel projection geometry
+geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+
+## Ray transform aka forward projection. We use ASTRA CUDA backend.
+forward_op_tot = odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu')
+
+
+
+data_space_tot = forward_op_tot.range
+
+
+list_data = []
+list_embedded_data = []
+list_forward_op = []
+
+for i in range(nb_data):
+    name = path_data + name_data0 +str(i+1) + name_data1
+    array_data_k = np.zeros((num_angles * (nb_data), detector_partition.points().shape[0]))
+    array_data_k[(i)*num_angles : (i+1)*num_angles, :] = np.loadtxt(name)
+    list_embedded_data.append(data_space_tot.element(array_data_k).copy())
+    inter_angle = odl.set.domain.IntervalProd(list_angles_tot[i * num_angles], list_angles_tot[(i+1) * num_angles - 1])
+    grid_tmp = odl.discr.grid.RectGrid(list_angles_tot[i*num_angles : (i+1)*num_angles])
+    angle_partition = odl.discr.partition.RectPartition(inter_angle, grid_tmp)
+    geometry = odl.tomo.Parallel2dGeometry(angle_partition, detector_partition)
+    list_forward_op.append(odl.tomo.RayTransform(rec_space, geometry, impl='astra_cpu'))
+    list_data.append(list_forward_op[i].range.element(np.loadtxt(name)))
+    
+#
+
+#%%
+
+path_result_init = '/home/barbara/Dropbox/Recherche/mes_publi/ReconstructionMetamorphosis/Paper/figures/'
+mini = -2
+maxi = 15
+for i in range(nb_data):
+    image  = list_embedded_data[i]
+    fig = image.show(clim=[mini, maxi])
+    plt.axis('off')
+    fig.delaxes(fig.axes[1])
+    name=path_result_init + 'data_' + str(i+1) + '.pdf'
+    plt.savefig(name, transparent = True, bbox_inches='tight',
+    pad_inches = 0)
+    plt.close('all')
+#
+
+#%% plot data concatenated 
+
+image = sum(datak for datak in list_embedded_data)
+fig = image.show(clim=[mini, maxi])
+plt.axis('off')
+fig.delaxes(fig.axes[1])
+name=path_result_init + 'data_concatenated' + '.pdf'
+plt.savefig(name, transparent = True, bbox_inches='tight',
+pad_inches = 0)
+plt.close('all')
+
 
 #%% plot data
 k =9

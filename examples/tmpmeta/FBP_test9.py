@@ -168,7 +168,7 @@ data_load = ray_trafo.range.element(np.loadtxt(path_data + name_exp))
 data=data_load.copy()
 #data=[proj_data]
 
-
+#%%
 # --- Create functionals for solving the optimization problem ---
 
 # Functional to enforce 0 <= x <= 1
@@ -189,6 +189,6 @@ ramp_filter = fourier.inverse * ramp_function * fourier
 # with the ramp filter.
 fbp = ray_trafo.adjoint * ramp_filter
 xxxx = fbp(data)
-
-np.savetxt(path_result + '_FBP_'  + 'num_angles_' + str(num_angles), x)
+#%%
+np.savetxt(path_result + name_exp + '_FBP_'  + 'num_angles_' + str(num_angles) +'maxangle' + '05pi' , xxxx)
 
