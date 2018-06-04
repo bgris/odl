@@ -100,7 +100,7 @@ def ShootSourceTermBackwardlist(vector_field_list, zeta):
         for j in range(i):
             temp=space_zeta.element(
                 _linear_deform(temp,
-                               inv_N * vector_field_list[j])).copy()
+                               inv_N * vector_field_list[i-1-j])).copy()
         zeta_transp[i]=temp.copy()
     return zeta_transp
 
